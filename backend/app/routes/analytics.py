@@ -1,0 +1,242 @@
+# File: backend/app/routes/analytics.py
+# Purpose: Analytics endpoints for Lecturer and HOD dashboards.
+#          Aggregates Two-Tower classification results from engagement_logs
+#          to surface at-risk statistics, comprehension trends, and course-level metrics.
+
+from collections import defaultdict
+
+from fastapi import APIRouter, Depends, HTTPException
+from app.core.security import get_current_user, require_role
+from app.database import get_admin_client
+
+router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+
+
+# ─── Lecturer Analytics ───────────────────────────────────────────────────────
+
+@router.get("/course/{course_id}/summary")
+def course_summary(course_id: str, user=Depends(get_current_user)):
+    """
+    Returns an engagement + comprehension summary for a single course.
+    Used by the Lecturer dashboard overview card.
+    """
+    admin = get_admin_client()
+
+    # Verify course belongs to the user's department
+    try:
+        course_resp = (
+            admin.table("courses")
+            .select("id, department, lecturer_id")
+            .eq("id", course_id)
+            .execute()
+        )
+        course_data = getattr(course_resp, "data", []) or []
+        if not course_data:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        course = course_data[0]
+        if course.get("department") != user.get("department"):
+            raise HTTPException(status_code=403, detail="Access denied to this course.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    try:
+        logs = (
+            admin.table("engagement_logs")
+            .select("student_id, engagement_class, comprehension_class, created_at")
+            .eq("course_id", course_id)
+            .execute()
+        ).data
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query engagement logs: {exc}")
+
+    if not logs:
+        return {"course_id": course_id, "total_students": 0, "summary": {}}
+
+    total     = len(logs)
+    at_risk   = sum(1 for r in logs if r["engagement_class"] == 0)
+    moderate  = sum(1 for r in logs if r["engagement_class"] == 1)
+    high      = sum(1 for r in logs if r["engagement_class"] == 2)
+    low_comp  = sum(1 for r in logs if r["comprehension_class"] == 0)
+    mod_comp  = sum(1 for r in logs if r["comprehension_class"] == 1)
+    good_comp = sum(1 for r in logs if r["comprehension_class"] == 2)
+    student_ids = {record["student_id"] for record in logs if record.get("student_id")}
+
+    return {
+        "course_id": course_id,
+        "total_logs": total,
+        "unique_students": len(student_ids),
+        "engagement": {
+            "at_risk":   {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
+            "moderate":  {"count": moderate, "pct": round(moderate / total * 100, 1)},
+            "highly_engaged": {"count": high,"pct": round(high     / total * 100, 1)},
+        },
+        "comprehension": {
+            "low":      {"count": low_comp,  "pct": round(low_comp  / total * 100, 1)},
+            "moderate": {"count": mod_comp,  "pct": round(mod_comp  / total * 100, 1)},
+            "good":     {"count": good_comp, "pct": round(good_comp / total * 100, 1)},
+        },
+    }
+
+
+@router.get("/course/{course_id}/at-risk")
+def course_at_risk(course_id: str, user=Depends(get_current_user)):
+    """
+    Returns all students flagged as At-Risk (engagement_class=0)
+    in a course — used to trigger intervention alerts on the lecturer dashboard.
+    """
+    admin = get_admin_client()
+
+    # Verify course belongs to the user's department
+    try:
+        course_resp = (
+            admin.table("courses")
+            .select("id, department")
+            .eq("id", course_id)
+            .execute()
+        )
+        course_data = getattr(course_resp, "data", []) or []
+        if not course_data:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        if course_data[0].get("department") != user.get("department"):
+            raise HTTPException(status_code=403, detail="Access denied to this course.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    try:
+        resp = (
+            admin.table("engagement_logs")
+            .select("student_id, comprehension_class, comprehension_label, created_at")
+            .eq("course_id", course_id)
+            .eq("engagement_class", 0)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return {
+            "course_id": course_id,
+            "at_risk_count": len(resp.data),
+            "students": resp.data,
+        }
+    except Exception as exc:
+        raise HTTPException(500, detail=str(exc))
+
+
+@router.get("/course/{course_id}/trend")
+def course_engagement_trend(course_id: str, limit: int = 30, user=Depends(get_current_user)):
+    """
+    Returns a time-series of engagement class counts for chart rendering
+    on the lecturer dashboard (last N records ordered by time).
+    """
+    limit = min(limit, 100)
+
+    admin = get_admin_client()
+
+    # Verify course belongs to the user's department
+    try:
+        course_resp = (
+            admin.table("courses")
+            .select("id, department")
+            .eq("id", course_id)
+            .execute()
+        )
+        course_data = getattr(course_resp, "data", []) or []
+        if not course_data:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        if course_data[0].get("department") != user.get("department"):
+            raise HTTPException(status_code=403, detail="Access denied to this course.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    try:
+        resp = (
+            admin.table("engagement_logs")
+            .select("engagement_class, comprehension_class, created_at")
+            .eq("course_id", course_id)
+            .order("created_at", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        return {"course_id": course_id, "trend": resp.data}
+    except Exception as exc:
+        raise HTTPException(500, detail=str(exc))
+
+
+# ─── HOD Analytics ────────────────────────────────────────────────────────────
+
+@router.get("/department/summary")
+def department_summary(user=Depends(require_role("hod"))):
+    """
+    Returns aggregated engagement statistics across courses in the HOD's department.
+    Scoped to the logged-in HOD's department.
+    """
+    if not user.get("department"):
+        raise HTTPException(status_code=400, detail="HOD department is not configured.")
+
+    admin = get_admin_client()
+
+    # Get courses in the HOD's department
+    try:
+        courses_resp = (
+            admin.table("courses")
+            .select("id")
+            .eq("department", user["department"])
+            .execute()
+        )
+        dept_courses = getattr(courses_resp, "data", []) or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query department courses: {exc}")
+
+    if not dept_courses:
+        return {"total_records": 0, "department_engagement": {}, "by_course": {}}
+
+    course_ids = [c["id"] for c in dept_courses]
+
+    # Fetch engagement logs for all department courses
+    all_logs = []
+    for cid in course_ids:
+        try:
+            resp = (
+                admin.table("engagement_logs")
+                .select("course_id, engagement_class, comprehension_class")
+                .eq("course_id", cid)
+                .execute()
+            )
+            logs_data = getattr(resp, "data", []) or []
+            all_logs.extend(logs_data)
+        except Exception:
+            continue
+
+    if not all_logs:
+        return {"total_records": 0, "department_engagement": {}, "by_course": {}}
+
+    total    = len(all_logs)
+    at_risk  = sum(1 for r in all_logs if r["engagement_class"] == 0)
+    moderate = sum(1 for r in all_logs if r["engagement_class"] == 1)
+    high     = sum(1 for r in all_logs if r["engagement_class"] == 2)
+
+    # Per-course breakdown
+    by_course = defaultdict(lambda: {"at_risk": 0, "moderate": 0, "high": 0, "total": 0})
+    for r in all_logs:
+        cid = r["course_id"]
+        by_course[cid]["total"] += 1
+        if r["engagement_class"] == 0:
+            by_course[cid]["at_risk"] += 1
+        elif r["engagement_class"] == 1:
+            by_course[cid]["moderate"] += 1
+        else:
+            by_course[cid]["high"] += 1
+
+    return {
+        "total_records": total,
+        "department_engagement": {
+            "at_risk":  {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
+            "moderate": {"count": moderate, "pct": round(moderate / total * 100, 1)},
+            "highly_engaged": {"count": high,"pct": round(high    / total * 100, 1)},
+        },
+        "by_course": dict(by_course),
+    }

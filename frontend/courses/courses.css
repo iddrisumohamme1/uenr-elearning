@@ -1,0 +1,91 @@
+/* 
+   COURSES MODULE STYLES
+   frontend/courses/courses.css
+   Sidebar styles defined in shared/sidebar.css
+*/
+
+.courses-container { display: flex; min-height: 100vh; }
+
+.courses-content { flex: 1; padding: 3rem; }
+
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; }
+
+.search-bar { margin-bottom: 1.5rem; }
+.search-bar input {
+    width: 100%;
+    max-width: 500px;
+    padding: 0.85rem 1.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-full);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.search-bar input:focus {
+    border-color: var(--clr-primary);
+    box-shadow: var(--ring);
+    outline: none;
+}
+.search-bar input::placeholder { color: var(--text-muted); }
+
+.tab-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+.tab-btn {
+    padding: 0.6rem 1.25rem;
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all var(--t-fast);
+}
+.tab-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.tab-btn.active { background: var(--clr-primary); color: white; border-color: var(--clr-primary); }
+
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+.course-card {
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1.5rem;
+    transition: all var(--t-base);
+}
+.course-card:hover { border-color: var(--clr-primary); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+.course-code { font-size: 0.75rem; font-weight: 800; color: var(--clr-primary); margin-bottom: 0.5rem; display: block; }
+.course-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+.course-lecturer { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+
+.btn-enroll {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--grad-primary);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform var(--t-fast);
+}
+.btn-enroll:hover { transform: translateY(-1px); }
+.btn-enroll.enrolled {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--clr-success);
+    border: 1px solid var(--clr-success);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .courses-content { padding: 1.5rem; }
+    .courses-grid { grid-template-columns: 1fr; }
+    .search-bar input { max-width: 100%; }
+}

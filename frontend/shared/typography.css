@@ -1,0 +1,41 @@
+/* SHARED TYPOGRAPHY */
+h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800}
+h2{font-size:clamp(1.5rem,3vw,2.25rem);font-weight:700}
+h3{font-size:1.5rem;font-weight:700}
+h4{font-size:1.25rem;font-weight:600}
+h5{font-size:1.125rem;font-weight:600}
+.text-gradient{background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.text-muted{color:var(--text-muted)}
+.text-secondary{color:var(--text-secondary)}
+.text-success{color:var(--clr-success)}
+.text-danger{color:var(--clr-danger)}
+.text-warning{color:var(--clr-warning)}
+
+/* ==========================================================================
+   SHARED UI UTILITIES
+   Reusable, theme-aware components available on every page that imports
+   the shared design system (badges, glass cards, spinners, skeletons,
+   entrance animations). Keeps individual page styles lean.
+   ========================================================================== */
+
+/* Status pills / badges */
+.badge{display:inline-flex;align-items:center;gap:var(--s2);padding:.35em .8em;border-radius:var(--r-full);font-size:.75rem;font-weight:700;letter-spacing:.02em;line-height:1;border:1px solid transparent}
+.badge--primary{background:var(--primary-soft);color:var(--clr-primary-light);border-color:var(--border-focus)}
+.badge--success{background:var(--success-soft);color:var(--clr-success)}
+.badge--warning{background:var(--warning-soft);color:var(--clr-warning)}
+.badge--danger {background:var(--danger-soft); color:var(--clr-danger)}
+
+/* Glass card — translucent, blurred, lifts on hover */
+.glass{background:var(--bg-glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--r-xl)}
+.hoverable{transition:transform var(--t-base),box-shadow var(--t-base),border-color var(--t-base)}
+.hoverable:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--border-strong)}
+
+/* Entrance animations */
+.fade-in{animation:fadeIn var(--t-slow) both}
+.fade-in-up{animation:fadeInUp var(--t-slow) both}
+.fade-in-up:nth-child(2){animation-delay:60ms}
+.fade-in-up:nth-child(3){animation-delay:120ms}
+.fade-in-up:nth-child(4){animation-delay:180ms}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ML model files (large, not needed in repo)
+ml/*.h5
+ml/*.keras
+ml/*.pb
+ml/checkpoints/
+ml/saved_models/
+ml/data/*.csv
+ml/data/*.pkl
+ml/data/*.npy
+ml/notebooks/.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Supabase local
+supabase/.temp/
+supabase/.env

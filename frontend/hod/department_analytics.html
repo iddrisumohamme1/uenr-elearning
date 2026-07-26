@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Analytics - HOD</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link active"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Departmental Performance</h1>
+                <p class="text-muted" id="dept-subtitle">Aggregated data across all courses</p>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Courses</h3>
+                    <p class="stat-value" id="stat-total-courses">--</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Engagement Logs</h3>
+                    <p class="stat-value" id="stat-total-logs">--</p>
+                </div>
+                <div class="stat-card">
+                    <h3>At-Risk Students</h3>
+                    <p class="stat-value text-danger" id="stat-at-risk">--</p>
+                </div>
+            </div>
+
+            <div class="stats-grid dist-grid">
+                <div class="stat-card">
+                    <h3>Engagement Distribution</h3>
+                    <div class="engagement-bars" id="engagement-bars">
+                        <div class="bar-row">
+                            <span class="bar-label">At-Risk</span>
+                            <div class="bar-track"><div class="bar-fill bar-danger" id="bar-at-risk"></div></div>
+                            <span class="bar-pct" id="pct-at-risk">0%</span>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label">Moderate</span>
+                            <div class="bar-track"><div class="bar-fill bar-warning" id="bar-moderate"></div></div>
+                            <span class="bar-pct" id="pct-moderate">0%</span>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label">Highly Engaged</span>
+                            <div class="bar-track"><div class="bar-fill bar-success" id="bar-high"></div></div>
+                            <span class="bar-pct" id="pct-high">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>Comprehension Distribution</h3>
+                    <div class="engagement-bars" id="comprehension-bars">
+                        <div class="bar-row">
+                            <span class="bar-label">Low</span>
+                            <div class="bar-track"><div class="bar-fill bar-danger" id="bar-low-comp"></div></div>
+                            <span class="bar-pct" id="pct-low-comp">0%</span>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label">Moderate</span>
+                            <div class="bar-track"><div class="bar-fill bar-warning" id="bar-mod-comp"></div></div>
+                            <span class="bar-pct" id="pct-mod-comp">0%</span>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label">Good</span>
+                            <div class="bar-track"><div class="bar-fill bar-success" id="bar-good-comp"></div></div>
+                            <span class="bar-pct" id="pct-good-comp">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="dept-summary">
+                <div class="section-header">
+                    <div>
+                        <h2>Course-wise Metrics</h2>
+                        <p class="text-muted">Engagement breakdown per course in your department.</p>
+                    </div>
+                </div>
+                <div class="data-table analytics-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Total Logs</th>
+                                <th>At-Risk</th>
+                                <th>Moderate</th>
+                                <th>High</th>
+                                <th>Health</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-table-body">
+                            <tr>
+                                <td colspan="6" class="table-loading">
+                                    <div class="loading-wrapper">
+                                        <div class="spinner spinner-sm"></div>
+                                        <p>Loading course data...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="dept-summary">
+                <div class="section-header">
+                    <div>
+                        <h2>At-Risk Students</h2>
+                        <p class="text-muted">Students flagged across all department courses.</p>
+                    </div>
+                </div>
+                <div id="at-risk-list" class="course-list">
+                    <div class="loading-wrapper">
+                        <div class="spinner"></div>
+                        <p>Loading at-risk students...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="department_analytics.js"></script>
+</body>
+</html>

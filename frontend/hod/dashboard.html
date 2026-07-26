@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOD Dashboard - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link active"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar top-bar--split">
+                <div>
+                    <h1>HOD Dashboard</h1>
+                    <p class="text-muted" id="dept-name">Loading department...</p>
+                </div>
+                <div class="user-profile">
+                    <span id="user-name"></span>
+                    <div class="avatar" id="user-avatar"></div>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Active Courses</h3>
+                    <p class="stat-value" id="stat-courses">--</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Engagement Score</h3>
+                    <p class="stat-value" id="stat-engagement">--%</p>
+                </div>
+                <div class="stat-card">
+                    <h3>At-Risk Students</h3>
+                    <p class="stat-value text-danger" id="stat-at-risk">--</p>
+                </div>
+            </div>
+
+            <section class="dept-summary">
+                <div class="section-header">
+                    <div>
+                        <h2>Top Performing Courses</h2>
+                        <p class="text-muted">Courses with the highest engagement in your department.</p>
+                    </div>
+                </div>
+                <div id="top-courses-list" class="course-list">
+                    <div class="loading-wrapper">
+                        <div class="spinner"></div>
+                        <p>Loading top courses...</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dept-summary">
+                <div class="section-header">
+                    <div>
+                        <h2>Department Courses</h2>
+                        <p class="text-muted">Courses currently assigned to your department lecturers.</p>
+                    </div>
+                    <div class="section-actions">
+                        <a href="upload.html" class="btn-auth btn-sm">Upload Material</a>
+                        <a href="create_course.html" class="btn-auth btn-sm">Add New Course</a>
+                    </div>
+                </div>
+                <div id="hod-course-list" class="course-list">
+                    <div class="loading-wrapper">
+                        <div class="spinner"></div>
+                        <p>Loading department courses...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

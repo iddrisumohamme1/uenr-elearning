@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="auth.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <button class="auth-theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon">🌙</span>
+    </button>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-header">
+                <span class="auth-logo">🎓</span>
+                <h1 class="auth-title">Welcome </h1>
+                <p class="text-muted">Enter your credentials to access your portal</p>
+            </div>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" id="email" placeholder="student@uenr.edu.gh" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="password" placeholder="••••••••" required>
+                </div>
+                
+                <button type="submit" class="btn-auth">Sign In</button>
+            </form>
+            <div class="auth-footer">
+                Don't have an account? <a href="register.html" class="auth-link">Register here</a>
+            </div>
+        </div>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script>
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const next = getTheme() === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+            document.querySelector('.theme-icon').textContent = next === 'dark' ? '🌙' : '☀️';
+        });
+        document.querySelector('.theme-icon').textContent = getTheme() === 'dark' ? '🌙' : '☀️';
+    </script>
+    <script src="auth.js"></script>
+</body>
+</html>

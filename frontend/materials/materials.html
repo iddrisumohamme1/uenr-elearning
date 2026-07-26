@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Material - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="materials.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="viewer-container">
+        <!-- Top Bar -->
+        <header class="viewer-header">
+            <div class="header-left">
+                <a href="../student/dashboard.html" class="back-btn">← Back</a>
+                <h1 id="material-title">Course Material</h1>
+            </div>
+            <div class="engagement-status">
+                <span class="status-dot"></span>
+                <span id="engagement-label">Tracking Engagement...</span>
+            </div>
+        </header>
+
+        <div class="viewer-layout">
+            <!-- Content Area -->
+            <main class="content-area" id="content-viewer">
+                <div class="slide-content" id="content-placeholder">
+                    <div class="loading-wrapper">
+                        <div class="spinner"></div>
+                        <p>Loading lecture content...</p>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="viewer-sidebar">
+                <div class="sidebar-section">
+                    <h3>Topics</h3>
+                    <div id="topic-list" class="topic-list">
+                        <!-- Topics dynamically loaded -->
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Materials</h3>
+                    <div id="material-list" class="topic-list">
+                        <!-- Material list loaded here -->
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Engagement Pulse</h3>
+                    <div class="pulse-container">
+                        <div class="pulse-bar" id="pulse-bar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-muted" style="font-size: 0.75rem">We're monitoring your activity to help you stay focused.</p>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Micro Question Popup -->
+    <div id="micro-question-modal" class="modal">
+        <div class="modal-content">
+            <div class="mq-badge">Quick Comprehension Check</div>
+            <p id="mq-difficulty" class="mq-meta">Question 1 of 3</p>
+            <h3 id="question-text">Loading question...</h3>
+            <div id="option-grid" class="option-grid"></div>
+        </div>
+    </div>
+
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="materials.js"></script>
+</body>
+</html>

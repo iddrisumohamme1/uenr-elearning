@@ -1,0 +1,163 @@
+/* 
+   QUIZ MODULE LOGIC
+   frontend/quiz/quiz.js
+*/
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await requireSession('student').catch(() => null);
+    if (!user) return;
+
+    initProfilePopup();
+
+    const courseSelectorEl = document.getElementById('course-selector');
+    const quizAreaEl = document.getElementById('quiz-area');
+
+    let allQuizzes = [];
+    let currentQuiz = null;
+    let currentQuestionIndex = 0;
+    let selectedOption = null;
+    let score = 0;
+    let answers = [];
+    let timerInterval = null;
+    let timeRemaining = 0;
+    let quizStartTime = 0;
+
+    async function loadCourses() {
+        try {
+            const res = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
+            if (!res.ok) throw new Error('Failed');
+            const courses = await res.json();
+            const list = document.getElementById('course-list');
+
+            if (!courses.length) {
+                list.innerHTML = '<p class="text-muted">No courses enrolled yet. <a href="../courses/courses.html">Browse courses</a></p>';
+                return;
+            }
+
+            list.innerHTML = courses.map(course => `
+                <div class="course-card" data-course-id="${course.id}">
+                    <h3>${course.title}</h3>
+                    <p>${course.lecturer_name || 'UENR'}</p>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.course-card').forEach(card => {
+                card.addEventListener('click', () => loadQuizzesForCourse(card.dataset.courseId, card.querySelector('h3').textContent));
+            });
+        } catch (err) {
+            console.error('Error loading courses:', err);
+            document.getElementById('course-list').innerHTML = '<p class="text-muted">Unable to load courses.</p>';
+        }
+    }
+
+    async function loadQuizzesForCourse(courseId, courseTitle) {
+        try {
+            const res = await authFetch(`${API_BASE}/api/quiz/course/${courseId}`);
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            allQuizzes = (data.quizzes || []).filter(q => q.questions && q.questions.length > 0);
+
+            if (!allQuizzes.length) {
+                showToast('No quizzes available for this course yet.', 'warning');
+                return;
+            }
+
+            currentQuiz = allQuizzes[0];
+            currentQuestionIndex = 0;
+            score = 0;
+            answers = new Array(currentQuiz.questions.length).fill(null);
+
+            courseSelectorEl.style.display = 'none';
+            quizAreaEl.style.display = 'block';
+            document.getElementById('quiz-title').textContent = currentQuiz.title || `Quiz: ${courseTitle}`;
+
+            quizStartTime = Date.now();
+            startTimer(currentQuiz.time_limit || 15);
+            loadQuestion();
+        } catch (err) {
+            console.error('Error loading quizzes:', err);
+            showToast('Unable to load quizzes. Please try again.', 'error');
+        }
+    }
+
+    function startTimer(minutes) {
+        timeRemaining = minutes * 60;
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            updateTimerDisplay();
+            if (timeRemaining <= 60) document.getElementById('quiz-timer').classList.add('warning');
+            if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(); }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const min = Math.floor(timeRemaining / 60);
+        const sec = timeRemaining % 60;
+        document.getElementById('quiz-timer').textContent = `Time Left: ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function loadQuestion() {
+        const q = currentQuiz.questions[currentQuestionIndex];
+        selectedOption = answers[currentQuestionIndex];
+
+        document.querySelector('.question-num').textContent = `Question ${currentQuestionIndex + 1} of ${currentQuiz.questions.length}`;
+        document.getElementById('question-text').textContent = q.question_text;
+        document.getElementById('progress-text').textContent = `${currentQuestionIndex + 1} / ${currentQuiz.questions.length}`;
+
+        document.getElementById('options-grid').innerHTML = q.options.map((opt, i) => `
+            <div class="option-card ${selectedOption === i ? 'selected' : ''}" data-index="${i}">${opt}</div>
+        `).join('');
+
+        document.querySelectorAll('.option-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedOption = parseInt(card.dataset.index);
+                answers[currentQuestionIndex] = selectedOption;
+            });
+        });
+
+        document.getElementById('prev-btn').style.display = currentQuestionIndex > 0 ? 'inline-block' : 'none';
+        document.getElementById('next-btn').textContent = currentQuestionIndex === currentQuiz.questions.length - 1 ? 'Submit Quiz' : 'Next';
+    }
+
+    document.getElementById('prev-btn').addEventListener('click', () => {
+        if (currentQuestionIndex > 0) {
+            answers[currentQuestionIndex] = selectedOption;
+            currentQuestionIndex--;
+            loadQuestion();
+        }
+    });
+
+    document.getElementById('next-btn').addEventListener('click', () => {
+        if (selectedOption === null) { showToast('Please select an option.', 'warning'); return; }
+        answers[currentQuestionIndex] = selectedOption;
+        if (currentQuestionIndex === currentQuiz.questions.length - 1) submitQuiz();
+        else { currentQuestionIndex++; loadQuestion(); }
+    });
+
+    async function submitQuiz() {
+        if (timerInterval) clearInterval(timerInterval);
+        score = 0;
+        currentQuiz.questions.forEach((q, i) => { if (answers[i] === q.correct_option) score++; });
+        const finalScore = Math.round((score / currentQuiz.questions.length) * 100);
+
+        try {
+            await authFetch(`${API_BASE}/api/quiz/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: user.id, course_id: currentQuiz.course_id,
+                    quiz_id: currentQuiz.id, score: finalScore,
+                    max_score: currentQuiz.questions.length,
+                    time_taken: Math.round((Date.now() - quizStartTime) / 1000)
+                })
+            });
+        } catch (err) { console.error('Submission error:', err); }
+
+        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${score}&total=${currentQuiz.questions.length}`;
+    }
+
+    loadCourses();
+});

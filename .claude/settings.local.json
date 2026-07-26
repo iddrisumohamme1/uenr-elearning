@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/Scripts/python.exe -m py_compile backend/app/main.py backend/app/database.py backend/app/routes/auth.py backend/app/core/config.py backend/app/core/security.py backend/app/schemas/auth.py)",
+      "Bash(venv/Scripts/python.exe -c \"import fastapi, uvicorn, supabase, pydantic_settings; print\\('DEPS_OK'\\)\")",
+      "Bash(../venv/Scripts/python.exe -c \"from app.main import app; from fastapi.testclient import TestClient; c=TestClient\\(app\\); r=c.get\\('/api/health'\\); print\\('HEALTH', r.status_code, r.json\\(\\)\\); print\\('ROUTES', [route.path for route in app.routes if 'auth' in route.path]\\)\")"
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+/*
+ * ==============================================================================
+ * SHARED SPINNER / LOADING STATES
+ * ==============================================================================
+ * File: frontend/shared/spinner.css
+ * Purpose: Reusable loading spinner and skeleton states for all pages.
+ * ==============================================================================
+ */
+
+/* ── Spinner (CSS-only, no images) ─────────────────────────────────────── */
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--clr-primary);
+    border-radius: var(--r-full);
+    animation: spin 0.7s linear infinite;
+}
+
+.spinner-sm {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+}
+
+.spinner-lg {
+    width: 52px;
+    height: 52px;
+    border-width: 4px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Loading wrapper (centered spinner + text) ─────────────────────────── */
+.loading-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s4);
+    padding: var(--s10) var(--s6);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Full-height centered loader (for pages loading initial data) */
+.loading-full {
+    min-height: 50vh;
+}
+
+/* ── Skeleton shimmer (for card/list placeholders) ─────────────────────── */
+.skeleton {
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255,255,255,0.04) 40%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 60%,
+        transparent 100%
+    );
+    animation: skeleton-shimmer 1.5s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+}
+
+.skeleton-text {
+    height: 14px;
+    margin-bottom: var(--s2);
+    border-radius: var(--r-sm);
+}
+
+.skeleton-text:last-child {
+    width: 60%;
+}
+
+.skeleton-card {
+    padding: var(--s5);
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
+}
+
+/* ── Inline button spinner ─────────────────────────────────────────────── */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-loading .spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -10px;
+    margin-left: -10px;
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+    border-color: rgba(255,255,255,0.3);
+    border-top-color: white;
+}
+
+/* ── Dark mode shimmer tint ── */
+[data-theme="light"] .skeleton::after {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0,0,0,0.02) 40%,
+        rgba(0,0,0,0.05) 50%,
+        rgba(0,0,0,0.02) 60%,
+        transparent 100%
+    );
+}

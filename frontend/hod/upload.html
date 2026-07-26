@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Material - HOD</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link active"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Upload Lecture Material</h1>
+                <p class="text-muted">Upload materials for department courses in your faculty.</p>
+            </header>
+
+            <section class="upload-section">
+                <div class="stat-card">
+                    <form id="upload-form">
+                        <div class="form-group">
+                            <label class="form-label">Course</label>
+                            <select id="course-select" class="form-input" required>
+                                <option value="" disabled selected>Loading courses...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Material Title</label>
+                            <input type="text" id="title" class="form-input" placeholder="e.g. Lecture 1 Notes" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea id="description" class="form-input" rows="4" placeholder="Optional brief description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Upload File</label>
+                            <input type="file" id="file" class="form-input" required>
+                        </div>
+                        <button type="submit" class="btn-auth btn-upload">Upload Material</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await requireSession('hod').catch(() => null);
+        if (!user) return;
+
+        const courseSelect = document.getElementById('course-select');
+        const form = document.getElementById('upload-form');
+
+        attachLogout('logout-btn');
+        initProfilePopup();
+
+        async function loadCourses() {
+            try {
+                const response = await authFetch(`${API_BASE}/api/courses/`);
+                const courses = await response.json();
+                if (!Array.isArray(courses) || courses.length === 0) {
+                    courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
+                    return;
+                }
+                courseSelect.innerHTML = `
+                    <option value="" disabled selected>Select a course</option>
+                    ${courses.map(course => `
+                        <option value="${course.id}">${course.title} (${course.code || 'No code'})</option>
+                    `).join('')}
+                `;
+            } catch (err) {
+                console.error('Error loading courses:', err);
+                courseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const courseId = courseSelect.value;
+            const fileInput = document.getElementById('file');
+
+            if (!title || !courseId || !fileInput.files.length) {
+                showToast('Please select a course, enter a title, and upload a file.', 'warning');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('course_id', courseId);
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await authFetch(`${API_BASE}/api/materials/upload`, {
+                    method: 'POST',
+                    headers: {},
+                    body: formData,
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('Material uploaded successfully.', 'success');
+                    window.location.href = 'dashboard.html';
+                } else {
+                    showToast('Upload failed: ' + (data.detail || data.message || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                console.error('Upload error:', err);
+                showToast('Upload failed: Server connection error.', 'error');
+            }
+        });
+
+        await loadCourses();
+    });
+    </script>
+</body>
+</html>

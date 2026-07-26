@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecturer Dashboard - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link active"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
+                <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Content</span></a>
+                <a href="create_quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="welcome-text">Lecturer Portal</h1>
+                <div class="user-profile">
+                    <span id="user-name"></span>
+                    <div class="avatar" id="user-avatar"></div>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Students</h3>
+                    <p class="stat-value" id="total-students">--</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Engagement</h3>
+                    <p class="stat-value text-success" id="avg-engagement">--%</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Critical Students</h3>
+                    <p class="stat-value text-danger" id="critical-students">--</p>
+                </div>
+            </div>
+
+            <section class="charts-section">
+                <div class="chart-card">
+                    <h3>Engagement Distribution</h3>
+                    <canvas id="engagement-chart" height="220"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Comprehension Levels</h3>
+                    <canvas id="comprehension-chart" height="220"></canvas>
+                </div>
+            </section>
+
+            <section class="student-monitoring">
+                <h2>At-Risk Students</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Course</th>
+                                <th>Comprehension</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="real-time-body">
+                            <tr><td colspan="4" class="table-loading">
+                                <div class="loading-wrapper">
+                                    <div class="spinner spinner-sm"></div>
+                                    <p>Loading student data...</p>
+                                </div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

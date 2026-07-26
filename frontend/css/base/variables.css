@@ -1,0 +1,110 @@
+/* 
+ * ==============================================================================
+ * DESIGN SYSTEM: CORE VARIABLES
+ * ==============================================================================
+ * File: frontend/css/base/variables.css
+ * Purpose: Centralized design tokens for the UENR E-Learning Platform.
+ * This file defines the global color palette, typography, spacing, and 
+ * design effects (shadows, gradients, glassmorphism) to ensure consistency
+ * across all modules (Student, Lecturer, HOD).
+ *
+ * Design Philosophy: 
+ * - Premium Dark Mode: Deep blues and grays for reduced eye strain.
+ * - Glassmorphism: Semi-transparent backgrounds with blur effects.
+ * - Dynamic Accents: Vibrant blue-to-purple gradients for primary actions.
+ * ==============================================================================
+ */
+
+:root {
+  /* --- BRAND COLORS --- */
+  /* Used for primary branding, buttons, and active states */
+  --clr-primary:      #3b82f6; /* Bright Blue */
+  --clr-primary-dark: #1d4ed8; 
+  --clr-primary-light:#60a5fa;
+  --clr-accent:       #8b5cf6; /* Vibrant Purple */
+  
+  /* Semantic Colors for feedback and status */
+  --clr-success:      #10b981; /* Emerald Green */
+  --clr-warning:      #f59e0b; /* Amber */
+  --clr-danger:       #ef4444; /* Rose Red */
+
+  /* --- BACKGROUND SYSTEM --- */
+  /* Layered backgrounds to create depth in Dark Mode */
+  --bg:         #0a0f1e; /* Deep space background */
+  --bg-surface: #111827; /* Main section background */
+  --bg-card:    #1a2235; /* Card background */
+  --bg-elevated:#1f2a3d; /* Hover/Active background */
+  --bg-glass:   rgba(17, 24, 39, 0.7); /* For blurred overlays */
+
+  /* --- TEXT SYSTEM --- */
+  --text-primary:   #f1f5f9; /* Near white for high readability */
+  --text-secondary: #94a3b8; /* Soft gray for descriptions */
+  --text-muted:     #64748b; /* Faded gray for less important info */
+
+  /* --- BORDERS & LINES --- */
+  --border:       rgba(255,255,255,0.08);
+  --border-focus: rgba(59,130,246,0.6);
+
+  /* --- GRADIENTS --- */
+  /* Used for premium UI elements and hero sections */
+  --grad-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+
+  /* --- SHADOWS & GLOWS --- */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow:0 0 30px rgba(59,130,246,0.25);
+
+  /* --- TYPOGRAPHY --- */
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif; /* For headings */
+
+  /* --- SPACING SCALE (8px based) --- */
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem;
+  --s5:1.25rem; --s6:1.5rem; --s8:2rem; --s10:2.5rem;
+  --s12:3rem; --s16:4rem; --s20:5rem;
+
+  /* --- RADIUS --- */
+  --r-sm:   .375rem;
+  --r-md:   .5rem;
+  --r-lg:   .75rem;
+  --r-xl:   1rem;
+  --r-2xl:  1.5rem;
+  --r-full: 9999px;
+
+  /* --- TRANSITIONS --- */
+  --t-fast: 150ms ease;
+  --t-base: 250ms ease;
+  --t-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- LAYOUT --- */
+  --sidebar-w:  280px;
+  --navbar-h:   72px;
+  --max-w:      1280px;
+}
+
+/* ── Light Theme ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:         #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card:    #f1f5f9;
+  --bg-elevated:#e2e8f0;
+  --bg-glass:   rgba(255,255,255,0.7);
+
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+
+  --border:       rgba(0,0,0,0.08);
+  --border-focus: rgba(59,130,246,0.5);
+
+  --grad-surface: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%);
+  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.1);
+  --shadow-glow:0 0 30px rgba(59,130,246,0.12);
+}

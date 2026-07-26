@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!--
+  UENR E-LEARNING PLATFORM - MAIN LANDING PAGE
+  ============================================
+  File: index.html
+  Purpose: 
+    This is the primary entry point for all users (Students, Lecturers, HODs).
+    It provides an overview of the platform's features:
+    - Real-time Engagement Tracking
+    - AI-Driven Recommendations
+    - Comprehension Analysis
+    
+  Design:
+    Uses a premium dark-mode design system located in ./css/ (relative to this file).
+    Responsive layout for mobile, tablet, and desktop.
+-->
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="UENR Interactive E-Learning Platform – Real-time engagement tracking, comprehension monitoring, and personalized learning recommendations for students and lecturers." />
+  <title>UENR E-Learning Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/base/reset.css" />
+  <link rel="stylesheet" href="css/base/variables.css" />
+  <link rel="stylesheet" href="css/base/typography.css" />
+  <link rel="stylesheet" href="css/components/buttons.css" />
+  <link rel="stylesheet" href="css/components/navbar.css" />
+  <link rel="stylesheet" href="css/pages/home.css" />
+  <script src="shared/theme.js"></script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar" id="main-navbar">
+    <div class="navbar__container">
+      <a href="index.html" class="navbar__logo" id="logo-link">
+        <div class="navbar__logo-icon">🎓</div>
+        <span class="navbar__logo-text">UENR <span class="navbar__logo-accent">Learn</span></span>
+      </a>
+      <ul class="navbar__links" id="nav-links">
+        <li><a href="#features" class="navbar__link">Features</a></li>
+        <li><a href="#about" class="navbar__link">About</a></li>
+        <li><a href="#contact" class="navbar__link">Contact</a></li>
+      </ul>
+      <div class="navbar__actions">
+        <button class="navbar__theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+        <a href="auth/login.html" class="btn btn--outline" id="login-btn">Log In</a>
+        <a href="auth/register.html" class="btn btn--primary" id="register-btn">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="hero" id="hero">
+    <div class="hero__bg-shapes">
+      <div class="hero__shape hero__shape--1"></div>
+      <div class="hero__shape hero__shape--2"></div>
+      <div class="hero__shape hero__shape--3"></div>
+    </div>
+    <div class="hero__container">
+      <div class="hero__badge" id="hero-badge">
+        <span class="hero__badge-dot"></span>
+        Real-Time Engagement Monitoring
+      </div>
+      <h1 class="hero__title">
+        Smarter Learning for<br />
+        <span class="hero__title-gradient">UENR Students</span>
+      </h1>
+      <p class="hero__subtitle">
+        An intelligent e-learning platform that tracks your engagement, evaluates comprehension in real-time, and recommends personalized resources to boost your academic performance.
+      </p>
+      <div class="hero__actions">
+        <a href="auth/register.html" class="btn btn--primary btn--lg" id="hero-cta">
+          Start Learning Free
+          <span class="btn__arrow">→</span>
+        </a>
+        <a href="#features" class="btn btn--ghost btn--lg" id="hero-features-btn">Explore Features</a>
+      </div>
+      <div class="hero__stats">
+        <div class="hero__stat">
+          <span class="hero__stat-value">3</span>
+          <span class="hero__stat-label">User Roles</span>
+        </div>
+        <div class="hero__stat-divider"></div>
+        <div class="hero__stat">
+          <span class="hero__stat-value">Real-Time</span>
+          <span class="hero__stat-label">Feedback</span>
+        </div>
+        <div class="hero__stat-divider"></div>
+        <div class="hero__stat">
+          <span class="hero__stat-value">AI</span>
+          <span class="hero__stat-label">Recommendations</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES SECTION -->
+  <section class="features" id="features">
+    <div class="features__container">
+      <div class="features__header">
+        <span class="features__tag">Platform Features</span>
+        <h2 class="features__title">Everything you need to learn effectively</h2>
+        <p class="features__subtitle">Built specifically for UENR, combining behavioral tracking with intelligent learning support.</p>
+      </div>
+      <div class="features__grid">
+        <div class="feature-card" id="feature-engagement">
+          <div class="feature-card__icon">📊</div>
+          <h3 class="feature-card__title">Engagement Tracking</h3>
+          <p class="feature-card__desc">Monitors mouse movements, scrolling, clicks, and time-on-page to determine if you are actively learning or idle.</p>
+        </div>
+        <div class="feature-card" id="feature-comprehension">
+          <div class="feature-card__icon">🧠</div>
+          <h3 class="feature-card__title">Comprehension Analysis</h3>
+          <p class="feature-card__desc">Evaluates understanding through micro-questions, quizzes, and slide revisit patterns after each topic.</p>
+        </div>
+        <div class="feature-card" id="feature-recommendations">
+          <div class="feature-card__icon">🎯</div>
+          <h3 class="feature-card__title">Smart Recommendations</h3>
+          <p class="feature-card__desc">Automatically recommends YouTube tutorials, articles, and study materials for topics you find difficult.</p>
+        </div>
+        <div class="feature-card" id="feature-analytics">
+          <div class="feature-card__icon">📈</div>
+          <h3 class="feature-card__title">Analytics Dashboard</h3>
+          <p class="feature-card__desc">Lecturers and HODs get real-time dashboards showing student participation, performance, and trends.</p>
+        </div>
+        <div class="feature-card" id="feature-microquiz">
+          <div class="feature-card__icon">❓</div>
+          <h3 class="feature-card__title">Micro-Questions</h3>
+          <p class="feature-card__desc">Auto-generated questions after each topic test your understanding and keep you actively engaged.</p>
+        </div>
+        <div class="feature-card" id="feature-notifications">
+          <div class="feature-card__icon">🔔</div>
+          <h3 class="feature-card__title">Lecturer Notifications</h3>
+          <p class="feature-card__desc">Lecturers receive alerts when students engage with assigned reading materials in real time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROLES SECTION -->
+  <section class="roles" id="about">
+    <div class="roles__container">
+      <div class="roles__header">
+        <span class="features__tag">User Roles</span>
+        <h2 class="features__title">Built for everyone at UENR</h2>
+      </div>
+      <div class="roles__grid">
+        <div class="role-card" id="role-student">
+          <div class="role-card__avatar">👨‍🎓</div>
+          <h3 class="role-card__title">Students</h3>
+          <ul class="role-card__list">
+            <li>Access course materials anytime</li>
+            <li>Answer micro-questions after topics</li>
+            <li>Receive personalized recommendations</li>
+            <li>Track your own progress</li>
+          </ul>
+          <a href="auth/register.html" class="btn btn--primary" id="student-cta">Join as Student</a>
+        </div>
+        <div class="role-card role-card--featured" id="role-lecturer">
+          <div class="role-card__avatar">👩‍🏫</div>
+          <h3 class="role-card__title">Lecturers</h3>
+          <ul class="role-card__list">
+            <li>Upload course materials & slides</li>
+            <li>Monitor student engagement live</li>
+            <li>Assign quizzes and micro-questions</li>
+            <li>Get notified on student activity</li>
+          </ul>
+          <a href="auth/register.html" class="btn btn--primary" id="lecturer-cta">Join as Lecturer</a>
+        </div>
+        <div class="role-card" id="role-hod">
+          <div class="role-card__avatar">🏛️</div>
+          <h3 class="role-card__title">Heads of Department</h3>
+          <ul class="role-card__list">
+            <li>Department-wide analytics</li>
+            <li>Course performance reports</li>
+            <li>Identify struggling students early</li>
+            <li>Academic decision support</li>
+          </ul>
+          <a href="auth/login.html" class="btn btn--outline" id="hod-cta">HOD Login</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer" id="contact">
+    <div class="footer__container">
+      <div class="footer__brand">
+        <div class="navbar__logo">
+          <div class="navbar__logo-icon">🎓</div>
+          <span class="navbar__logo-text">UENR <span class="navbar__logo-accent">Learn</span></span>
+        </div>
+        <p class="footer__tagline">Intelligent E-Learning for University of Energy and Natural Resources</p>
+      </div>
+      <div class="footer__links">
+        <div class="footer__col">
+          <h4 class="footer__col-title">Platform</h4>
+          <a href="#features" class="footer__link">Features</a>
+          <a href="auth/login.html" class="footer__link">Login</a>
+          <a href="auth/register.html" class="footer__link">Register</a>
+        </div>
+        <div class="footer__col">
+          <h4 class="footer__col-title">Users</h4>
+          <a href="#" class="footer__link">Students</a>
+          <a href="#" class="footer__link">Lecturers</a>
+          <a href="#" class="footer__link">HODs</a>
+        </div>
+        <div class="footer__col">
+          <h4 class="footer__col-title">University</h4>
+          <a href="https://uenr.edu.gh" class="footer__link" target="_blank">UENR Website</a>
+          <a href="#" class="footer__link">CS Department</a>
+          <a href="#" class="footer__link">Contact Us</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>© 2025/2026 UENR E-Learning Platform — Group 16 | FYP | Department of Computer Science and Informatics</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const next = getTheme() === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+      document.querySelector('.theme-icon').textContent = next === 'dark' ? '🌙' : '☀️';
+    });
+    document.querySelector('.theme-icon').textContent = getTheme() === 'dark' ? '🌙' : '☀️';
+  </script>
+</body>
+</html>

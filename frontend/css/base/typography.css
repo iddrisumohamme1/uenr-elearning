@@ -1,0 +1,42 @@
+/* 
+ * ==============================================================================
+ * TYPOGRAPHY SYSTEM
+ * ==============================================================================
+ * File: frontend/css/base/typography.css
+ * Purpose: Defines the text hierarchy (Headings, Paragraphs, Links).
+ * Uses 'Outfit' for headings (Display font) and 'Inter' for body text (Reading font).
+ * ==============================================================================
+ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin-bottom: var(--s4);
+}
+
+h1 { font-size: clamp(2.5rem, 8vw, 4rem); letter-spacing: -0.02em; }
+h2 { font-size: clamp(2rem, 5vw, 2.5rem); letter-spacing: -0.01em; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+
+p {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--s6);
+}
+
+.text-gradient {
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-sm { font-size: 0.875rem; }
+.text-lg { font-size: 1.25rem; }
+.text-muted { color: var(--text-muted); }
+.text-center { text-align: center; }
+.font-bold { font-weight: 700; }

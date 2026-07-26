@@ -1,0 +1,134 @@
+/* 
+ * ==============================================================================
+ * DESIGN SYSTEM: SHARED TOKENS
+ * ==============================================================================
+ * File: frontend/shared/variables.css
+ * Purpose: Legacy/Shared design tokens used by specific module pages 
+ * (Student Dashboard, Lecturer Dashboard). 
+ * Note: Newer pages use frontend/css/base/variables.css.
+ * ==============================================================================
+ */
+
+:root {
+  /* Brand Colors */
+  --clr-primary:      #3b82f6;
+  --clr-primary-dark: #1d4ed8;
+  --clr-primary-light:#60a5fa;
+  --clr-accent:       #8b5cf6;
+  --clr-success:      #22c55e;
+  --clr-warning:      #f59e0b;
+  --clr-danger:       #ef4444;
+
+  /* Background */
+  --bg:         #0a0f1e;
+  --bg-surface: #111827;
+  --bg-card:    #1a2235;
+  --bg-elevated:#1f2a3d;
+
+  /* Text */
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+
+  /* Soft / translucent accents (for pills, hovers, active states) */
+  --primary-soft: rgba(59,130,246,0.12);
+  --accent-soft:  rgba(139,92,246,0.12);
+  --success-soft: rgba(34,197,94,0.12);
+  --warning-soft: rgba(245,158,11,0.12);
+  --danger-soft:  rgba(239,68,68,0.12);
+
+  /* Glass surface for blurred overlays and elevated cards */
+  --bg-glass: rgba(17,24,39,0.6);
+
+  /* Borders */
+  --border:       rgba(255,255,255,0.08);
+  --border-strong:rgba(255,255,255,0.14);
+  --border-focus: rgba(59,130,246,0.6);
+
+  /* Gradients */
+  --grad-primary: linear-gradient(135deg,#3b82f6,#8b5cf6);
+  --grad-success: linear-gradient(135deg,#22c55e,#16a34a);
+  --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+  --grad-hero:    radial-gradient(ellipse at 60% 30%, rgba(59,130,246,0.15) 0%,transparent 60%);
+
+  /* Shadows */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.5);
+  --shadow-xl:  0 20px 50px -12px rgba(0,0,0,0.6);
+  --shadow-glow:0 0 30px rgba(59,130,246,0.25);
+  --shadow-glow-lg:0 0 45px rgba(59,130,246,0.4);
+
+  /* Focus ring — used across inputs, buttons, interactive cards */
+  --ring: 0 0 0 3px rgba(59,130,246,0.28);
+
+  /* Typography */
+  --font-sans:    'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+
+  /* Spacing */
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem;
+  --s5:1.25rem; --s6:1.5rem; --s8:2rem; --s10:2.5rem;
+  --s12:3rem; --s16:4rem; --s20:5rem;
+
+  /* Radius */
+  --r-sm:   .375rem;
+  --r-md:   .5rem;
+  --r-lg:   .75rem;
+  --r-xl:   1rem;
+  --r-2xl:  1.5rem;
+  --r-full: 9999px;
+
+  /* Transitions */
+  --t-fast: 150ms ease;
+  --t-base: 250ms ease;
+  --t-slow: 400ms ease;
+
+  /* Layout */
+  --sidebar-w:  260px;
+  --navbar-h:   68px;
+  --max-w:      1280px;
+}
+
+/* ── Light Theme ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  /* Background */
+  --bg:         #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card:    #f1f5f9;
+  --bg-elevated:#e2e8f0;
+
+  /* Text */
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+
+  /* Soft accents */
+  --primary-soft: rgba(59,130,246,0.08);
+  --accent-soft:  rgba(139,92,246,0.08);
+  --success-soft: rgba(34,197,94,0.08);
+  --warning-soft: rgba(245,158,11,0.08);
+  --danger-soft:  rgba(239,68,68,0.08);
+
+  /* Glass */
+  --bg-glass: rgba(255,255,255,0.7);
+
+  /* Borders */
+  --border:       rgba(0,0,0,0.08);
+  --border-strong:rgba(0,0,0,0.14);
+  --border-focus: rgba(59,130,246,0.5);
+
+  /* Shadows */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.1);
+  --shadow-xl:  0 20px 50px -12px rgba(0,0,0,0.15);
+  --shadow-glow:0 0 30px rgba(59,130,246,0.12);
+  --shadow-glow-lg:0 0 45px rgba(59,130,246,0.2);
+
+  /* Focus ring */
+  --ring: 0 0 0 3px rgba(59,130,246,0.2);
+
+  /* Gradients stay the same (--grad-primary, --grad-success) */
+  --grad-surface: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%);
+}

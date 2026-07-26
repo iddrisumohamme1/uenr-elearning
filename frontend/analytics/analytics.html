@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Analytics - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="analytics.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="analytics-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="../student/dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon">📚</span><span class="nav-label"> My Courses</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon">✨</span><span class="nav-label"> Recommendations</span></a>
+                <a href="../quiz/quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Quizzes</span></a>
+                <a href="analytics.html" class="nav-link active"><span class="nav-icon">📊</span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="analytics-content">
+            <header class="page-header">
+                <h1>Performance Analytics</h1>
+                <p class="text-muted">Detailed breakdown of your learning patterns</p>
+            </header>
+
+            <div id="loading-state" class="loading-wrapper loading-full">
+                <div class="spinner"></div>
+                <p>Loading analytics...</p>
+            </div>
+
+            <div id="error-state" class="error-state" style="display:none">
+                <p id="error-message">Unable to load analytics.</p>
+            </div>
+
+            <div id="analytics-body" style="display:none">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Average Engagement</h3>
+                        <p class="stat-value" id="avg-engagement">--%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Materials Viewed</h3>
+                        <p class="stat-value" id="materials-count">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Time Spent</h3>
+                        <p class="stat-value" id="time-spent">0m</p>
+                    </div>
+                </div>
+
+                <!-- Two-Tower ML Classification Card -->
+                <div class="classification-card" id="classification-card" style="display:none">
+                    <h3>ML Engagement Classification</h3>
+                    <p class="text-muted" style="margin-bottom:var(--s4)">Two-Tower Neural Network analysis of your academic profile</p>
+                    <div class="classification-grid">
+                        <div class="classification-item">
+                            <span class="classification-label">Engagement Level</span>
+                            <span class="classification-value" id="ml-engagement">--</span>
+                        </div>
+                        <div class="classification-item">
+                            <span class="classification-label">Comprehension Level</span>
+                            <span class="classification-value" id="ml-comprehension">--</span>
+                        </div>
+                        <div class="classification-item">
+                            <span class="classification-label">Model Type</span>
+                            <span class="classification-value" id="ml-model-type">Two-Tower NN</span>
+                        </div>
+                        <div class="classification-item">
+                            <span class="classification-label">Last Analyzed</span>
+                            <span class="classification-value" id="ml-last-analyzed">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Engagement Distribution</h3>
+                        <div class="engagement-bars" id="engagement-bars">
+                            <div class="bar-row">
+                                <span class="bar-label">High</span>
+                                <div class="bar-track"><div class="bar-fill bar-success" id="bar-high" style="width:0%"></div></div>
+                                <span class="bar-pct" id="pct-high">0%</span>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">Medium</span>
+                                <div class="bar-track"><div class="bar-fill bar-warning" id="bar-med" style="width:0%"></div></div>
+                                <span class="bar-pct" id="pct-med">0%</span>
+                            </div>
+                            <div class="bar-row">
+                                <span class="bar-label">Low</span>
+                                <div class="bar-track"><div class="bar-fill bar-danger" id="bar-low" style="width:0%"></div></div>
+                                <span class="bar-pct" id="pct-low">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Recent Activity</h3>
+                        <div id="activity-list" class="activity-list">
+                            <p class="text-muted">No activity recorded yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="behavioral-insights">
+                    <h3>Behavioral Insights</h3>
+                    <div class="insight-card">
+                        <span class="insight-icon">💡</span>
+                        <p id="insight-text">Loading insights...</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="analytics.js"></script>
+</body>
+</html>

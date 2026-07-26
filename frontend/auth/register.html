@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="auth.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <button class="auth-theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon">🌙</span>
+    </button>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-header">
+                <span class="auth-logo">🎓</span>
+                <h1 class="auth-title">Create Account</h1>
+                <p class="text-muted">Join the intelligent learning community</p>
+            </div>
+
+            <div class="role-grid">
+                <div class="role-card active" data-role="student">
+                    <span class="role-icon">👨‍🎓</span>
+                    <span class="role-name">STUDENT</span>
+                </div>
+                <div class="role-card" data-role="lecturer">
+                    <span class="role-icon">👩‍🏫</span>
+                    <span class="role-name">LECTURER</span>
+                </div>
+                <div class="role-card" data-role="hod">
+                    <span class="role-icon">🏛️</span>
+                    <span class="role-name">HOD</span>
+                </div>
+            </div>
+            
+            <form id="register-form">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" id="fullname" placeholder="John Doe" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" id="email" placeholder="john.doe@uenr.edu.gh" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="password" name="password" placeholder="••••••••" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">User ID (optional)</label>
+                    <input type="text" class="form-input" id="user_id" name="user_id" placeholder="UEB3503022">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Department / School</label>
+                    <select class="form-input" id="department" name="department">
+                        <option value="" selected disabled>Select your department</option>
+                        <optgroup label="School of Engineering">
+                            <option value="Department of Agricultural Engineering">Department of Agricultural Engineering</option>
+                            <option value="Department of Civil Engineering">Department of Civil Engineering</option>
+                            <option value="Department of Computer Engineering">Department of Computer Engineering</option>
+                            <option value="Department of Electrical and Electronic Engineering">Department of Electrical and Electronic Engineering</option>
+                            <option value="Department of Mechanical Engineering">Department of Mechanical Engineering</option>
+                            <option value="Department of Environmental Engineering">Department of Environmental Engineering</option>
+                        </optgroup>
+                        <optgroup label="School of Sciences">
+                            <option value="Department of Basic and Applied Biology">Department of Basic and Applied Biology</option>
+                            <option value="Department of Chemical Sciences">Department of Chemical Sciences</option>
+                            <option value="Department of Computer Science and Informatics">Department of Computer Science and Informatics</option>
+                            <option value="Department of Mathematics and Statistics">Department of Mathematics and Statistics</option>
+                        </optgroup>
+                        <optgroup label="School of Natural Resources">
+                            <option value="Department of Ecotourism, Recreation and Hospitality">Department of Ecotourism, Recreation and Hospitality</option>
+                            <option value="Department of Fisheries and Water Resources">Department of Fisheries and Water Resources</option>
+                            <option value="Department of Forest Resources Management">Department of Forest Resources Management</option>
+                        </optgroup>
+                        <optgroup label="School of Mines and Built Environment">
+                            <option value="Department of Sustainable Mineral Resource Development">Department of Sustainable Mineral Resource Development</option>
+                            <option value="Department of Land Management">Department of Land Management</option>
+                            <option value="Department of Architecture and Construction Management">Department of Architecture and Construction Management</option>
+                            <option value="Department of Planning and Sustainability Studies">Department of Planning and Sustainability Studies</option>
+                        </optgroup>
+                        <optgroup label="School of Geosciences & Climate Change">
+                            <option value="Department of Climate Science">Department of Climate Science</option>
+                            <option value="Department of Geography and Sustainability Science">Department of Geography and Sustainability Science</option>
+                        </optgroup>
+                        <optgroup label="School of Arts and Social Sciences">
+                            <option value="Department of Economics">Department of Economics</option>
+                            <option value="Department of Business and Accounting">Department of Business and Accounting</option>
+                        </optgroup>
+                        <optgroup label="School of Agriculture and Technology">
+                            <option value="Department of Agribusiness Management and Consumer Studies">Department of Agribusiness Management and Consumer Studies</option>
+                            <option value="Department of Agricultural and Resource Economics">Department of Agricultural and Resource Economics</option>
+                            <option value="Department of Animal Production and Health">Department of Animal Production and Health</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <button type="submit" class="btn-auth">Create Account</button>
+            </form>
+            
+            <div class="auth-footer">
+                Already have an account? <a href="login.html" class="auth-link">Sign In</a>
+            </div>
+        </div>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script>
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const next = getTheme() === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+            document.querySelector('.theme-icon').textContent = next === 'dark' ? '🌙' : '☀️';
+        });
+        document.querySelector('.theme-icon').textContent = getTheme() === 'dark' ? '🌙' : '☀️';
+    </script>
+    <script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+/*
+ * ==============================================================================
+ * SHARED SIDEBAR COMPONENT
+ * ==============================================================================
+ * File: frontend/shared/sidebar.css
+ * Purpose: Single source of truth for sidebar, nav-link, sidebar-header,
+ * sidebar-footer styles across all role pages (student, lecturer, HOD).
+ * ==============================================================================
+ */
+
+.sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: var(--s6);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.25rem;
+    margin-bottom: var(--s10);
+}
+
+.sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+}
+
+.nav-link {
+    position: relative;
+    display: block;
+    padding: var(--s3) var(--s4);
+    border-radius: var(--r-md);
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.nav-link:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.nav-link.active {
+    background: var(--primary-soft);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Accent bar on active nav item */
+.nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--clr-primary);
+    border-radius: var(--r-full);
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: var(--s4);
+    border-top: 1px solid var(--border);
+}
+
+.sidebar-footer button {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: rgba(239,68,68,0.1);
+    color: var(--clr-danger);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background var(--t-fast);
+}
+
+.sidebar-footer button:hover {
+    background: rgba(239,68,68,0.2);
+}

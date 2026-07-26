@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="quiz.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="quiz-page-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="../student/dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon">📚</span><span class="nav-label"> My Courses</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon">✨</span><span class="nav-label"> Recommendations</span></a>
+                <a href="quiz.html" class="nav-link active"><span class="nav-icon">📝</span><span class="nav-label"> Quizzes</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon">📊</span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="quiz-content">
+            <div id="course-selector" class="course-selector">
+                <h2>Select a Course</h2>
+                <p class="text-muted">Choose a course to take a quiz</p>
+                <div id="course-list" class="course-list">
+                    <div class="loading-wrapper loading-full" style="grid-column: 1 / -1;">
+                        <div class="spinner"></div>
+                        <p>Loading your courses...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="quiz-area" style="display:none">
+                <header class="quiz-header">
+                    <h1 id="quiz-title">Assessment</h1>
+                    <div id="quiz-timer">Time Left: --:--</div>
+                </header>
+
+                <main class="quiz-body">
+                    <div id="question-container" class="question-card">
+                        <p class="question-num">Question 1 of 1</p>
+                        <h2 id="question-text">Loading question...</h2>
+                        
+                        <div class="options-grid" id="options-grid">
+                            <!-- Options loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="quiz-footer">
+                        <button id="prev-btn" class="btn-secondary" style="display:none">Previous</button>
+                        <div class="quiz-progress">
+                            <span id="progress-text">1 / 1</span>
+                        </div>
+                        <button id="next-btn" class="btn-primary">Next</button>
+                    </div>
+                </main>
+            </div>
+
+            <div id="quiz-complete" style="display:none" class="quiz-complete">
+                <h2>Quiz Complete!</h2>
+                <p class="text-muted">Your results have been saved.</p>
+                <a href="../results/results.html" class="btn-primary">View Results</a>
+                <a href="../student/dashboard.html" class="btn-secondary">Back to Dashboard</a>
+            </div>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="quiz.js"></script>
+</body>
+</html>

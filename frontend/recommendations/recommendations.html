@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Recommendations - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="recommendations.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="rec-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="../student/dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon">📚</span><span class="nav-label"> My Courses</span></a>
+                <a href="recommendations.html" class="nav-link active"><span class="nav-icon">✨</span><span class="nav-label"> Recommendations</span></a>
+                <a href="../quiz/quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Quizzes</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon">📊</span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="rec-content">
+            <header class="page-header">
+                <h1>AI-Powered Recommendations</h1>
+                <p class="text-muted">Tell us what you're struggling with and get personalized learning resources</p>
+            </header>
+
+            <div class="concept-input-section">
+                <label for="weak-concepts" class="form-label">What topics are you struggling with?</label>
+                <textarea id="weak-concepts" class="form-input" rows="3" placeholder="e.g. I don't understand database normalization and SQL joins"></textarea>
+                <button id="get-recs-btn" class="btn-primary">Get Recommendations</button>
+            </div>
+
+            <div id="loading-state" class="loading-wrapper" style="display:none">
+                <div class="spinner"></div>
+                <p>Generating your personalized path...</p>
+            </div>
+
+            <div id="error-state" class="error-state" style="display:none">
+                <p id="error-message">Unable to load recommendations.</p>
+            </div>
+
+            <div id="recommendations-list" class="rec-grid">
+                <!-- Recommendations will be loaded here -->
+            </div>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="recommendations.js"></script>
+</body>
+</html>

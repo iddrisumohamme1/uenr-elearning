@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">🎓</span>
+                <span class="logo-text">UENR Learn</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link active"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon">📚</span><span class="nav-label"> My Courses</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon">✨</span><span class="nav-label"> Recommendations</span></a>
+                <a href="../quiz/quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Quizzes</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon">📊</span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="welcome-text">Welcome, Student</h1>
+                <div class="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar">S</div>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Engagement Score</h3>
+                    <p class="stat-value" id="engagement-value">--%</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Courses Enrolled</h3>
+                    <p class="stat-value" id="courses-count">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed Topics</h3>
+                    <p class="stat-value" id="completed-count">0</p>
+                </div>
+            </div>
+
+            <section class="recent-activity">
+                <h2>Continue Learning</h2>
+                <div id="course-grid" class="course-grid">
+                    <!-- Dynamic courses will be loaded here -->
+                    <div class="loading-wrapper loading-full" style="grid-column: 1 / -1;">
+                        <div class="spinner"></div>
+                        <p>Loading your courses...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+/* 
+   STUDENT DASHBOARD STYLES
+   frontend/student/dashboard.css
+   Sidebar styles defined in shared/sidebar.css
+*/
+
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Main Content Styles */
+.main-content {
+    flex: 1;
+    padding: var(--s8);
+    background: var(--bg);
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s10);
+    padding-bottom: var(--s6);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 50;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+}
+
+.avatar {
+    width: 42px;
+    height: 42px;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: var(--shadow-glow);
+    border: 2px solid var(--border-strong);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--s6);
+    margin-bottom: var(--s10);
+}
+
+.stat-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    background-image: var(--grad-surface);
+    padding: var(--s6);
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
+    transition: transform var(--t-base), box-shadow var(--t-base), border-color var(--t-base);
+    animation: fadeInUp var(--t-slow) both;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
+}
+
+/* Gradient accent strip across the top of each stat card */
+.stat-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--grad-primary);
+    opacity: 0;
+    transition: opacity var(--t-base);
+}
+
+.stat-card:hover::before { opacity: 1; }
+
+.stat-card:nth-child(2) { animation-delay: 70ms; }
+.stat-card:nth-child(3) { animation-delay: 140ms; }
+
+.stat-card h3 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--clr-primary);
+    margin-top: var(--s2);
+    font-family: var(--font-display);
+}
+
+.recent-activity h2 {
+    margin-bottom: var(--s2);
+}
+
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--s6);
+    margin-top: var(--s6);
+}
+
+/* Sidebar footer / logout button defined in shared/sidebar.css */
+
+/* Progress track for course cards */
+.progress-track {
+    margin-top: var(--s4);
+    background: var(--bg-card);
+    height: 5px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.progress-fill {
+    background: var(--clr-primary);
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+.course-click { cursor: pointer; }
+.course-lecturer-name { font-size: 0.8rem; }
+
+/* Responsive behaviour is handled centrally in shared/responsive.css */

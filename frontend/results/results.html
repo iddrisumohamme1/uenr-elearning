@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="results.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="results-page">
+        <div class="results-card">
+            <div class="results-header">
+                <span class="results-icon">🎯</span>
+                <h1>Quiz Completed!</h1>
+                <p class="text-muted">Here is how you performed</p>
+            </div>
+
+            <div class="score-display">
+                <div class="score-circle">
+                    <span id="score-value">0%</span>
+                </div>
+                <h3 id="score-label">Keep Pushing!</h3>
+            </div>
+
+            <div id="results-details" class="results-details" style="display:none">
+                <p id="detail-text"></p>
+            </div>
+
+            <div class="results-actions">
+                <a href="../student/dashboard.html" class="btn-secondary">Back to Dashboard</a>
+                <a href="../recommendations/recommendations.html" class="btn-primary">View Recommendations</a>
+            </div>
+        </div>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="results.js"></script>
+</body>
+</html>

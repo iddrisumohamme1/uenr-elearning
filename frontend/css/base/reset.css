@@ -1,0 +1,82 @@
+/* 
+ * ==============================================================================
+ * CSS RESET & BASE STYLES
+ * ==============================================================================
+ * File: frontend/css/base/reset.css
+ * Purpose: Normalizes browser styles and establishes the root visual baseline.
+ * This ensures that the platform looks identical across Chrome, Firefox, Safari, 
+ * and Edge.
+ * ==============================================================================
+ */
+
+/* 1. Box sizing rules */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 2. Remove default margins and padding */
+* {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+}
+
+/* 3. Remove list styles (bullets/numbers) */
+ul, ol {
+  list-style: none;
+}
+
+/* 4. Set core body defaults */
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* 5. A elements that don't have a class get default styles */
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: color var(--t-fast);
+}
+
+/* 6. Make images easier to work with */
+img, picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* 7. Inheritance for inputs and buttons */
+input, button, textarea, select {
+  font: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* 8. Remove all animations, transitions and smooth scroll for people that prefer not to see them */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+   scroll-behavior: auto;
+  }
+  
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

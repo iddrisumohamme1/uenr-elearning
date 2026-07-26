@@ -1,0 +1,285 @@
+/*
+ * ==============================================================================
+ * SHARED RESPONSIVE LAYER
+ * ==============================================================================
+ * File: frontend/shared/responsive.css
+ * Purpose: Single source of truth for mobile/tablet behaviour across every
+ * page that uses the shared design system.
+ *
+ * Breakpoints:
+ *   <= 772px   — Sidebar collapses to ~200px icon-only mode (labels hidden)
+ *   <= 560px   — Sidebar becomes a fixed bottom navigation bar
+ *   <= 400px   — Single-column grids, tighter cards
+ * ==============================================================================
+ */
+
+/* ─── Tablet (<= 772px): sidebar collapses to icon-only ~70px ─────────── */
+@media (max-width: 772px) {
+  .dashboard-container,
+  .courses-container,
+  .analytics-container,
+  .rec-container,
+  .quiz-page-container {
+    flex-direction: row;
+  }
+
+  .sidebar {
+    width: 70px !important;
+    min-width: 70px;
+    padding: var(--s4) var(--s1) !important;
+    align-items: center;
+    overflow: visible;
+  }
+
+  .sidebar-header {
+    justify-content: center;
+    margin-bottom: var(--s6) !important;
+    overflow: hidden;
+  }
+
+  .sidebar-header .logo-text,
+  .sidebar-header .nav-label {
+    display: none !important;
+  }
+
+  .sidebar-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center;
+    gap: var(--s2) !important;
+  }
+
+  .nav-link {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0 !important;
+    font-size: 1.25rem;
+    border-radius: var(--r-lg);
+    position: relative;
+  }
+
+  .nav-link .nav-label {
+    display: none !important;
+  }
+
+  /* Active accent bar */
+  .nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--clr-primary);
+    border-radius: var(--r-full);
+  }
+
+  .sidebar-footer {
+    margin-top: auto !important;
+    padding-top: var(--s4) !important;
+    border-top: 1px solid var(--border);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar-footer button {
+    width: 48px;
+    height: 48px;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    border: none;
+  }
+
+  .sidebar-footer button .nav-label {
+    display: none !important;
+  }
+
+  /* Content areas: standard padding */
+  .main-content,
+  .courses-content,
+  .analytics-content,
+  .rec-content,
+  .quiz-content {
+    padding: var(--s6) !important;
+  }
+}
+
+/* ─── Mobile (<= 560px): sidebar becomes bottom nav ─────────────────────── */
+@media (max-width: 560px) {
+  .dashboard-container,
+  .courses-container,
+  .analytics-container,
+  .rec-container,
+  .quiz-page-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto !important;
+    width: 100% !important;
+    min-width: unset;
+    height: auto !important;
+    flex-direction: row !important;
+    padding: var(--s2) var(--s3) !important;
+    padding-bottom: max(var(--s2), env(safe-area-inset-bottom)) !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    z-index: 100;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  /* Hide logo/header on mobile bottom nav */
+  .sidebar-header {
+    display: none !important;
+  }
+
+  .sidebar-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around;
+    width: 100%;
+    gap: 0 !important;
+    align-items: center;
+  }
+
+  .nav-link {
+    display: flex !important;
+    width: auto !important;
+    height: auto !important;
+    padding: var(--s2) !important;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.65rem;
+    text-align: center;
+    border-radius: var(--r-md);
+  }
+
+  .nav-link .nav-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .nav-link .nav-label {
+    display: block !important;
+    font-size: 0.6rem;
+    white-space: nowrap;
+  }
+
+  .nav-link.active {
+    background: var(--primary-soft);
+  }
+
+  .nav-link.active::before {
+    display: none !important;
+  }
+
+  /* Footer: hide on mobile (logout is handled via profile menu or bottom nav) */
+  .sidebar-footer {
+    display: none !important;
+  }
+
+  /* Content areas: tighter padding + bottom margin for bottom nav */
+  .main-content,
+  .courses-content,
+  .analytics-content,
+  .rec-content,
+  .quiz-content {
+    padding: var(--s4) !important;
+    padding-bottom: 80px !important;
+  }
+
+  .top-bar {
+    flex-wrap: wrap;
+    gap: var(--s3);
+  }
+
+  .page-header h1 {
+    font-size: 1.4rem !important;
+  }
+
+  /* Stats grid: 2 cols on tablet, 1 on phone */
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .charts-grid { grid-template-columns: 1fr !important; }
+
+  /* Data tables scroll sideways */
+  .data-table { overflow-x: auto; }
+  .data-table table { min-width: 500px; }
+
+  /* Materials viewer: stack panels */
+  .viewer-layout {
+    flex-direction: column;
+    overflow: visible;
+  }
+  .viewer-sidebar {
+    width: 100% !important;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .content-area { padding: var(--s4); }
+  .viewer-header { padding: 0 var(--s4); }
+
+  /* HOD course rows */
+  .course-item { flex-direction: column; gap: var(--s2); }
+
+  /* Charts stack to single column */
+  .charts-section { grid-template-columns: 1fr !important; }
+
+  /* Centred card pages */
+  .quiz-container { margin: var(--s4) auto; padding: var(--s3); }
+  .quiz-header { flex-wrap: wrap; gap: var(--s2); }
+  .quiz-footer { gap: var(--s2); }
+
+  /* Quiz course selector cards */
+  .course-list { grid-template-columns: 1fr !important; }
+
+  /* Concept input section */
+  .concept-input-section { max-width: 100%; }
+
+  /* Tabs on courses page */
+  .tab-bar { flex-wrap: wrap; }
+  .tab-btn { flex: 1; min-width: 0; font-size: 0.8rem; padding: 0.5rem 0.75rem; }
+}
+
+/* ─── Small mobile (<= 400px): single-column, tighter cards ────────────── */
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+
+  .stat-value { font-size: 1.5rem !important; }
+  .stat-card { padding: var(--s4) !important; }
+
+  .question-card { padding: var(--s4) !important; }
+  .results-card  { padding: var(--s6) var(--s4) !important; }
+  .auth-card     { padding: var(--s6) var(--s4) !important; }
+
+  .role-grid { grid-template-columns: 1fr 1fr !important; }
+
+  .insight-card { flex-direction: column; text-align: center; }
+
+  .page-header h1 { font-size: 1.2rem !important; }
+
+  /* Courses grid single column */
+  .courses-grid { grid-template-columns: 1fr !important; }
+  .rec-grid { grid-template-columns: 1fr !important; }
+
+  /* Search bar full width */
+  .search-bar input { max-width: 100%; }
+
+  /* Bottom nav: even smaller icons */
+  .sidebar-nav .nav-link .nav-icon { font-size: 1.1rem; }
+  .sidebar-nav .nav-link .nav-label { font-size: 0.55rem; }
+}

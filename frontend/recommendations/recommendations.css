@@ -1,0 +1,92 @@
+/* 
+   RECOMMENDATIONS MODULE STYLES
+   frontend/recommendations/recommendations.css
+   Sidebar styles defined in shared/sidebar.css
+*/
+
+.rec-container { display: flex; min-height: 100vh; }
+
+.rec-content { flex: 1; padding: 3rem; }
+
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; }
+
+.concept-input-section {
+    max-width: 700px;
+    margin-bottom: 2.5rem;
+}
+.concept-input-section .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.concept-input-section .form-input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--font-sans);
+    resize: vertical;
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.concept-input-section .form-input:focus {
+    border-color: var(--clr-primary);
+    box-shadow: var(--ring);
+    outline: none;
+}
+.concept-input-section .form-input::placeholder { color: var(--text-muted); }
+.concept-input-section .btn-primary {
+    margin-top: 1rem;
+    padding: 0.85rem 2rem;
+    background: var(--grad-primary);
+    color: white;
+    border-radius: var(--r-md);
+    font-weight: 700;
+    transition: transform var(--t-fast);
+}
+.concept-input-section .btn-primary:hover { transform: translateY(-2px); }
+
+.loading-state, .error-state { padding: 2rem; text-align: center; }
+
+.rec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.rec-card {
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    padding: 1.5rem;
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: transform var(--t-base);
+}
+.rec-card:hover { transform: translateY(-4px); border-color: var(--clr-primary); }
+
+.rec-type { font-size: 0.75rem; font-weight: 800; color: var(--clr-primary); text-transform: uppercase; }
+.rec-title { font-size: 1.15rem; font-weight: 700; }
+.rec-reason { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; }
+.btn-go {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--grad-primary);
+    color: white;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .rec-content { padding: 1.5rem; }
+    .rec-grid { grid-template-columns: 1fr; }
+}
