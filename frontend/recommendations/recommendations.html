@@ -34,12 +34,21 @@
         <main class="rec-content">
             <header class="page-header">
                 <h1>AI-Powered Recommendations</h1>
-                <p class="text-muted">Tell us what you're struggling with and get personalized learning resources</p>
+                <p class="text-muted">Tell us what you're struggling with — or let us detect it from your quiz results</p>
             </header>
+
+            <div id="weak-topics-banner" class="weak-banner" style="display:none">
+                <p class="weak-banner-title">Detected from your quiz results — you may need extra help with:</p>
+                <div id="weak-topic-chips" class="chips-row"></div>
+            </div>
 
             <div class="concept-input-section">
                 <label for="weak-concepts" class="form-label">What topics are you struggling with?</label>
                 <textarea id="weak-concepts" class="form-input" rows="3" placeholder="e.g. I don't understand database normalization and SQL joins"></textarea>
+                <div class="chips-row">
+                    <span class="chips-label">Try an example:</span>
+                    <div id="example-chips" class="chips-inline"></div>
+                </div>
                 <button id="get-recs-btn" class="btn-primary">Get Recommendations</button>
             </div>
 
