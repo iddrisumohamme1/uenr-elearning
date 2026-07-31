@@ -472,15 +472,33 @@
 }
 
 /* --- RESPONSIVE --- */
+/* Tablet (<= 900px) */
+@media (max-width: 900px) {
+  .hero {
+    padding: var(--s16) 0;
+  }
+
+  .hero__pulse {
+    width: 420px;
+    height: 420px;
+  }
+}
+
+/* Small tablet / large phone (<= 768px) */
 @media (max-width: 768px) {
   .hero__pulse {
-    width: 360px;
-    height: 360px;
+    width: 340px;
+    height: 340px;
   }
 
   .hero__actions {
     flex-direction: column;
     padding: 0 var(--s6);
+  }
+
+  .hero__actions .btn {
+    width: 100%;
+    max-width: 360px;
   }
 
   .hero__stats {
@@ -505,9 +523,98 @@
   }
 }
 
+/* Phone (<= 607px) — matches the navbar breakpoint */
+@media (max-width: 607px) {
+  .hero {
+    padding: var(--s12) 0;
+    min-height: auto;
+  }
+
+  .hero__title {
+    font-size: clamp(2.25rem, 10vw, 3rem);
+  }
+
+  .hero__subtitle {
+    font-size: 1.125rem;
+    margin-bottom: var(--s8);
+  }
+
+  .features,
+  .roles {
+    padding: var(--s12) 0;
+  }
+}
+
+/* Small phone (<= 480px) */
 @media (max-width: 480px) {
+  .hero__pulse {
+    width: 280px;
+    height: 280px;
+  }
+
+  .hero__badge {
+    font-size: 0.8rem;
+  }
+
+  .hero__stats {
+    gap: var(--s4);
+  }
+
+  .hero__stat-value {
+    font-size: 1.25rem;
+  }
+
+  .hero__stat-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+  }
+
+  .hero__actions .btn--lg {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .features__header {
+    margin-bottom: var(--s10);
+  }
+
+  .role-card__list {
+    font-size: 0.95rem;
+  }
+
   .footer__links {
     grid-template-columns: 1fr 1fr;
     gap: var(--s6);
+  }
+}
+
+/* Tiny phones (<= 400px) */
+@media (max-width: 400px) {
+  .hero__pulse {
+    width: 240px;
+    height: 240px;
+  }
+
+  .hero__stats {
+    flex-direction: column;
+    gap: var(--s3);
+  }
+
+  .features__grid,
+  .roles__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card {
+    padding: var(--s8);
+  }
+
+  .footer__links {
+    grid-template-columns: 1fr;
+    gap: var(--s6);
+  }
+
+  .footer__bottom p {
+    font-size: 0.8rem;
   }
 }
