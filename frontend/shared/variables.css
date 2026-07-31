@@ -10,11 +10,13 @@
  */
 
 :root {
-  /* Brand Colors */
+  /* Brand Colors — grounded in the UENR identity: blue (loyalty & the
+     river), teal (water / current), gold (energy / African Energy Symbol) */
   --clr-primary:      #3b82f6;
   --clr-primary-dark: #1d4ed8;
   --clr-primary-light:#60a5fa;
-  --clr-accent:       #8b5cf6;
+  --clr-accent:       #06b6d4;
+  --clr-energy:       #fbbf24;
   --clr-success:      #22c55e;
   --clr-warning:      #f59e0b;
   --clr-danger:       #ef4444;
@@ -32,7 +34,8 @@
 
   /* Soft / translucent accents (for pills, hovers, active states) */
   --primary-soft: rgba(59,130,246,0.12);
-  --accent-soft:  rgba(139,92,246,0.12);
+  --accent-soft:  rgba(6,182,212,0.12);
+  --energy-soft:  rgba(251,191,36,0.14);
   --success-soft: rgba(34,197,94,0.12);
   --warning-soft: rgba(245,158,11,0.12);
   --danger-soft:  rgba(239,68,68,0.12);
@@ -45,8 +48,8 @@
   --border-strong:rgba(255,255,255,0.14);
   --border-focus: rgba(59,130,246,0.6);
 
-  /* Gradients */
-  --grad-primary: linear-gradient(135deg,#3b82f6,#8b5cf6);
+  /* Gradients — blue → teal: river flow, energy in motion */
+  --grad-primary: linear-gradient(135deg,#3b82f6,#06b6d4);
   --grad-success: linear-gradient(135deg,#22c55e,#16a34a);
   --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
   --grad-hero:    radial-gradient(ellipse at 60% 30%, rgba(59,130,246,0.15) 0%,transparent 60%);
@@ -105,7 +108,8 @@
 
   /* Soft accents */
   --primary-soft: rgba(59,130,246,0.08);
-  --accent-soft:  rgba(139,92,246,0.08);
+  --accent-soft:  rgba(6,182,212,0.08);
+  --energy-soft:  rgba(251,191,36,0.1);
   --success-soft: rgba(34,197,94,0.08);
   --warning-soft: rgba(245,158,11,0.08);
   --danger-soft:  rgba(239,68,68,0.08);
