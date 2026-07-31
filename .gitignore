@@ -39,3 +39,6 @@ ml/notebooks/.ipynb_checkpoints/
 # Supabase local
 supabase/.temp/
 supabase/.env
+
+# Third-party reference material (Anthropic skills)
+skills/
