@@ -204,13 +204,35 @@
   }
 
   .top-bar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--s3);
+  }
+
+  /* Keep the header title compact so it stays on the same row as the profile */
+  .top-bar h1 {
+    font-size: 1.1rem !important;
+    line-height: 1.2;
   }
 
   .page-header h1 {
     font-size: 1.4rem !important;
   }
+
+  /* Reduce all text + card sizes on mobile */
+  .stat-card, .course-card, .pulse-card, .insight-card {
+    padding: var(--s4) !important;
+    gap: var(--s2);
+  }
+  .stat-card h3, .course-card h3 { font-size: 0.8rem !important; }
+  .stat-card h4, .course-card h4 { font-size: 1rem !important; }
+  .stat-value { font-size: 1.8rem !important; }
+  .course-card p,
+  .course-lecturer-name,
+  .stat-card .text-muted { font-size: 0.8rem !important; }
+  .recent-activity h2,
+  .page-header h2,
+  section h2 { font-size: 1.2rem !important; }
+  .progress-track { height: 4px; }
 
   /* Stats grid: 2 cols on tablet, 1 on phone */
   .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }

@@ -161,7 +161,8 @@ function initProfilePopup() {
             saveBtn.style.display = 'none';
             selectedFile = null;
         } catch (err) {
-            statusEl.textContent = err.message;
+            const msg = (err.message || 'Upload failed').replace(/\s+/g, ' ').trim();
+            statusEl.textContent = msg.length > 48 ? msg.slice(0, 48).trimEnd() + '…' : msg;
             statusEl.className = 'profile-status error';
         } finally {
             saveBtn.disabled = false;
