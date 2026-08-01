@@ -47,6 +47,8 @@ function initProfilePopup() {
                     </div>
                 </div>
 
+                <button class="profile-logout-btn" id="profile-logout-btn">Logout</button>
+
                 <div class="profile-status" id="profile-status"></div>
                 <button class="profile-save-btn" id="profile-save-btn" style="display:none">Save Photo</button>
             </div>
@@ -79,6 +81,12 @@ function initProfilePopup() {
     document.getElementById('profile-popup-close').addEventListener('click', closeProfilePopup);
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeProfilePopup();
+    });
+
+    // Logout (mobile relies on the profile menu since the sidebar footer is hidden)
+    document.getElementById('profile-logout-btn').addEventListener('click', () => {
+        clearSession();
+        window.location.href = '../auth/login.html';
     });
 
     // Theme toggle

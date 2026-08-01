@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             lecturerSelect.innerHTML = `
                 <option value="" disabled selected>Select a department lecturer</option>
                 ${lecturers.map(lecturer => `
-                    <option value="${lecturer.id}">${lecturer.full_name}</option>
+                    <option value="${lecturer.id}">${lecturer.full_name}${lecturer.id === user.id ? ' (you)' : ''}</option>
                 `).join('')}
             `;
         } catch (err) {

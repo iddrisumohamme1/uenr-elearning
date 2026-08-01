@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/pulse.css">
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
     <script src="../shared/theme.js"></script>
@@ -31,61 +32,100 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h1 id="welcome-text">Lecturer Portal</h1>
-                <div class="user-profile">
-                    <span id="user-name"></span>
-                    <div class="avatar" id="user-avatar"></div>
+                <div class="top-bar-title">
+                    <p class="page-eyebrow">Class Pulse</p>
+                    <div class="title-row">
+                        <h1 id="welcome-text"></h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>Total Students</h3>
+            <section class="pulse-card fade-in-up" aria-label="Class engagement summary">
+                <div class="pulse-head">
+                    <div class="pulse-heading">
+                        <span class="pulse-label">Class Engagement</span>
+                        <div class="pulse-score">
+                            <span id="pulse-score">--</span><span class="pulse-unit">%</span>
+                        </div>
+                    </div>
+                    <div class="pulse-readout">
+                        <span class="pulse-readout-num" id="pulse-at-risk">--</span>
+                        <span class="pulse-readout-label">students at risk</span>
+                    </div>
+                </div>
+                <div class="pulse-bar" id="pulse-bar" role="img" aria-label="Class engagement breakdown">
+                    <span class="pulse-seg pulse-seg--risk" id="pulse-seg-risk"></span>
+                    <span class="pulse-seg pulse-seg--mod" id="pulse-seg-mod"></span>
+                    <span class="pulse-seg pulse-seg--engaged" id="pulse-seg-engaged"></span>
+                </div>
+                <div class="pulse-legend">
+                    <span class="pulse-legend-item"><span class="dot dot--risk"></span>At risk</span>
+                    <span class="pulse-legend-item"><span class="dot dot--mod"></span>Moderate</span>
+                    <span class="pulse-legend-item"><span class="dot dot--engaged"></span>Engaged</span>
+                </div>
+                <p class="pulse-caption text-muted" id="pulse-caption">Reading your class…</p>
+            </section>
+
+            <div class="stats-grid fade-in-up" id="stats-grid">
+                <div class="stat-tile stat-tile--danger">
+                    <h3>Students at Risk</h3>
+                    <p class="stat-value" id="critical-students">--</p>
+                </div>
+                <div class="stat-tile">
+                    <h3>Active Courses</h3>
+                    <p class="stat-value" id="total-courses">--</p>
+                </div>
+                <div class="stat-tile">
+                    <h3>Students Reached</h3>
                     <p class="stat-value" id="total-students">--</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Average Engagement</h3>
-                    <p class="stat-value text-success" id="avg-engagement">--%</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Critical Students</h3>
-                    <p class="stat-value text-danger" id="critical-students">--</p>
                 </div>
             </div>
 
-            <section class="charts-section">
-                <div class="chart-card">
-                    <h3>Engagement Distribution</h3>
-                    <canvas id="engagement-chart" height="220"></canvas>
+            <section class="dashboard-grid">
+                <div class="chart-card fade-in-up">
+                    <div class="panel-head">
+                        <h3>Engagement vs Comprehension</h3>
+                        <p class="text-muted panel-sub">How your class is tracking in both</p>
+                    </div>
+                    <div class="chart-duo">
+                        <div class="chart-box">
+                            <canvas id="engagement-chart" height="220"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <canvas id="comprehension-chart" height="220"></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-card">
-                    <h3>Comprehension Levels</h3>
-                    <canvas id="comprehension-chart" height="220"></canvas>
-                </div>
-            </section>
 
-            <section class="student-monitoring">
-                <h2>At-Risk Students</h2>
-                <div class="data-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Course</th>
-                                <th>Comprehension</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="real-time-body">
-                            <tr><td colspan="4" class="table-loading">
-                                <div class="loading-wrapper">
-                                    <div class="spinner spinner-sm"></div>
-                                    <p>Loading student data...</p>
-                                </div>
-                            </td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <section class="at-risk-panel fade-in-up">
+                    <div class="panel-head">
+                        <h3>Students Needing Attention</h3>
+                        <p class="text-muted panel-sub">Engagement has dipped below the line</p>
+                    </div>
+                    <div class="data-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Course</th>
+                                    <th>Comprehension</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="real-time-body">
+                                <tr><td colspan="4" class="table-loading">
+                                    <div class="loading-wrapper">
+                                        <div class="spinner spinner-sm"></div>
+                                        <p>Loading student data…</p>
+                                    </div>
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </section>
         </main>
     </div>

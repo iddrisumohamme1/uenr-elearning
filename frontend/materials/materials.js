@@ -80,25 +80,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const proxyUrl = `${API_BASE}/api/materials/proxy?url=${encodeURIComponent(fileUrl)}`;
                 const lowerUrl = fileUrl.toLowerCase();
 
-                // Detect embedded content (iframes where we can't track mouse/scroll)
-                isEmbeddedContent = contentType === 'application/pdf' || lowerUrl.endsWith('.pdf')
-                    || lowerUrl.match(/\.(ppt|pptx|doc|docx|xls|xlsx|odp|ods|odt)$/);
+                // Content rendered directly in the document (video, image, PDF.js
+                // canvases) can have its scroll tracked. Anything inside an iframe
+                // (Office viewer, txt/html/unknown) can't, so engagement scoring
+                // relies on time + tab visibility instead.
+                const isVideo = contentType.startsWith('video/') || !!lowerUrl.match(/\.(mp4|webm|ogg)$/);
+                const isImage = contentType.startsWith('image/') || !!lowerUrl.match(/\.(jpg|jpeg|png|gif|svg|webp)$/);
+                const isPdf = contentType === 'application/pdf' || lowerUrl.endsWith('.pdf');
+                isEmbeddedContent = !isVideo && !isImage && !isPdf;
 
                 // Video files: use <video> tag
-                if (contentType.startsWith('video/') || lowerUrl.match(/\.(mp4|webm|ogg)$/)) {
+                if (isVideo) {
                     target.innerHTML = `<video controls autoplay class="media-embed"><source src="${proxyUrl}" type="${contentType}"></video>`;
                 }
                 // Image files: use <img> tag
-                else if (contentType.startsWith('image/') || lowerUrl.match(/\.(jpg|jpeg|png|gif|svg|webp)$/)) {
+                else if (isImage) {
                     target.innerHTML = `<img src="${proxyUrl}" class="media-embed-img" />`;
                 }
-                // PDFs: use iframe (browsers render PDFs natively)
-                else if (contentType === 'application/pdf' || lowerUrl.endsWith('.pdf')) {
-                    const iframe = document.createElement('iframe');
-                    iframe.className = 'media-embed';
-                    iframe.style.display = 'none';
-                    iframe.onload = () => { target.innerHTML = ''; target.appendChild(iframe); iframe.style.display = 'block'; };
-                    iframe.src = proxyUrl;
+                // PDFs: render with PDF.js into the scrollable content area.
+                // Native iframe PDF viewers don't touch-scroll reliably on mobile.
+                else if (isPdf) {
+                    target.innerHTML = '<div class="loading-wrapper"><div class="spinner"></div><p>Rendering PDF...</p></div>';
+                    renderPdf(proxyUrl, target);
                 }
                 // Office docs (ppt, doc, xlsx): use Google Docs viewer for preview, with download option
                 else if (lowerUrl.match(/\.(ppt|pptx|doc|docx|xls|xlsx|odp|ods|odt)$/)) {
@@ -117,7 +120,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const iframe = document.createElement('iframe');
                     iframe.className = 'media-embed';
                     iframe.style.display = 'none';
-                    iframe.onload = () => { target.innerHTML = ''; target.appendChild(iframe); iframe.style.display = 'block'; };
+                    iframe.onload = () => { iframe.style.display = 'block'; };
+                    target.innerHTML = '';
+                    target.appendChild(iframe);
                     iframe.src = proxyUrl;
                 }
 
@@ -165,7 +170,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', () => { metrics.clicks++; lastActivity = Date.now(); });
 
     contentViewer.addEventListener('scroll', () => {
-        const scrollPercent = (contentViewer.scrollTop / (contentViewer.scrollHeight - contentViewer.clientHeight)) * 100;
+        const maxScroll = contentViewer.scrollHeight - contentViewer.clientHeight;
+        const scrollPercent = maxScroll > 0 ? (contentViewer.scrollTop / maxScroll) * 100 : 0;
         metrics.scrollDepth = Math.max(metrics.scrollDepth, Math.round(scrollPercent));
         lastActivity = Date.now();
     });
@@ -411,6 +417,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.style.display = 'none';
     });
+
+    // ─── PDF.js rendering ────────────────────────────────────────────────────
+    // Renders PDF pages as canvases that stack naturally inside the scrollable
+    // .content-area, so PDFs scroll with touch on mobile like images do.
+    let pdfjsPromise = null;
+
+    function loadPdfJs() {
+        if (!pdfjsPromise) {
+            pdfjsPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = '../shared/vendor/pdfjs/pdf.min.js';
+                script.onload = () => {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../shared/vendor/pdfjs/pdf.worker.min.js';
+                    resolve(window.pdfjsLib);
+                };
+                script.onerror = () => {
+                    pdfjsPromise = null;
+                    reject(new Error('Failed to load PDF viewer'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+        return pdfjsPromise;
+    }
+
+    async function renderPdf(url, container) {
+        try {
+            const lib = await loadPdfJs();
+            const pdf = await lib.getDocument({ url }).promise;
+            container.innerHTML = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const baseViewport = page.getViewport({ scale: 1 });
+                const scale = Math.min(1.5, container.clientWidth / baseViewport.width);
+                const dpr = window.devicePixelRatio || 1;
+                const viewport = page.getViewport({ scale: scale * dpr });
+                const canvas = document.createElement('canvas');
+                canvas.className = 'pdf-page-canvas';
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+                canvas.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                container.appendChild(canvas);
+            }
+        } catch (err) {
+            console.error('PDF render failed:', err);
+            container.innerHTML = `
+                <div class="pdf-error-card">
+                    <p>This PDF could not be rendered in the browser.</p>
+                    <a class="btn" href="${url}" download>Download PDF</a>
+                </div>`;
+        }
+    }
 
     buildTopicList(['Overview']);
     await fetchMaterials();

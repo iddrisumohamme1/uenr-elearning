@@ -47,9 +47,6 @@
         <li><a href="#contact" class="navbar__link">Contact</a></li>
       </ul>
       <div class="navbar__actions">
-        <button class="navbar__theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-          <span class="theme-icon">🌙</span>
-        </button>
         <a href="auth/login.html" class="btn btn--outline" id="login-btn">Log In</a>
         <a href="auth/register.html" class="btn btn--primary" id="register-btn">Get Started</a>
       </div>
@@ -224,14 +221,5 @@
       <p>© 2025/2026 UENR E-Learning Platform </p>
     </div>
   </footer>
-
-  <script>
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-      const next = getTheme() === 'dark' ? 'light' : 'dark';
-      setTheme(next);
-      document.querySelector('.theme-icon').textContent = next === 'dark' ? '🌙' : '☀️';
-    });
-    document.querySelector('.theme-icon').textContent = getTheme() === 'dark' ? '🌙' : '☀️';
-  </script>
 </body>
 </html>

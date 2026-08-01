@@ -1,8 +1,6 @@
 # UENR Interactive E-Learning Platform
 > Design and Implementation of an Interactive E-Learning Platform with Real-Time Feedback Mechanism
 
-**Group 16** | Department of Computer Science and Informatics | University of Energy and Natural Resources | FYP 2025/2026
-
 ---
 
 ## Project Overview
@@ -111,11 +109,12 @@ Update the values in `.env` if needed. The example file contains the default Sup
 
 ### 4. Run the backend
 ```powershell
+ c:/Users/myPC/Desktop/FYP/venv/Scripts/Activate.ps1
 cd backend
-python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8001
 ```
-- API docs: http://localhost:8000/docs
-- Health check: http://localhost:8000/api/health
+- API docs: http://localhost:8001/docs
+- Health check: http://localhost:8001/api/health
 
 ### 5. Run the frontend
 Open `frontend/index.html` with Live Server in VS Code, or:

@@ -1,0 +1,93 @@
+/*
+   CLASS / DEPARTMENT PULSE INSTRUMENT
+   frontend/shared/pulse.css
+   The signature instrument used across the lecturer and HOD dashboards.
+   A segmented bar of class health: at-risk / moderate / engaged.
+*/
+
+.pulse-card {
+  background: var(--bg-card);
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(6,182,212,0.12) 0%, transparent 55%),
+    var(--grad-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  padding: 2rem 2.25rem 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+}
+.pulse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.pulse-heading { display: flex; flex-direction: column; gap: 0.25rem; }
+.pulse-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pulse-score {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 3rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.pulse-score .pulse-unit { font-size: 1.4rem; font-weight: 700; color: var(--text-muted); margin-left: 0.15rem; }
+.pulse-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  padding: 0.9rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg-elevated);
+}
+.pulse-readout-num {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--clr-danger);
+  font-variant-numeric: tabular-nums;
+}
+.pulse-readout-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+.pulse-bar {
+  display: flex;
+  height: 18px;
+  margin-top: 1.75rem;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.35);
+}
+.pulse-seg {
+  height: 100%;
+  width: 0%;
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pulse-seg--risk   { background: var(--clr-danger); }
+.pulse-seg--mod    { background: var(--clr-warning); }
+.pulse-seg--engaged{ background: linear-gradient(135deg, #06b6d4, #22c55e); }
+.pulse-legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.pulse-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: var(--r-full); }
+.dot--risk   { background: var(--clr-danger); }
+.dot--mod    { background: var(--clr-warning); }
+.dot--engaged{ background: var(--clr-accent); }
+.pulse-caption { margin-top: 1.1rem; font-size: 0.9rem; }
+
+/* Compact variant used for per-course rows */
+.pulse-bar--sm { height: 8px; margin-top: 0.5rem; box-shadow: none; }

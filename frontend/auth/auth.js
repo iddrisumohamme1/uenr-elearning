@@ -3,13 +3,26 @@
    frontend/auth/auth.js
 */
 
-document.addEventListener('DOMContentLoaded', () => {
-    // If already logged in, redirect to dashboard
-    const existingUser = JSON.parse(localStorage.getItem('user'));
-    const existingToken = localStorage.getItem('token');
-    if (existingUser && existingToken) {
-        window.location.href = `../${existingUser.role}/dashboard.html`;
-        return;
+document.addEventListener('DOMContentLoaded', async () => {
+    const loginForm = document.getElementById('login-form');
+
+    // If a stored session exists, validate it against the server before
+    // auto-redirecting. Stale localStorage data must not hijack the login screen.
+    if (loginForm) {
+        const existingUser = JSON.parse(localStorage.getItem('user'));
+        const existingToken = localStorage.getItem('token');
+        if (existingUser && existingToken) {
+            try {
+                const user = await refreshAccessToken();
+                if (user) {
+                    window.location.href = `../${user.role}/dashboard.html`;
+                    return;
+                }
+            } catch (err) {
+                console.warn('[auth] Stored session invalid, showing login form.');
+            }
+            clearSession();
+        }
     }
 
     const roleCards = document.querySelectorAll('.role-card');
@@ -25,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Handle Login
-    const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();

@@ -7,7 +7,7 @@
 
 from fastapi import Depends, Header, HTTPException
 
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 
 def get_current_user(authorization: str = Header(default="")):
@@ -20,8 +20,10 @@ def get_current_user(authorization: str = Header(default="")):
 
     # Ask Supabase who this token belongs to.
     try:
-        result = admin.auth.get_user(token)
-    except Exception:
+        result = with_retry(lambda c: c.auth.get_user(token))
+    except Exception as exc:
+        import sys
+        print(f"[SECURITY] get_user failed: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     auth_user = getattr(result, "user", None)
@@ -29,7 +31,10 @@ def get_current_user(authorization: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     # Attach the profile (role/department) for convenience.
-    profile = admin.table("users").select("*").eq("id", auth_user.id).execute()
+    try:
+        profile = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to load user profile")
     if not profile.data:
         raise HTTPException(status_code=404, detail="User profile not found")
 

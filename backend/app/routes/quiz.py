@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/quiz", tags=["quiz"])
 
@@ -34,17 +34,18 @@ class QuizSubmission(BaseModel):
 
 
 @router.post("/create", status_code=201)
-def create_quiz(payload: QuizCreateRequest, user=Depends(require_role("lecturer"))):
+def create_quiz(payload: QuizCreateRequest, user=Depends(require_role("lecturer", "hod"))):
     """
     Create a quiz with questions for a course.
-    Lecturers can only create quizzes for their own courses.
+    Lecturers can only create quizzes for their own courses; HODs may create
+    quizzes for any course within their department.
     """
     admin = get_admin_client()
 
-    # Verify course belongs to this lecturer
+    # Verify access to the course
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, lecturer_id, department")
             .eq("id", payload.course_id)
             .execute()
@@ -53,7 +54,10 @@ def create_quiz(payload: QuizCreateRequest, user=Depends(require_role("lecturer"
         if not course_data:
             raise HTTPException(status_code=404, detail="Course not found.")
         course = course_data[0]
-        if course.get("lecturer_id") != user["id"]:
+        if user.get("role") == "hod":
+            if course.get("department") != user.get("department"):
+                raise HTTPException(status_code=403, detail="You can only create quizzes for courses in your department.")
+        elif course.get("lecturer_id") != user["id"]:
             raise HTTPException(status_code=403, detail="You can only create quizzes for your own courses.")
     except HTTPException:
         raise
@@ -65,8 +69,8 @@ def create_quiz(payload: QuizCreateRequest, user=Depends(require_role("lecturer"
 
     # Create the quiz
     try:
-        quiz_resp = (
-            admin.table("quizzes")
+        quiz_resp = with_retry(
+            lambda c: c.table("quizzes")
             .insert({
                 "course_id": payload.course_id,
                 "title": payload.title,
@@ -86,12 +90,14 @@ def create_quiz(payload: QuizCreateRequest, user=Depends(require_role("lecturer"
     # Insert questions
     for q in payload.questions:
         try:
-            admin.table("questions").insert({
-                "quiz_id": quiz["id"],
-                "question_text": q.question_text,
-                "options": q.options,
-                "correct_option": q.correct_option,
-            }).execute()
+            with_retry(
+                lambda c, q=q: c.table("questions").insert({
+                    "quiz_id": quiz["id"],
+                    "question_text": q.question_text,
+                    "options": q.options,
+                    "correct_option": q.correct_option,
+                }).execute()
+            )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Failed to create question: {exc}")
 
@@ -110,8 +116,8 @@ def get_course_quizzes(course_id: str, user=Depends(get_current_user)):
 
     # Verify access
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, department")
             .eq("id", course_id)
             .execute()
@@ -119,7 +125,17 @@ def get_course_quizzes(course_id: str, user=Depends(get_current_user)):
         course_data = getattr(course_resp, "data", []) or []
         if not course_data:
             raise HTTPException(status_code=404, detail="Course not found.")
-        if course_data[0].get("department") != user.get("department"):
+        if user.get("role") == "student":
+            enroll_resp = with_retry(
+                lambda c: c.table("enrollments")
+                .select("id")
+                .eq("student_id", user["id"])
+                .eq("course_id", course_id)
+                .execute()
+            )
+            if not (getattr(enroll_resp, "data", []) or []):
+                raise HTTPException(status_code=403, detail="Access denied to this course.")
+        elif course_data[0].get("department") != user.get("department"):
             raise HTTPException(status_code=403, detail="Access denied to this course.")
     except HTTPException:
         raise
@@ -127,8 +143,8 @@ def get_course_quizzes(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
 
     try:
-        quizzes_resp = (
-            admin.table("quizzes")
+        quizzes_resp = with_retry(
+            lambda c: c.table("quizzes")
             .select("*")
             .eq("course_id", course_id)
             .order("created_at", desc=True)
@@ -138,8 +154,8 @@ def get_course_quizzes(course_id: str, user=Depends(get_current_user)):
 
         # Fetch questions for each quiz
         for quiz in quizzes:
-            questions_resp = (
-                admin.table("questions")
+            questions_resp = with_retry(
+                lambda c, quiz=quiz: c.table("questions")
                 .select("id, question_text, options, correct_option")
                 .eq("quiz_id", quiz["id"])
                 .execute()
@@ -160,12 +176,12 @@ def submit_quiz(payload: QuizSubmission, user=Depends(get_current_user)):
     admin = get_admin_client()
 
     try:
-        admin.table("quiz_results").insert({
+        with_retry(lambda c: c.table("quiz_results").insert({
             "student_id": payload.student_id,
             "quiz_id": payload.quiz_id,
             "score": payload.score,
             "total_questions": int(payload.max_score),
-        }).execute()
+        }).execute())
         return {"status": "success", "message": "Quiz submitted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -178,9 +194,8 @@ def get_student_quizzes(student_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied.")
 
     try:
-        admin = get_admin_client()
-        resp = (
-            admin.table("quiz_results")
+        resp = with_retry(
+            lambda c: c.table("quiz_results")
             .select("*, quizzes(title, course_id)")
             .eq("student_id", student_id)
             .order("submitted_at", desc=True)

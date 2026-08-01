@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -24,17 +24,17 @@ class LecturerOut(BaseModel):
 
 @router.get("/lecturers", response_model=List[LecturerOut])
 def list_department_lecturers(user=Depends(require_role("hod"))):
-    """Return lecturers in the HOD's department."""
+    """Return lecturers (and teaching HODs) in the HOD's department."""
     if not user.get("department"):
         raise HTTPException(status_code=400, detail="HOD department is not configured.")
 
     admin = get_admin_client()
     try:
-        response = (
-            admin.table("users")
+        response = with_retry(
+            lambda c: c.table("users")
             .select("id, full_name, email, department")
             .eq("department", user["department"])
-            .eq("role", "lecturer")
+            .in_("role", ["lecturer", "hod"])
             .execute()
         )
     except Exception as exc:

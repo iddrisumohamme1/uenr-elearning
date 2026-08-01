@@ -17,14 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadAnalytics() {
         try {
             const [deptSummary, courses] = await Promise.all([
-                authFetch(`${API_BASE}/api/analytics/department/summary`).then(r => r.json()),
-                authFetch(`${API_BASE}/api/courses/`).then(r => r.json())
+                authFetch(`${API_BASE}/api/analytics/department/summary`).then(r => r.ok ? r.json() : null),
+                authFetch(`${API_BASE}/api/courses/`).then(r => r.ok ? r.json() : [])
             ]);
 
-            document.getElementById('stat-total-courses').textContent = courses.length || 0;
-            document.getElementById('stat-total-logs').textContent = deptSummary.total_records || 0;
+            document.getElementById('stat-total-courses').textContent = Array.isArray(courses) ? courses.length : 0;
+            document.getElementById('stat-total-logs').textContent = (deptSummary && deptSummary.total_records) || 0;
 
-            if (deptSummary.total_records > 0) {
+            if (deptSummary && deptSummary.total_records > 0) {
                 const eng = deptSummary.department_engagement;
                 document.getElementById('stat-at-risk').textContent = eng.at_risk.count || 0;
 
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const courseMap = {};
-            courses.forEach(c => { courseMap[c.id] = c; });
+            (Array.isArray(courses) ? courses : []).forEach(c => { courseMap[c.id] = c; });
 
             if (deptSummary.by_course && Object.keys(deptSummary.by_course).length > 0) {
                 const tbody = document.getElementById('course-table-body');
@@ -74,8 +74,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadAtRiskStudents() {
         const atRiskList = document.getElementById('at-risk-list');
         try {
-            const courses = await authFetch(`${API_BASE}/api/courses/`).then(r => r.json());
+            const courses = await authFetch(`${API_BASE}/api/courses/`).then(r => r.ok ? r.json() : []);
             const allAtRisk = [];
+
+            if (!Array.isArray(courses)) {
+                atRiskList.innerHTML = '<p class="text-muted">No at-risk students detected.</p>';
+                return;
+            }
 
             for (const course of courses) {
                 try {
@@ -99,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             atRiskList.innerHTML = allAtRisk.slice(0, 10).map(s => `
                 <div class="course-item">
                     <span>${s.course_name}</span>
-                    <span class="text-danger">Student: ${s.student_id.substring(0, 8)}...</span>
+                    <span class="text-danger">Student: ${(s.student_id || 'unknown').substring(0, 8)}...</span>
                 </div>
             `).join('');
         } catch (err) {

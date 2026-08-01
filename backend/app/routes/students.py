@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/students", tags=["students"])
 
@@ -35,8 +35,8 @@ def get_student_courses(student_id: str, user=Depends(get_current_user)):
     admin = get_admin_client()
 
     try:
-        enrollments_resp = (
-            admin.table("enrollments")
+        enrollments_resp = with_retry(
+            lambda c: c.table("enrollments")
             .select("course_id")
             .eq("student_id", student_id)
             .execute()
@@ -53,8 +53,8 @@ def get_student_courses(student_id: str, user=Depends(get_current_user)):
     courses = []
     for cid in course_ids:
         try:
-            course_resp = (
-                admin.table("courses")
+            course_resp = with_retry(
+                lambda c, cid=cid: c.table("courses")
                 .select("id, title, code, lecturer_id")
                 .eq("id", cid)
                 .execute()
@@ -68,10 +68,10 @@ def get_student_courses(student_id: str, user=Depends(get_current_user)):
             lecturer_name = None
             if course.get("lecturer_id"):
                 try:
-                    lec_resp = (
-                        admin.table("users")
+                    lec_resp = with_retry(
+                        lambda c, lid=course["lecturer_id"]: c.table("users")
                         .select("full_name")
-                        .eq("id", course["lecturer_id"])
+                        .eq("id", lid)
                         .execute()
                     )
                     lec_data = getattr(lec_resp, "data", []) or []
@@ -82,8 +82,8 @@ def get_student_courses(student_id: str, user=Depends(get_current_user)):
 
             # Count engagement logs as rough progress
             try:
-                logs_resp = (
-                    admin.table("engagement_logs")
+                logs_resp = with_retry(
+                    lambda c, cid=cid: c.table("engagement_logs")
                     .select("id")
                     .eq("student_id", student_id)
                     .eq("course_id", cid)
@@ -118,8 +118,8 @@ def get_student_stats(student_id: str, user=Depends(get_current_user)):
 
     # Enrolled courses count
     try:
-        enroll_resp = (
-            admin.table("enrollments")
+        enroll_resp = with_retry(
+            lambda c: c.table("enrollments")
             .select("course_id")
             .eq("student_id", student_id)
             .execute()
@@ -131,8 +131,8 @@ def get_student_stats(student_id: str, user=Depends(get_current_user)):
 
     # Engagement score: average of recent engagement_logs
     try:
-        logs_resp = (
-            admin.table("engagement_logs")
+        logs_resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("engagement_score")
             .eq("student_id", student_id)
             .order("created_at", desc=True)
@@ -150,8 +150,8 @@ def get_student_stats(student_id: str, user=Depends(get_current_user)):
 
     # Completed topics: count distinct materials the student has engaged with
     try:
-        materials_resp = (
-            admin.table("engagement_logs")
+        materials_resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("material_id")
             .eq("student_id", student_id)
             .execute()

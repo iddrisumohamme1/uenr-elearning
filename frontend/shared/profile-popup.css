@@ -20,7 +20,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--r-2xl);
-    width: 420px;
+    width: 400px;
     max-width: 92vw;
     max-height: 85vh;
     overflow-y: auto;
@@ -250,6 +250,26 @@
     cursor: not-allowed;
 }
 
+/* Logout Button (profile menu — used on mobile where sidebar footer is hidden) */
+.profile-logout-btn {
+    width: 100%;
+    margin-top: var(--s5);
+    padding: var(--s3) var(--s4);
+    background: var(--danger-soft);
+    color: var(--clr-danger);
+    border: 1px solid var(--danger-soft);
+    border-radius: var(--r-md);
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.profile-logout-btn:hover {
+    background: var(--clr-danger);
+    color: white;
+}
+
 .profile-status {
     text-align: center;
     font-size: 0.8rem;
@@ -275,4 +295,42 @@
 .top-bar .avatar:hover,
 .user-profile .avatar:hover {
     box-shadow: var(--shadow-glow-lg);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+/* Small laptops / landscape tablets: compact card */
+@media (max-width: 1100px) {
+  .profile-popup {
+    width: 360px;
+  }
+  .profile-popup-body { padding: var(--s5); }
+  .profile-avatar-section { gap: var(--s4); margin-bottom: var(--s5); }
+  .profile-avatar { width: 64px; height: 64px; font-size: 1.5rem; }
+  .profile-save-btn { margin-top: var(--s5); }
+  .profile-logout-btn { margin-top: var(--s4); }
+}
+
+/* Mobile: native bottom-sheet, anchored to the bottom edge */
+@media (max-width: 640px) {
+  .profile-popup-overlay {
+    align-items: flex-end;
+  }
+  .profile-popup {
+    width: 100%;
+    max-width: 100vw;
+    max-height: 78vh;
+    border-radius: 1.5rem 1.5rem 0 0;
+  }
+  .profile-popup-header { padding: var(--s4) var(--s5) var(--s3); }
+  .profile-popup-header h2 { font-size: 1rem; }
+  .profile-popup-body { padding: var(--s4) var(--s5) var(--s5); }
+  .profile-avatar-section { gap: var(--s3); margin-bottom: var(--s4); }
+  .profile-avatar { width: 56px; height: 56px; font-size: 1.3rem; border-width: 2px; }
+  .profile-avatar-edit { font-size: 0.58rem; padding: 1px; }
+  .profile-info .name { font-size: 0.95rem; }
+  .profile-info .email { font-size: 0.75rem; }
+  .profile-settings { padding-top: var(--s3); }
+  .profile-settings h3 { margin-bottom: var(--s3); }
+  .setting-row { padding: var(--s2) 0; }
+  .profile-logout-btn { margin-top: var(--s4); }
 }

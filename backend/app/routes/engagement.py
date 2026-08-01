@@ -9,7 +9,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 from app.core.security import get_current_user, require_role
 from app.services.engagement_analyzer import analyzer
 
@@ -51,7 +51,7 @@ class EngagementRequest(BaseModel):
 
 class MaterialEngagementLog(BaseModel):
     student_id: str
-    material_id: str
+    material_id: Optional[str] = None
     course_id: str
     mouse_movements: int = Field(0, ge=0)
     scroll_depth: int = Field(0, ge=0)
@@ -223,8 +223,8 @@ def get_student_engagement(student_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied.")
     try:
         admin = get_admin_client()
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("*")
             .eq("student_id", student_id)
             .order("created_at", desc=True)
@@ -241,7 +241,7 @@ def get_course_engagement(course_id: str, user=Depends(get_current_user)):
     """Returns engagement summary for all students in a course (Lecturer view)."""
     # Verify course belongs to user's department
     admin = get_admin_client()
-    course_resp = admin.table("courses").select("department").eq("id", course_id).execute()
+    course_resp = with_retry(lambda c: c.table("courses").select("department").eq("id", course_id).execute())
     course_data = getattr(course_resp, "data", []) or []
     if not course_data:
         raise HTTPException(status_code=404, detail="Course not found.")
@@ -249,8 +249,8 @@ def get_course_engagement(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied.")
     try:
         admin = get_admin_client()
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("student_id, engagement_class, engagement_label, comprehension_class, comprehension_label, created_at")
             .eq("course_id", course_id)
             .order("created_at", desc=True)
@@ -266,7 +266,7 @@ def get_at_risk_students(course_id: str, user=Depends(get_current_user)):
     """Returns only at-risk students (engagement_class=0) for a course."""
     # Verify course belongs to user's department
     admin = get_admin_client()
-    course_resp = admin.table("courses").select("department").eq("id", course_id).execute()
+    course_resp = with_retry(lambda c: c.table("courses").select("department").eq("id", course_id).execute())
     course_data = getattr(course_resp, "data", []) or []
     if not course_data:
         raise HTTPException(status_code=404, detail="Course not found.")
@@ -274,8 +274,8 @@ def get_at_risk_students(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied.")
     try:
         admin = get_admin_client()
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("student_id, engagement_label, comprehension_label, created_at")
             .eq("course_id", course_id)
             .eq("engagement_class", 0)
@@ -314,8 +314,8 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
     interaction_defaults = {"failures": 0, "absences": 0, "G1": 10, "G2": 10, "G3": 10, "freetime": 3}
 
     try:
-        quiz_resp = (
-            admin.table("quiz_results")
+        quiz_resp = with_retry(
+            lambda c: c.table("quiz_results")
             .select("score, quizzes!inner(course_id)")
             .eq("student_id", payload.student_id)
             .order("created_at", desc=True)
@@ -341,8 +341,8 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
 
     # ── Fetch engagement log metrics if available ─────────────────────────────
     try:
-        eng_resp = (
-            admin.table("engagement_logs")
+        eng_resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("failures, absences, freetime")
             .eq("student_id", payload.student_id)
             .eq("course_id", payload.course_id)
@@ -409,8 +409,8 @@ def get_student_classification(student_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied.")
     try:
         admin = get_admin_client()
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("student_id, course_id, engagement_class, engagement_label, comprehension_class, comprehension_label, created_at")
             .eq("student_id", student_id)
             .order("created_at", desc=True)

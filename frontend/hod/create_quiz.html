@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Quiz - HOD</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span class="logo">🎓</span><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
+                <a href="create_quiz.html" class="nav-link active"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow" id="dept-name">Department</p>
+                    <div class="title-row">
+                        <h1>Create New Assessment</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <section class="quiz-creation">
+                <div class="stat-card">
+                    <form id="quiz-form">
+                        <div class="form-group">
+                            <label class="form-label">Course</label>
+                            <select id="course-select" class="form-input" required>
+                                <option value="" disabled selected>Loading courses...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quiz Title</label>
+                            <input type="text" id="quiz-title" class="form-input" placeholder="e.g. Unit 1 Mastery Check" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time Limit (minutes, optional)</label>
+                            <input type="number" id="time-limit" class="form-input" placeholder="e.g. 30" min="1">
+                        </div>
+
+                        <div id="questions-container"></div>
+
+                        <button type="button" id="add-question-btn" class="btn-outline">+ Add Another Question</button>
+                        <button type="submit" class="btn-auth btn-full">Publish Quiz</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="create_quiz.js"></script>
+</body>
+</html>

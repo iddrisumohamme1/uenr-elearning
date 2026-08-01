@@ -15,7 +15,7 @@ from typing import Optional, List
 import random
 import time
 
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/micro-questions", tags=["micro_questions"])
 
@@ -438,7 +438,7 @@ def generate_micro_questions(payload: MicroQuestionRequest):
 
         # Fetch material details
         if payload.material_id:
-            mat_resp = admin.table("materials").select("title, description, course_id").eq("id", payload.material_id).execute()
+            mat_resp = with_retry(lambda c: c.table("materials").select("title, description, course_id").eq("id", payload.material_id).execute())
             mat_data = getattr(mat_resp, "data", []) or []
             if mat_data:
                 mat = mat_data[0]
@@ -447,7 +447,7 @@ def generate_micro_questions(payload: MicroQuestionRequest):
 
         # Fetch course details
         if payload.course_id:
-            course_resp = admin.table("courses").select("title, department").eq("id", payload.course_id).execute()
+            course_resp = with_retry(lambda c: c.table("courses").select("title, department").eq("id", payload.course_id).execute())
             course_data = getattr(course_resp, "data", []) or []
             if course_data:
                 course = course_data[0]

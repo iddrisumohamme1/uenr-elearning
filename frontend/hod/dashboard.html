@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/pulse.css">
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
     <script src="../shared/theme.js"></script>
@@ -24,6 +25,7 @@
                 <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
                 <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
                 <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
+                <a href="create_quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
             </nav>
             <div class="sidebar-footer">
                 <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
@@ -31,16 +33,43 @@
         </aside>
 
         <main class="main-content">
-            <header class="top-bar top-bar--split">
-                <div>
-                    <h1>HOD Dashboard</h1>
-                    <p class="text-muted" id="dept-name">Loading department...</p>
-                </div>
-                <div class="user-profile">
-                    <span id="user-name"></span>
-                    <div class="avatar" id="user-avatar"></div>
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow" id="dept-name">Department</p>
+                    <div class="title-row">
+                        <h1 id="welcome-text"></h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
                 </div>
             </header>
+
+            <section class="pulse-card fade-in-up" aria-label="Department engagement summary">
+                <div class="pulse-head">
+                    <div class="pulse-heading">
+                        <span class="pulse-label">Department Pulse</span>
+                        <div class="pulse-score">
+                            <span id="dept-pulse-score">--</span><span class="pulse-unit">%</span>
+                        </div>
+                    </div>
+                    <div class="pulse-readout">
+                        <span class="pulse-readout-num" id="dept-pulse-at-risk">--</span>
+                        <span class="pulse-readout-label">students at risk</span>
+                    </div>
+                </div>
+                <div class="pulse-bar" role="img" aria-label="Department engagement breakdown">
+                    <span class="pulse-seg pulse-seg--risk" id="dept-seg-risk"></span>
+                    <span class="pulse-seg pulse-seg--mod" id="dept-seg-mod"></span>
+                    <span class="pulse-seg pulse-seg--engaged" id="dept-seg-engaged"></span>
+                </div>
+                <div class="pulse-legend">
+                    <span class="pulse-legend-item"><span class="dot dot--risk"></span>At risk</span>
+                    <span class="pulse-legend-item"><span class="dot dot--mod"></span>Moderate</span>
+                    <span class="pulse-legend-item"><span class="dot dot--engaged"></span>Engaged</span>
+                </div>
+                <p class="pulse-caption text-muted" id="dept-pulse-caption">Reading the department…</p>
+            </section>
 
             <div class="stats-grid">
                 <div class="stat-card">
@@ -48,7 +77,7 @@
                     <p class="stat-value" id="stat-courses">--</p>
                 </div>
                 <div class="stat-card">
-                    <h3>Avg Engagement Score</h3>
+                    <h3>Avg Engagement</h3>
                     <p class="stat-value" id="stat-engagement">--%</p>
                 </div>
                 <div class="stat-card">
@@ -57,20 +86,33 @@
                 </div>
             </div>
 
-            <section class="dept-summary">
-                <div class="section-header">
-                    <div>
-                        <h2>Top Performing Courses</h2>
-                        <p class="text-muted">Courses with the highest engagement in your department.</p>
+            <div class="dashboard-grid">
+                <section class="panel-card fade-in-up">
+                    <div class="panel-head">
+                        <h3>My Classes</h3>
+                        <p class="text-muted panel-sub" id="my-classes-sub">Courses you teach</p>
                     </div>
-                </div>
-                <div id="top-courses-list" class="course-list">
-                    <div class="loading-wrapper">
-                        <div class="spinner"></div>
-                        <p>Loading top courses...</p>
+                    <div id="my-classes-list" class="course-list">
+                        <div class="loading-wrapper">
+                            <div class="spinner"></div>
+                            <p>Loading your classes…</p>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+
+                <section class="panel-card fade-in-up">
+                    <div class="panel-head">
+                        <h3>Top Performing Courses</h3>
+                        <p class="text-muted panel-sub">Highest engagement in the department</p>
+                    </div>
+                    <div id="top-courses-list" class="course-list">
+                        <div class="loading-wrapper">
+                            <div class="spinner"></div>
+                            <p>Loading top courses…</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
 
             <section class="dept-summary">
                 <div class="section-header">
@@ -86,7 +128,7 @@
                 <div id="hod-course-list" class="course-list">
                     <div class="loading-wrapper">
                         <div class="spinner"></div>
-                        <p>Loading department courses...</p>
+                        <p>Loading department courses…</p>
                     </div>
                 </div>
             </section>

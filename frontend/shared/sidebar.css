@@ -19,9 +19,11 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    transition: width var(--t-base);
 }
 
 .sidebar-header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--s3);
@@ -29,6 +31,8 @@
     font-weight: 800;
     font-size: 1.25rem;
     margin-bottom: var(--s10);
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .sidebar-nav {

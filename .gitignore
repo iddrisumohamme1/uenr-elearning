@@ -42,3 +42,7 @@ supabase/.env
 
 # Third-party reference material (Anthropic skills)
 skills/
+
+# opencode local config
+.opencode/
+opencode.json

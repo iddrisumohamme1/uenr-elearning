@@ -543,6 +543,63 @@
   .roles {
     padding: var(--s12) 0;
   }
+
+  /* Reduce card & text sizes on mobile */
+  .features__grid {
+    gap: var(--s4);
+  }
+
+  .feature-card {
+    padding: var(--s6);
+  }
+
+  .feature-card__icon {
+    width: 46px;
+    height: 46px;
+    font-size: 1.3rem;
+    margin-bottom: var(--s4);
+  }
+
+  .feature-card__title {
+    font-size: 1.05rem;
+  }
+
+  .feature-card__desc {
+    font-size: 0.9rem;
+  }
+
+  .roles__grid {
+    gap: var(--s5);
+  }
+
+  .role-card {
+    padding: var(--s6);
+  }
+
+  .role-card__avatar {
+    width: 54px;
+    height: 54px;
+    font-size: 1.4rem;
+    margin: var(--s3) auto var(--s4);
+  }
+
+  .role-card__title {
+    font-size: 1.1rem;
+  }
+
+  .role-card__list {
+    font-size: 0.875rem;
+    margin: var(--s4) 0 var(--s6);
+  }
+
+  .role-card__list li {
+    margin-bottom: var(--s2);
+  }
+
+  .feature-card__title,
+  .role-card__title {
+    margin-bottom: var(--s2);
+  }
 }
 
 /* Small phone (<= 480px) */

@@ -17,7 +17,7 @@
 */
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
+    ? 'http://localhost:8001'
     : 'https://uenr-elearning-api.onrender.com';
 
 /**

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import List
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
@@ -39,8 +39,8 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
 
     admin = get_admin_client()
     try:
-        lecturer_resp = (
-            admin.table("users")
+        lecturer_resp = with_retry(
+            lambda c: c.table("users")
             .select("id, full_name, role, department")
             .eq("id", payload.lecturer_id)
             .execute()
@@ -53,19 +53,21 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
         raise HTTPException(status_code=404, detail="Lecturer not found.")
 
     lecturer = lecturer_data[0]
-    if lecturer.get("role") != "lecturer":
+    if lecturer.get("role") not in ("lecturer", "hod"):
         raise HTTPException(status_code=400, detail="Selected user is not a lecturer.")
     if lecturer.get("department") != user["department"]:
         raise HTTPException(status_code=403, detail="Lecturer must belong to the HOD's department.")
 
     try:
-        insert_response = admin.table("courses").insert({
-            "code": payload.code,
-            "title": payload.title,
-            "description": payload.description,
-            "department": user["department"],
-            "lecturer_id": payload.lecturer_id,
-        }).execute()
+        insert_response = with_retry(
+            lambda c: c.table("courses").insert({
+                "code": payload.code,
+                "title": payload.title,
+                "description": payload.description,
+                "department": user["department"],
+                "lecturer_id": payload.lecturer_id,
+            }).execute()
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to create course: {exc}")
 
@@ -82,19 +84,29 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
 
 @router.get("/", response_model=List[CourseOut])
 def list_department_courses(user=Depends(get_current_user)):
-    """Return only courses associated with the logged-in user's department."""
-    if not user.get("department"):
-        raise HTTPException(status_code=400, detail="User department is not configured.")
+    """Return courses for the logged-in user's department.
 
+    Students (and any account without a configured department) see every course;
+    lecturers and HODs only see courses from their own department.
+    """
+    department = user.get("department")
     admin = get_admin_client()
     try:
-        lecturers = (
-            admin.table("users")
-            .select("id, full_name")
-            .eq("department", user["department"])
-            .eq("role", "lecturer")
-            .execute()
-        )
+        if department:
+            lecturers = with_retry(
+                lambda c: c.table("users")
+                .select("id, full_name")
+                .eq("department", department)
+                .in_("role", ["lecturer", "hod"])
+                .execute()
+            )
+        else:
+            lecturers = with_retry(
+                lambda c: c.table("users")
+                .select("id, full_name")
+                .in_("role", ["lecturer", "hod"])
+                .execute()
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to query lecturers: {exc}")
 
@@ -106,12 +118,19 @@ def list_department_courses(user=Depends(get_current_user)):
     lecturer_map = {row["id"]: row["full_name"] for row in lecturer_rows}
 
     try:
-        courses_response = (
-            admin.table("courses")
-            .select("id, code, title, lecturer_id")
-            .eq("department", user["department"])
-            .execute()
-        )
+        if department:
+            courses_response = with_retry(
+                lambda c: c.table("courses")
+                .select("id, code, title, lecturer_id")
+                .eq("department", department)
+                .execute()
+            )
+        else:
+            courses_response = with_retry(
+                lambda c: c.table("courses")
+                .select("id, code, title, lecturer_id")
+                .execute()
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to query courses: {exc}")
 
@@ -129,12 +148,12 @@ def list_department_courses(user=Depends(get_current_user)):
 
 
 @router.get("/mine", response_model=List[CourseOut])
-def list_my_courses(user=Depends(require_role("lecturer"))):
-    """Return only courses assigned to the logged-in lecturer."""
+def list_my_courses(user=Depends(require_role("lecturer", "hod"))):
+    """Return only courses assigned to the logged-in lecturer (or teaching HOD)."""
     admin = get_admin_client()
     try:
-        courses_response = (
-            admin.table("courses")
+        courses_response = with_retry(
+            lambda c: c.table("courses")
             .select("id, code, title, lecturer_id")
             .eq("lecturer_id", user["id"])
             .execute()
@@ -160,12 +179,10 @@ def enroll_course(payload: EnrollmentRequest, user=Depends(get_current_user)):
     """Enroll a student into a course only if it belongs to the user's department."""
     if user["id"] != payload.student_id:
         raise HTTPException(status_code=403, detail="Cannot enroll another user.")
-    if not user.get("department"):
-        raise HTTPException(status_code=400, detail="User department is not configured.")
 
     admin = get_admin_client()
     try:
-        course_resp = admin.table("courses").select("id, lecturer_id").eq("id", payload.course_id).execute()
+        course_resp = with_retry(lambda c: c.table("courses").select("id, lecturer_id").eq("id", payload.course_id).execute())
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
 
@@ -177,20 +194,25 @@ def enroll_course(payload: EnrollmentRequest, user=Depends(get_current_user)):
     if not lecturer_id:
         raise HTTPException(status_code=400, detail="Course is not assigned to a lecturer.")
 
-    try:
-        lecturer_resp = admin.table("users").select("department").eq("id", lecturer_id).execute()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to query lecturer: {exc}")
+    # Only enforce the department gate for accounts that have a department
+    # (lecturers/HODs). Students are often registered without one and may
+    # enroll in any course.
+    department = user.get("department")
+    if department:
+        try:
+            lecturer_resp = with_retry(lambda c: c.table("users").select("department").eq("id", lecturer_id).execute())
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to query lecturer: {exc}")
 
-    lecturer_data = getattr(lecturer_resp, "data", []) or []
-    if not lecturer_data or lecturer_data[0].get("department") != user["department"]:
-        raise HTTPException(status_code=403, detail="Cannot enroll in a course outside your department.")
+        lecturer_data = getattr(lecturer_resp, "data", []) or []
+        if not lecturer_data or lecturer_data[0].get("department") != department:
+            raise HTTPException(status_code=403, detail="Cannot enroll in a course outside your department.")
 
     try:
-        admin.table("enrollments").insert({
+        with_retry(lambda c: c.table("enrollments").insert({
             "student_id": payload.student_id,
             "course_id": payload.course_id,
-        }).execute()
+        }).execute())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Enrollment failed: {exc}")
 

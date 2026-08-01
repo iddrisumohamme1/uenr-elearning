@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 from app.schemas.materials import CourseMaterialsResponse, MaterialOut
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
@@ -38,8 +38,8 @@ def upload_material(
 
     # Validate course ownership / department scope.
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, title, department, lecturer_id")
             .eq("id", course_id)
             .execute()
@@ -108,8 +108,8 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
     admin = get_admin_client()
 
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, title, department, lecturer_id")
             .eq("id", course_id)
             .execute()
@@ -122,14 +122,28 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Course not found.")
 
     course = course_data[0]
-    if user["role"] in {"student", "hod"} and course.get("department") != user.get("department"):
-        raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
-    if user["role"] == "lecturer" and course.get("department") != user.get("department"):
+    if user["role"] == "student":
+        if course.get("department") == user.get("department"):
+            pass
+        else:
+            try:
+                enroll_resp = with_retry(
+                    lambda c: c.table("enrollments")
+                    .select("id")
+                    .eq("student_id", user["id"])
+                    .eq("course_id", course_id)
+                    .execute()
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"Failed to query enrollment: {exc}")
+            if not (getattr(enroll_resp, "data", []) or []):
+                raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
+    elif course.get("department") != user.get("department"):
         raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
 
     try:
-        materials_resp = (
-            admin.table("materials")
+        materials_resp = with_retry(
+            lambda c: c.table("materials")
             .select("id, title, description, content_url, content_type, created_at")
             .eq("course_id", course_id)
             .order("created_at", desc=True)
@@ -176,5 +190,11 @@ def proxy_material(url: str):
     return StreamingResponse(
         iter([r.content]),
         media_type=content_type,
-        headers={"Content-Disposition": "inline"},
+        headers={
+            "Content-Disposition": "inline",
+            # Allow the browser (pdf.js fetch, <video>/<img> sources) to use the proxy
+            # cross-origin from the frontend origin.
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+        },
     )

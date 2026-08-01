@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from app.core.security import require_role, get_current_user
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 from app.services.recommendation_engine import engine, detect_topic
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
@@ -115,9 +115,11 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
     admin = get_admin_client()
 
     try:
-        quiz_resp = admin.table("quiz_results").select(
-            "score, total_questions, quizzes(course_id)"
-        ).eq("student_id", user["id"]).execute()
+        quiz_resp = with_retry(
+            lambda c: c.table("quiz_results").select(
+                "score, total_questions, quizzes(course_id)"
+            ).eq("student_id", user["id"]).execute()
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not load quiz history: {e}")
 
@@ -130,7 +132,7 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
     if course_ids:
         for cid in course_ids:
             try:
-                cresp = admin.table("courses").select("id, title").eq("id", cid).limit(1).execute()
+                cresp = with_retry(lambda c, cid=cid: c.table("courses").select("id, title").eq("id", cid).limit(1).execute())
                 cdata = getattr(cresp, "data", []) or []
                 if cdata:
                     course_map[cid] = cdata[0].get("title", "")

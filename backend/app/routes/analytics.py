@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client
+from app.database import get_admin_client, with_retry
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -24,8 +24,8 @@ def course_summary(course_id: str, user=Depends(get_current_user)):
 
     # Verify course belongs to the user's department
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, department, lecturer_id")
             .eq("id", course_id)
             .execute()
@@ -42,8 +42,8 @@ def course_summary(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
 
     try:
-        logs = (
-            admin.table("engagement_logs")
+        logs = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("student_id, engagement_class, comprehension_class, created_at")
             .eq("course_id", course_id)
             .execute()
@@ -90,8 +90,8 @@ def course_at_risk(course_id: str, user=Depends(get_current_user)):
 
     # Verify course belongs to the user's department
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, department")
             .eq("id", course_id)
             .execute()
@@ -107,18 +107,33 @@ def course_at_risk(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
 
     try:
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("student_id, comprehension_class, comprehension_label, created_at")
             .eq("course_id", course_id)
             .eq("engagement_class", 0)
             .order("created_at", desc=True)
             .execute()
         )
+        students = resp.data
+
+        # Enrich with student names so the lecturer dashboard can show who needs help.
+        student_ids = list({s.get("student_id") for s in students if s.get("student_id")})
+        name_map = {}
+        if student_ids:
+            try:
+                users = with_retry(lambda c: c.table("users").select("id, full_name").in_("id", student_ids).execute())
+                name_map = {u["id"]: u.get("full_name") for u in (users.data or []) if u.get("id")}
+            except Exception:
+                name_map = {}
+
+        for s in students:
+            s["full_name"] = name_map.get(s.get("student_id")) or None
+
         return {
             "course_id": course_id,
-            "at_risk_count": len(resp.data),
-            "students": resp.data,
+            "at_risk_count": len(students),
+            "students": students,
         }
     except Exception as exc:
         raise HTTPException(500, detail=str(exc))
@@ -136,8 +151,8 @@ def course_engagement_trend(course_id: str, limit: int = 30, user=Depends(get_cu
 
     # Verify course belongs to the user's department
     try:
-        course_resp = (
-            admin.table("courses")
+        course_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id, department")
             .eq("id", course_id)
             .execute()
@@ -153,8 +168,8 @@ def course_engagement_trend(course_id: str, limit: int = 30, user=Depends(get_cu
         raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
 
     try:
-        resp = (
-            admin.table("engagement_logs")
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
             .select("engagement_class, comprehension_class, created_at")
             .eq("course_id", course_id)
             .order("created_at", desc=False)
@@ -181,8 +196,8 @@ def department_summary(user=Depends(require_role("hod"))):
 
     # Get courses in the HOD's department
     try:
-        courses_resp = (
-            admin.table("courses")
+        courses_resp = with_retry(
+            lambda c: c.table("courses")
             .select("id")
             .eq("department", user["department"])
             .execute()
@@ -200,8 +215,8 @@ def department_summary(user=Depends(require_role("hod"))):
     all_logs = []
     for cid in course_ids:
         try:
-            resp = (
-                admin.table("engagement_logs")
+            resp = with_retry(
+                lambda c, cid=cid: c.table("engagement_logs")
                 .select("course_id, engagement_class, comprehension_class")
                 .eq("course_id", cid)
                 .execute()

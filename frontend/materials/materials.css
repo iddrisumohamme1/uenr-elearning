@@ -67,12 +67,14 @@
 .content-area {
     flex: 1;
     padding: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background: var(--bg-surface);
     color: var(--text-primary);
     line-height: 1.8;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     flex-direction: column;
     height: 100%;
 }
@@ -369,6 +371,24 @@
     object-fit: contain;
 }
 
+/* PDF.js pages: each canvas keeps natural height so the content area scrolls */
+.pdf-page-canvas {
+    display: block;
+    width: 100%;
+    flex: none;
+}
+
+.pdf-error-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s3);
+    padding: var(--s6);
+    text-align: center;
+}
+
 #content-viewer .material-download-card {
     flex: 1;
     height: 100%;
@@ -377,4 +397,125 @@
 #content-viewer .material-viewer-card {
     flex: 1;
     height: 100%;
+}
+
+/* ─── Viewer header title ──────────────────────────────────────────────────
+   Reduce the huge global h1 to fit the compact 48px viewer header. */
+.viewer-header h1 {
+    font-size: 1rem;
+    line-height: 1.2;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.header-left {
+    gap: var(--s3);
+    flex: 1;
+    min-width: 0;
+}
+
+/* ─── Tablet (<= 1100px): compact sidebar ───────────────────────────────── */
+@media (max-width: 1100px) {
+    .viewer-sidebar {
+        width: 180px;
+    }
+}
+
+/* ─── Mobile (<= 768px): keep the desktop layout ─────────────────────────── */
+@media (max-width: 768px) {
+    .viewer-container {
+        height: 100dvh;
+        max-height: 100dvh;
+    }
+
+    .viewer-header {
+        padding: 0 var(--s3);
+        gap: var(--s3);
+    }
+
+    .viewer-header h1 {
+        font-size: 0.95rem;
+        flex: 1;
+    }
+
+    .engagement-status span#engagement-label {
+        display: none;
+    }
+
+    /* Override the shared <=560px stacked layout: keep sidebar beside content */
+    .viewer-layout {
+        flex-direction: row !important;
+        overflow: hidden;
+    }
+
+    .viewer-sidebar {
+        position: static !important;
+        width: 180px !important;
+        max-width: 180px;
+        flex: none;
+        border-left: 1px solid var(--border);
+        border-top: none;
+        transform: none;
+        box-shadow: none;
+        z-index: auto;
+        padding: var(--s2) var(--s2);
+        gap: var(--s3);
+    }
+
+    /* Compact sidebar text + cards on mobile */
+    .viewer-sidebar .sidebar-section h3 {
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    .viewer-sidebar .topic-list {
+        margin-top: var(--s2);
+        gap: var(--s1);
+    }
+
+    .viewer-sidebar .topic-item {
+        padding: var(--s2) var(--s2);
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .viewer-sidebar .material-desc {
+        font-size: 0.7rem;
+        margin: 0.2rem 0 0;
+    }
+
+    .viewer-sidebar .pulse-container {
+        padding: var(--s2);
+    }
+
+    .content-area {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: var(--s4);
+    }
+
+    /* Tall images render at natural height and scroll instead of being squished */
+    #content-viewer img.media-embed-img {
+        height: auto;
+        flex: none;
+    }
+}
+
+/* ─── Very narrow phones: keep the desktop layout but slim the sidebar ──── */
+@media (max-width: 380px) {
+    .viewer-sidebar {
+        width: 140px !important;
+        max-width: 140px;
+    }
+
+    .viewer-sidebar .topic-item {
+        font-size: 0.72rem;
+        padding: var(--s1) var(--s2);
+    }
 }

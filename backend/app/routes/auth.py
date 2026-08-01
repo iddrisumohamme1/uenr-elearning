@@ -10,7 +10,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from app.database import get_admin_client, get_anon_client
+from app.database import get_admin_client, get_anon_client, with_retry
 from app.schemas.auth import (
     ALLOWED_ROLES,
     AuthResponse,
@@ -94,7 +94,7 @@ def login(payload: LoginRequest):
 
     # 2. Load the profile (role, name) for the frontend redirect.
     admin = get_admin_client()
-    profile = admin.table("users").select("*").eq("id", auth_user.id).execute()
+    profile = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
     if not profile.data:
         raise HTTPException(status_code=404, detail="User profile not found")
 
@@ -121,7 +121,7 @@ def refresh_session(payload: RefreshRequest):
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
     admin = get_admin_client()
-    profile = admin.table("users").select("*").eq("id", auth_user.id).execute()
+    profile = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
     if not profile.data:
         raise HTTPException(status_code=404, detail="User profile not found")
 
