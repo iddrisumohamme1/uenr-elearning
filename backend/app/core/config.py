@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # "*" allows any origin (fine for local dev; tighten for production).
     CORS_ORIGINS: str = "*"
 
+    # --- YouTube Data API ---
+    # API key for the YouTube Data API v3, used to fetch live video
+    # recommendations. Leave empty to fall back to the curated resource pool.
+    YOUTUBE_API_KEY: str = ""
+
     @property
     def is_configured(self) -> bool:
         """True when the minimum Supabase credentials are present."""

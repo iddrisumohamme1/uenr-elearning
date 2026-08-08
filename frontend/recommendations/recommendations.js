@@ -79,13 +79,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             const score = Math.max(0, Math.min(100, Number(rec.similarity_percent) || 0));
             const source = escapeHTML(sourceLabels[rec.source] || rec.source || '');
             const type = escapeHTML(rec.type || 'Resource');
+            const thumb = rec.source === 'youtube' && rec.thumbnails
+                ? (rec.thumbnails.medium || rec.thumbnails.default || {}).url
+                : '';
+            const channel = rec.source === 'youtube' && rec.channel
+                ? `<p class="rec-channel">${escapeHTML(rec.channel)}</p>`
+                : '';
             return `
                 <div class="rec-card">
+                    ${thumb ? `<a class="rec-thumb" href="${escapeHTML(rec.url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHTML(thumb)}" alt="${escapeHTML(rec.title)}" loading="lazy"></a>` : ''}
                     <div class="rec-card-top">
                         <span class="rec-type">${type}</span>
                         ${source ? `<span class="rec-source">${source}</span>` : ''}
                     </div>
                     <h3 class="rec-title">${escapeHTML(rec.title)}</h3>
+                    ${channel}
                     ${rec.reason ? `<p class="rec-reason">${escapeHTML(rec.reason)}</p>` : ''}
                     ${rec.description && rec.description !== rec.title ? `<p class="rec-desc">${escapeHTML(rec.description)}</p>` : ''}
                     <div class="rec-score">

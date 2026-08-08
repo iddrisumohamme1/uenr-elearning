@@ -309,13 +309,51 @@ class RecommendationEngine:
             return []
 
         self._ensure_model()
+        pool_results = []
         if self.model is not None and self.resource_embeddings is not None:
             try:
-                return self._semantic_search(weak_concepts, top_n)
+                pool_results = self._semantic_search(weak_concepts, top_n)
             except Exception as e:
                 print(f"[Recommendation] Semantic search error: {e}. Falling back to TF-IDF.")
+        if not pool_results:
+            pool_results = self._tfidf_search(weak_concepts, top_n)
 
-        return self._tfidf_search(weak_concepts, top_n)
+        youtube_results = self._youtube_recommendations(weak_concepts, top_n)
+
+        combined = pool_results + youtube_results
+        combined.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
+        return combined[:top_n]
+
+    def _youtube_recommendations(self, query: str, top_n: int) -> list:
+        """Fetch live YouTube videos for the weak concept and map them into the
+        shared resource format so they mix cleanly with pool results."""
+        from app.services.youtube_service import search_youtube
+
+        items = search_youtube(query, max_results=top_n)
+        if not items:
+            return []
+
+        topic = detect_topic(query)
+        results = []
+        for i, item in enumerate(items):
+            # Rank-based relevance score; Google's own ranking carries the signal.
+            score = max(0.10, 0.95 - i * 0.06)
+            results.append({
+                "id": item["id"],
+                "material_id": "",
+                "course_id": "",
+                "title": item["title"],
+                "description": item["description"],
+                "url": item["url"],
+                "channel": item["channel"],
+                "thumbnails": item["thumbnails"],
+                "topic": topic,
+                "source": "youtube",
+                "type": "Video",
+                "difficulty": "intermediate",
+                "similarity_score": round(score, 4),
+            })
+        return results
 
     def _semantic_search(self, query: str, top_n: int) -> list:
         import numpy as np
