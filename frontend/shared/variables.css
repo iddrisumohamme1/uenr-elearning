@@ -95,11 +95,11 @@
 
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  /* Background */
-  --bg:         #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-card:    #f1f5f9;
-  --bg-elevated:#e2e8f0;
+  /* Background — soft sky blue, echoing the river / UENR blue */
+  --bg:         #e8f1fb;
+  --bg-surface: #f2f8fe;
+  --bg-card:    #ffffff;
+  --bg-elevated:#dce9f8;
 
   /* Text */
   --text-primary:   #0f172a;
@@ -115,11 +115,11 @@
   --danger-soft:  rgba(239,68,68,0.08);
 
   /* Glass */
-  --bg-glass: rgba(255,255,255,0.7);
+  --bg-glass: rgba(242,248,254,0.78);
 
   /* Borders */
-  --border:       rgba(0,0,0,0.08);
-  --border-strong:rgba(0,0,0,0.14);
+  --border:       rgba(15,40,90,0.08);
+  --border-strong:rgba(15,40,90,0.14);
   --border-focus: rgba(59,130,246,0.5);
 
   /* Shadows */

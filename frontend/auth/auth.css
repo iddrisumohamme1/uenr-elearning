@@ -10,42 +10,19 @@
   justify-content: center;
   padding: var(--s6);
   background: var(--bg);
-  background-image: var(--grad-hero);
   position: relative;
   overflow: hidden;
 }
 
-/* Ambient floating orbs for depth */
-.auth-page::before,
-.auth-page::after {
-  content: "";
-  position: absolute;
-  width: 420px;
-  height: 420px;
-  border-radius: var(--r-full);
-  filter: blur(90px);
-  opacity: 0.5;
-  pointer-events: none;
-  animation: authFloat 14s ease-in-out infinite;
-}
-
-.auth-page::before { background: var(--clr-primary); top: -120px; left: -120px; }
-.auth-page::after  { background: var(--clr-accent);  bottom: -140px; right: -120px; animation-delay: -7s; }
-
-@keyframes authFloat {
-  0%, 100% { transform: translate(0, 0); }
-  50%      { transform: translate(30px, 40px); }
-}
-
 .auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 500px;
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-2xl);
-  padding: var(--s8);
+  padding: var(--s10);
   box-shadow: var(--shadow-xl);
   z-index: 10;
   animation: fadeInUp var(--t-slow) both;
@@ -57,14 +34,13 @@
 }
 
 .auth-logo {
-  font-size: 1.6rem;
   width: 56px;
   height: 56px;
   margin: 0 auto var(--s3);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--grad-primary);
+  object-fit: contain;
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-glow);
 }

@@ -40,7 +40,9 @@
 }
 
 .navbar__logo-icon {
-  font-size: 1.75rem;
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
 }
 
 .navbar__logo-accent {
@@ -124,6 +126,7 @@
   }
 
   .navbar__logo-icon {
-    font-size: 1.3rem;
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }

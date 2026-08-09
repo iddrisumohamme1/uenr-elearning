@@ -91,17 +91,18 @@
 
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --bg:         #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-card:    #f1f5f9;
-  --bg-elevated:#e2e8f0;
-  --bg-glass:   rgba(255,255,255,0.7);
+  /* Background — soft sky blue, echoing the river / UENR blue */
+  --bg:         #e8f1fb;
+  --bg-surface: #f2f8fe;
+  --bg-card:    #ffffff;
+  --bg-elevated:#dce9f8;
+  --bg-glass:   rgba(242,248,254,0.78);
 
   --text-primary:   #0f172a;
   --text-secondary: #475569;
   --text-muted:     #94a3b8;
 
-  --border:       rgba(0,0,0,0.08);
+  --border:       rgba(15,40,90,0.08);
   --border-focus: rgba(59,130,246,0.5);
 
   --grad-surface: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%);
