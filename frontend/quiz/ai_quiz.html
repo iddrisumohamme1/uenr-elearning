@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehension Check - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="quiz.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="quiz-page-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
+            <nav class="sidebar-nav">
+                <a href="../student/dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon"><i class="bi bi-book"></i></span><span class="nav-label"> My Courses</span></a>
+                <a href="../student/progress.html" class="nav-link"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-label"> My Progress</span></a>
+                <a href="../student/assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
+                <a href="../student/inbox.html" class="nav-link"><span class="nav-icon"><i class="bi bi-inbox"></i></span><span class="nav-label"> Inbox</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon"><i class="bi bi-stars"></i></span><span class="nav-label"> Recommendations</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-graph-up-arrow"></i></span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="quiz-content">
+            <div id="loading-area" class="loading-wrapper loading-full">
+                <div class="spinner"></div>
+                <p>Generating your quiz from the material…</p>
+            </div>
+
+            <div id="load-error" style="display:none" class="quiz-complete">
+                <span class="results-icon" style="font-size: 3rem"><i class="bi bi-exclamation-triangle"></i></span>
+                <h2>Could not load the quiz</h2>
+                <p class="text-muted" id="error-text"></p>
+                <a href="../materials/materials.html" class="btn-primary">Back to Material</a>
+            </div>
+
+            <div id="ai-quiz-area" style="display:none">
+                <header class="quiz-header">
+                    <div>
+                        <p class="quiz-eyebrow">Comprehension Check</p>
+                        <h1 id="quiz-title">AI Comprehension Quiz</h1>
+                    </div>
+                    <div class="quiz-timer-wrap">
+                        <i class="bi bi-stopwatch"></i>
+                        <span id="quiz-timer">--:--</span>
+                    </div>
+                </header>
+
+                <div id="question-map" class="question-map" aria-label="Question progress"></div>
+
+                <main class="quiz-body">
+                    <div class="question-card">
+                        <p class="question-num" id="question-num">Question 1 of 10</p>
+                        <h2 id="question-text">Loading question...</h2>
+
+                        <div class="options-grid" id="options-grid"></div>
+
+                        <div id="theory-section" style="display:none">
+                            <div id="theory-questions"></div>
+                        </div>
+                    </div>
+
+                    <div class="quiz-footer">
+                        <button id="prev-btn" class="btn-secondary" style="display:none">Previous</button>
+                        <div class="quiz-progress"><span id="progress-text">1 / 10</span></div>
+                        <button id="next-btn" class="btn-primary">Next</button>
+                        <button id="submit-btn" class="btn-primary" style="display:none">Submit Quiz</button>
+                    </div>
+                </main>
+            </div>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="ai_quiz.js"></script>
+</body>
+</html>

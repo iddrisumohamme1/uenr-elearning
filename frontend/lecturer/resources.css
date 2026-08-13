@@ -1,0 +1,104 @@
+/* 
+   LECTURER STUDY RESOURCES PAGE
+   frontend/lecturer/resources.css
+*/
+
+.gen-panel {
+  background: var(--bg-card);
+  background-image: var(--grad-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: var(--s6);
+  margin-bottom: var(--s8);
+}
+
+.gen-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s4);
+  align-items: end;
+}
+
+.gen-controls .form-label { display: block; margin-bottom: var(--s2); font-size: 0.85rem; color: var(--text-secondary); }
+.gen-controls .form-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+}
+.gen-controls .form-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--ring); }
+
+.btn-publish {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--grad-success);
+  border: none;
+  border-radius: var(--r-md);
+  padding: var(--s2) var(--s5);
+  cursor: pointer;
+  transition: transform var(--t-fast), box-shadow var(--t-base);
+}
+.btn-publish:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-publish:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.preview {
+  margin-top: var(--s6);
+  padding: var(--s5);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--r-lg);
+  background: rgba(255,255,255,0.02);
+}
+
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.preview-head h4 { font-size: 1rem; }
+
+.preview-body {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-height: 420px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+}
+
+.resource-item {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s4);
+  margin-bottom: var(--s3);
+}
+.resource-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }
+.resource-head h4 { font-size: 0.95rem; }
+.resource-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: var(--s1); }
+.resource-text {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: var(--s3);
+  max-height: 140px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  position: relative;
+}
+.resource-text::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--bg-card));
+}
+
+.type-tag { text-transform: capitalize; }

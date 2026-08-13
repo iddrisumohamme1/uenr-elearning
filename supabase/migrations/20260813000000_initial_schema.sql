@@ -1,5 +1,5 @@
 -- SUPABASE DATABASE SCHEMA
--- migrations/001_initial_schema.sql
+-- migrations/20260813000000_initial_schema.sql
 
 -- 1. Users table (Profiles)
 CREATE TABLE IF NOT EXISTS users (

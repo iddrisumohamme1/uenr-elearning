@@ -9,19 +9,36 @@
 #   - Engagement class 2 (High)     → hard questions    (deeper challenge)
 #   - Answers are NEVER sent to the client; verified server-side via /verify.
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
+import io
 import random
+import re
 import time
+from collections import Counter
+
+import httpx
 
 from app.database import get_admin_client, with_retry
+from app.core.security import get_current_user
 
 router = APIRouter(prefix="/api/micro-questions", tags=["micro_questions"])
 
 # ── In-memory answer store ─────────────────────────────────────────────────────
 # session_id → { answer_list: [(question_text, correct_index)], topic, difficulty }
+# Sessions are auto-purged after _SESSION_TTL seconds.
 _answer_store: dict = {}
+_SESSION_TTL = 3600  # 1 hour
+
+
+def _purge_stale_sessions():
+    global _answer_store
+    now = time.time()
+    _answer_store = {
+        sid: data for sid, data in _answer_store.items()
+        if now - data.get("timestamp", 0) < _SESSION_TTL
+    }
 
 
 # ── Question Bank ──────────────────────────────────────────────────────────────
@@ -382,6 +399,182 @@ DIFFICULTY_MAP = {
     2: "hard",
 }
 
+# ── Content-aware question generation ─────────────────────────────────────────
+# When the material the student is viewing is a readable PDF, questions are
+# generated from the material's actual sentences (cloze style) so the checks
+# reflect the content being studied. The static QUESTION_BANK remains the
+# fallback when no text can be extracted (videos, image-only PDFs, etc.).
+
+_FALLBACK_TERMS = [
+    "Algorithm", "Database", "Compilation", "Recursion", "Encryption",
+    "Protocol", "Framework", "Interface", "Compiler", "Neural Network",
+    "Data Structure", "Gradient Descent", "Sorting", "Query", "Concurrency",
+    "Abstraction", "Polymorphism", "Encapsulation", "Syntax", "Iteration",
+    "Authentication", "Normalization", "Latency", "Throughput", "Semantics",
+]
+
+_STOPWORDS = {
+    "about", "above", "after", "again", "against", "also", "been",
+    "before", "being", "below", "between", "both", "could", "does",
+    "doing", "during", "each", "else", "from", "have", "having",
+    "here", "into", "just", "like", "more", "most", "much", "must",
+    "only", "other", "over", "same", "should", "such", "than", "that",
+    "their", "them", "then", "there", "these", "they", "this", "those",
+    "through", "under", "using", "very", "were", "what", "when", "where",
+    "which", "while", "with", "would", "your", "its", "you", "are",
+    "not", "will", "can", "all", "any", "was", "has", "may", "also",
+}
+
+_ALNUM_RE = re.compile(r"[A-Za-z][A-Za-z0-9'+\-]*")
+_PHRASE_RE = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
+
+
+def _fetch_material_content(content_url: str) -> bytes | None:
+    """Download a material file from Supabase storage."""
+    if not content_url:
+        return None
+    try:
+        with httpx.Client(timeout=30, follow_redirects=True, verify=False) as client:
+            r = client.get(content_url)
+            r.raise_for_status()
+            return r.content
+    except Exception as exc:
+        print(f"[micro-questions] Failed to download material: {exc}")
+        return None
+
+
+def _extract_pdf_text(content: bytes) -> str:
+    """Extract readable text from a PDF byte stream."""
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(content))
+        pages = []
+        for page in reader.pages:
+            try:
+                text = page.extract_text() or ""
+            except Exception:
+                text = ""
+            if text:
+                pages.append(text)
+        return re.sub(r"\s+", " ", " ".join(pages)).strip()
+    except Exception as exc:
+        print(f"[micro-questions] PDF text extraction failed: {exc}")
+        return ""
+
+
+def _is_content_word(word: str) -> bool:
+    return len(word) >= 4 and word.lower() not in _STOPWORDS
+
+
+def _rank_key_terms(text: str) -> list:
+    """Return [(display_term, count)] ordered rarest/longest first."""
+    tokens = _ALNUM_RE.findall(text)
+    word_counts = Counter(t.lower() for t in tokens if _is_content_word(t))
+
+    term_counts: dict = {}
+    term_display: dict = {}
+
+    for w_lower, count in word_counts.items():
+        if count >= 2 or len(w_lower) >= 7:
+            term_counts[w_lower] = count
+            term_display[w_lower] = w_lower.title()
+
+    for m in _PHRASE_RE.finditer(text):
+        key = m.group(0).lower()
+        term_counts[key] = term_counts.get(key, 0) + 1
+        term_display[key] = m.group(0)
+
+    ranked = sorted(term_counts.items(), key=lambda kv: (kv[1], -len(kv[0])))
+    return [(term_display[k], count) for k, count in ranked]
+
+
+def _in_sentence(term: str, sentence: str) -> bool:
+    return re.search(r"\b" + re.escape(term) + r"\b", sentence, re.IGNORECASE) is not None
+
+
+def _blank_term(sentence: str, term: str) -> str:
+    pattern = re.compile(r"\b" + re.escape(term) + r"\b", re.IGNORECASE)
+    return pattern.sub("______", sentence, count=1)
+
+
+def _pick_term_for_difficulty(sent_terms: list, difficulty: str) -> str:
+    # sent_terms are rarest-first; hard blanks a rare term, easy a common one.
+    if difficulty == "easy":
+        return sent_terms[-1]
+    if difficulty == "hard":
+        return sent_terms[0]
+    return sent_terms[len(sent_terms) // 2]
+
+
+def _build_options(blank: str, sentence: str, ranked_terms: list) -> list:
+    distractors = []
+    for display, _count in ranked_terms:
+        if len(distractors) >= 3:
+            break
+        if display.lower() == blank.lower():
+            continue
+        if _in_sentence(display, sentence):
+            continue
+        if display not in distractors:
+            distractors.append(display)
+    for term in _FALLBACK_TERMS:
+        if len(distractors) >= 3:
+            break
+        if term.lower() != blank.lower() and term not in distractors:
+            distractors.append(term)
+
+    options = [blank] + distractors[:3]
+    random.shuffle(options)
+    return options
+
+
+def _generate_questions_from_text(text: str, num: int, difficulty: str) -> list:
+    """Generate cloze (fill-in-the-blank) MCQs from the material's own sentences."""
+    text = re.sub(r"\s+", " ", text).strip()[:30000]
+    if len(text) < 60:
+        return []
+
+    sentences = [s.strip() for s in _SENTENCE_SPLIT_RE.split(text)]
+    candidates = []
+    for s in sentences:
+        tokens = _ALNUM_RE.findall(s)
+        content_words = [t for t in tokens if _is_content_word(t)]
+        if len(content_words) < 3:
+            continue
+        if 8 <= len(tokens) <= 40:
+            candidates.append(s)
+
+    if not candidates:
+        return []
+
+    ranked = _rank_key_terms(text)
+    if not ranked:
+        return []
+
+    questions = []
+    for sentence in candidates:
+        if len(questions) >= num:
+            break
+        sent_terms = [d for d, _c in ranked if _in_sentence(d, sentence)]
+        if not sent_terms:
+            continue
+        blank = _pick_term_for_difficulty(sent_terms, difficulty)
+        cloze = _blank_term(sentence, blank)
+        if len(cloze) < 15:
+            continue
+        options = _build_options(blank, sentence, ranked)
+        if len(set(o.lower() for o in options)) < 4:
+            continue
+        questions.append({
+            "question": f"Complete the sentence: \"{cloze}\"",
+            "options": options,
+            "answer": options.index(blank),
+            "hint": "This key term appears in the material you are currently reading.",
+        })
+    return questions
+
 
 class MicroQuestionRequest(BaseModel):
     student_id: str
@@ -398,6 +591,7 @@ class MicroQuestionResponse(BaseModel):
     topic: str
     difficulty: str
     session_id: str
+    source: str = "bank"
     questions: List[dict]
 
 
@@ -413,7 +607,7 @@ class VerifyRequest(BaseModel):
 
 
 @router.post("/generate", response_model=MicroQuestionResponse)
-def generate_micro_questions(payload: MicroQuestionRequest):
+def generate_micro_questions(payload: MicroQuestionRequest, user=Depends(get_current_user)):
     """
     Generates micro-questions based on:
     - Engagement class 0 (At-Risk)  -> easy   questions (rebuild confidence)
@@ -423,6 +617,12 @@ def generate_micro_questions(payload: MicroQuestionRequest):
     Fetches the actual material and course content from Supabase to generate
     questions targeted to the specific material being viewed.
     """
+    # Students can only generate micro-questions for themselves
+    if user.get("role") == "student" and user["id"] != payload.student_id:
+        raise HTTPException(status_code=403, detail="Students can only generate questions for their own sessions.")
+
+    _purge_stale_sessions()
+
     if payload.engagement_class not in [0, 1, 2]:
         raise HTTPException(status_code=400, detail="engagement_class must be 0, 1, or 2.")
 
@@ -432,22 +632,34 @@ def generate_micro_questions(payload: MicroQuestionRequest):
     # Fetch material and course content from Supabase for targeted questions
     material_text = ""
     topic = "general"
+    content_url = ""
+    content_type = ""
+    extracted_text = ""
 
     try:
         admin = get_admin_client()
 
-        # Fetch material details
+        # Fetch material details (including the stored file so we can read its text)
         if payload.material_id:
-            mat_resp = with_retry(lambda c: c.table("materials").select("title, description, course_id").eq("id", payload.material_id).execute())
+            mat_resp = with_retry(
+                lambda c: c.table("materials")
+                .select("title, description, content_url, content_type, course_id")
+                .eq("id", payload.material_id)
+                .execute()
+            )
             mat_data = getattr(mat_resp, "data", []) or []
             if mat_data:
                 mat = mat_data[0]
                 material_text = f"{mat.get('title', '')} {mat.get('description', '')}".strip()
+                content_url = mat.get("content_url") or ""
+                content_type = (mat.get("content_type") or "").lower()
                 payload.course_id = payload.course_id or mat.get("course_id")
 
         # Fetch course details
         if payload.course_id:
-            course_resp = with_retry(lambda c: c.table("courses").select("title, department").eq("id", payload.course_id).execute())
+            course_resp = with_retry(
+                lambda c: c.table("courses").select("title, department").eq("id", payload.course_id).execute()
+            )
             course_data = getattr(course_resp, "data", []) or []
             if course_data:
                 course = course_data[0]
@@ -459,25 +671,45 @@ def generate_micro_questions(payload: MicroQuestionRequest):
         if payload.material_description:
             material_text = f"{material_text} {payload.material_description}".strip()
 
+        # Download the actual material file and extract its text.
+        if content_url:
+            raw = _fetch_material_content(content_url)
+            if raw:
+                if "pdf" in content_type:
+                    extracted_text = _extract_pdf_text(raw)
+                elif "text" in content_type:
+                    try:
+                        extracted_text = raw.decode("utf-8", errors="ignore").strip()
+                    except Exception:
+                        extracted_text = ""
+
     except Exception as e:
         print(f"[micro-questions] Could not fetch material/course data: {e}")
         material_text = f"{payload.material_title} {payload.material_description}".strip()
 
-    # Detect topic from actual material content
-    topic = _detect_topic_from_content(material_text.lower())
+    # Detect topic from the material content (extracted text is the richest signal).
+    topic = _detect_topic_from_content(f"{material_text} {extracted_text}".lower()[:4000])
 
-    pool = QUESTION_BANK[topic].get(difficulty, [])
+    # Prefer questions generated from the material's actual content.
+    generated = _generate_questions_from_text(extracted_text, num, difficulty) if extracted_text else []
 
-    if len(pool) < num:
-        all_questions = []
-        for diff_tier in ["easy", "medium", "hard"]:
-            all_questions.extend(QUESTION_BANK[topic].get(diff_tier, []))
-        pool = all_questions
+    if generated:
+        selected = generated
+        source = "content"
+    else:
+        pool = QUESTION_BANK[topic].get(difficulty, [])
 
-    if not pool:
-        raise HTTPException(status_code=404, detail=f"No questions found for topic '{topic}'.")
+        if len(pool) < num:
+            all_questions = []
+            for diff_tier in ["easy", "medium", "hard"]:
+                all_questions.extend(QUESTION_BANK[topic].get(diff_tier, []))
+            pool = all_questions
 
-    selected = random.sample(pool, min(num, len(pool)))
+        if not pool:
+            raise HTTPException(status_code=404, detail=f"No questions found for topic '{topic}'.")
+
+        selected = random.sample(pool, min(num, len(pool)))
+        source = "bank"
 
     # Store correct answers server-side as ordered list
     session_id = f"mq_{payload.student_id}_{int(time.time() * 1000)}"
@@ -487,6 +719,9 @@ def generate_micro_questions(payload: MicroQuestionRequest):
         "difficulty": difficulty,
         "timestamp": time.time(),
         "material_id": payload.material_id,
+        "course_id": payload.course_id,
+        "engagement_class": payload.engagement_class,
+        "source": source,
     }
 
     # Strip 'answer' field before sending to client
@@ -500,6 +735,7 @@ def generate_micro_questions(payload: MicroQuestionRequest):
         topic=topic,
         difficulty=difficulty,
         session_id=session_id,
+        source=source,
         questions=safe_questions,
     )
 
@@ -520,11 +756,17 @@ def _detect_topic_from_content(text: str) -> str:
 
 
 @router.post("/verify")
-def verify_answers(payload: VerifyRequest):
+def verify_answers(payload: VerifyRequest, user=Depends(get_current_user)):
     """
     Verifies student answers server-side. Returns per-question correctness
-    and an overall score.
+    and an overall score. Results are persisted to micro_question_results.
     """
+    # Students can only verify their own sessions
+    if user.get("role") == "student" and user["id"] != payload.student_id:
+        raise HTTPException(status_code=403, detail="Students can only verify their own sessions.")
+
+    _purge_stale_sessions()
+
     session = _answer_store.get(payload.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session expired or invalid.")
@@ -549,6 +791,24 @@ def verify_answers(payload: VerifyRequest):
 
     total = len(payload.answers)
     score = round(correct_count / max(total, 1) * 100)
+
+    # Persist the result so lecturers can review comprehension performance.
+    try:
+        with_retry(lambda c: c.table("micro_question_results").insert({
+            "student_id": payload.student_id,
+            "course_id": session.get("course_id"),
+            "material_id": session.get("material_id"),
+            "session_id": payload.session_id,
+            "topic": session.get("topic", "general"),
+            "difficulty": session.get("difficulty", "medium"),
+            "source": session.get("source", "bank"),
+            "total": total,
+            "correct": correct_count,
+            "score": score,
+            "engagement_class": session.get("engagement_class"),
+        }).execute())
+    except Exception as e:
+        print(f"[micro-questions] Could not persist result: {e}")
 
     _answer_store.pop(payload.session_id, None)
 

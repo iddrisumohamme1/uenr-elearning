@@ -28,6 +28,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    async function loadStudyInsights() {
+        try {
+            const res = await authFetch(`${API_BASE}/api/study/summary/${user.id}`);
+            if (!res.ok) throw new Error('Study summary failed');
+            const data = await res.json();
+            const overall = data.overall || {};
+            document.getElementById('predicted-grade').textContent = overall.predicted_grade || '–';
+
+            const warning = document.getElementById('study-warning');
+            if (overall.active_warnings) {
+                warning.hidden = false;
+                document.getElementById('study-warning-text').textContent =
+                    `${overall.active_warnings} of your courses need more study time this week. Click through to see how to improve your predicted grade.`;
+            } else {
+                warning.hidden = true;
+            }
+        } catch (err) {
+            console.error('Error loading study insights:', err);
+        }
+    }
+
     async function loadCourses() {
         try {
             const res = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
@@ -56,6 +77,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    async function loadUnreadMessages() {
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/unread-count`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.unread_count > 0) {
+                showToast(
+                    `You have ${data.unread_count} unread message${data.unread_count > 1 ? 's' : ''} from your lecturer. Open the Inbox.`,
+                    'info',
+                    { title: 'New Message', duration: 8000 }
+                );
+            }
+        } catch (err) {
+            console.error('Error checking unread messages:', err);
+        }
+    }
+
     loadStats();
+    loadStudyInsights();
     loadCourses();
+    loadUnreadMessages();
 });

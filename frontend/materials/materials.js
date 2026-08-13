@@ -38,6 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         return 'general';
     }
 
+    function fileTag(m) {
+        const type = (m.content_type || '').toLowerCase();
+        const url = (m.content_url || '').toLowerCase();
+        if (type.startsWith('video/') || /\.(mp4|webm|ogg)$/.test(url)) return 'VID';
+        if (type.startsWith('image/') || /\.(jpg|jpeg|png|gif|svg|webp)$/.test(url)) return 'IMG';
+        if (type === 'application/pdf' || url.endsWith('.pdf')) return 'PDF';
+        const ext = (url.split('?')[0].match(/\.(\w+)$/) || [])[1];
+        if (ext) return ext.toUpperCase().slice(0, 4);
+        if (type.startsWith('text/')) return 'TXT';
+        return 'FILE';
+    }
+
     function updateStatus(status) {
         document.getElementById('engagement-label').textContent = `Status: ${status}`;
         const dot = document.querySelector('.status-dot');
@@ -50,25 +62,103 @@ document.addEventListener('DOMContentLoaded', async () => {
         isIdle = false;
         classificationSent = false;
         updateStatus('Active');
+        startQuizReadyTimer();
     }
 
     function buildTopicList(topics) {
+        if (!topicList) return;
         topicList.innerHTML = topics.map((t, i) => `
             <div class="topic-item ${i === 0 ? 'active' : ''}">${t}</div>
         `).join('');
     }
 
     function renderMaterials(materials) {
-        materialList.innerHTML = materials.map(material => `
-            <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-type="${material.content_type || ''}">
-                <strong>${material.title}</strong>
-                <p class="material-desc">${material.description || material.content_type || 'Material'}</p>
+        const semesterGroups = new Map();
+        (materials || []).forEach(material => {
+            const semester = material.semester || 'Unassigned';
+            if (!semesterGroups.has(semester)) semesterGroups.set(semester, []);
+            semesterGroups.get(semester).push(material);
+        });
+
+        const semesterKeys = [...semesterGroups.keys()].sort((a, b) => {
+            if (a === 'Unassigned') return 1;
+            if (b === 'Unassigned') return -1;
+            return a.localeCompare(b);
+        });
+
+        const filter = document.getElementById('semester-filter');
+        if (filter) {
+            const current = filter.value;
+            filter.innerHTML = `<option value="all">All semesters</option>` +
+                semesterKeys.map(s => `<option value="${s}">${s}</option>`).join('');
+            filter.value = semesterKeys.includes(current) ? current : 'all';
+        }
+
+        const renderWeekGroups = (items) => {
+            const groups = new Map();
+            items.forEach(material => {
+                let key = 'other';
+                if (material.week_number != null) key = `week-${material.week_number}`;
+                else if (material.unit_label) key = `unit-${material.unit_label}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(material);
+            });
+
+            const sortedKeys = [...groups.keys()].sort((a, b) => {
+                if (a === 'other') return 1;
+                if (b === 'other') return -1;
+                const aIsWeek = a.startsWith('week-');
+                const bIsWeek = b.startsWith('week-');
+                if (aIsWeek !== bIsWeek) return aIsWeek ? -1 : 1;
+                if (aIsWeek) return Number(a.slice(5)) - Number(b.slice(5));
+                return a.localeCompare(b);
+            });
+
+            const groupLabel = (key) => {
+                if (key === 'other') return 'Full course';
+                if (key.startsWith('week-')) return `Week ${key.slice(5)}`;
+                return key.slice(5);
+            };
+
+            return sortedKeys.map(key => `
+                <div class="week-group">
+                    <div class="week-label">${groupLabel(key)}</div>
+                    ${groups.get(key).map(material => `
+                        <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
+                            <strong><span class="file-tag">${fileTag(material)}</span>${material.title}</strong>
+                            <p class="material-desc">${material.description || material.content_type || 'Material'}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        };
+
+        materialList.innerHTML = semesterKeys.map(semester => `
+            <div class="semester-group" data-semester="${semester}">
+                <div class="semester-label">${semester}</div>
+                ${renderWeekGroups(semesterGroups.get(semester))}
             </div>
         `).join('');
 
+        if (filter) {
+            filter.onchange = () => {
+                const value = filter.value;
+                document.querySelectorAll('.semester-group').forEach(group => {
+                    group.style.display = (value === 'all' || group.dataset.semester === value) ? '' : 'none';
+                });
+            };
+        }
+
         document.querySelectorAll('.material-item').forEach(item => {
             item.addEventListener('click', () => {
-                selectedMaterial = { id: item.dataset.id, url: item.dataset.url };
+                selectedMaterial = {
+                    id: item.dataset.id,
+                    url: item.dataset.url,
+                    weekNumber: item.dataset.week !== '' ? Number(item.dataset.week) : null,
+                    semester: item.dataset.semester || '',
+                };
+                const downloadBtn = document.getElementById('download-btn');
+                if (downloadBtn) downloadBtn.style.display = 'inline-flex';
                 resetMetrics();
                 materialTitle.textContent = item.querySelector('strong').textContent;
 
@@ -174,6 +264,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const scrollPercent = maxScroll > 0 ? (contentViewer.scrollTop / maxScroll) * 100 : 0;
         metrics.scrollDepth = Math.max(metrics.scrollDepth, Math.round(scrollPercent));
         lastActivity = Date.now();
+
+        const ribbonFill = document.getElementById('reading-ribbon-fill');
+        if (ribbonFill) ribbonFill.style.height = `${Math.min(100, scrollPercent)}%`;
     });
 
     // Track tab visibility — counts as idle when tab is hidden
@@ -232,6 +325,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (res.ok) {
                 const result = await res.json();
                 document.getElementById('pulse-bar').style.width = `${result.engagement_score}%`;
+                const readingEl = document.getElementById('reading-time');
+                if (readingEl) {
+                    const mins = Math.floor(metrics.timeSpent / 60);
+                    const secs = metrics.timeSpent % 60;
+                    readingEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                }
             }
         } catch (err) {
             console.error('Failed to sync engagement data:', err);
@@ -257,11 +356,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (res.ok) {
                 const result = await res.json();
                 updateStatus(result.engagement_label);
-
-                // If At-Risk (class 0), trigger micro-question popup after a short delay
-                if (result.engagement_class === 0) {
-                    setTimeout(() => generateMicroQuestions(result.engagement_class), 3000);
-                }
             }
         } catch (err) {
             console.error('Classification error:', err);
@@ -272,6 +366,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(classifyEngagement, 60000);
 
     // ── Micro-Question Popup ──────────────────────────────────────────────────
+    let microRetryCount = 0;
+
     async function generateMicroQuestions(engagementClass) {
         try {
             const activeMatTitle = selectedMaterial ? document.querySelector('.material-item.active strong')?.textContent || '' : '';
@@ -402,8 +498,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             closeBtn.style.marginTop = '12px';
             closeBtn.onclick = () => {
                 modal.style.display = 'none';
-                if (result.score < 50) {
-                    generateMicroQuestions(data.difficulty === 'easy' ? 0 : 1);
+                if (result.score < 50 && microRetryCount < 1) {
+                    microRetryCount++;
+                    const nextClass = data.difficulty === 'easy' ? 1 : data.difficulty === 'medium' ? 2 : 2;
+                    generateMicroQuestions(nextClass);
                 }
             };
             optionGrid.appendChild(closeBtn);
@@ -416,6 +514,113 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Close modal on backdrop click
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.style.display = 'none';
+    });
+
+    // ── AI Quiz Ready Timer ──────────────────────────────────────────────────
+    // After the student has had time to read the material, show a "ready"
+    // prompt that links to the AI comprehension quiz for this material.
+    const QUIZ_READY_MINUTES = 20;
+    let quizReadyTimer = null;
+    let quizReadyInterval = null;
+    let quizReadyAt = 0;
+
+    function startQuizReadyTimer() {
+        stopQuizReadyTimer();
+        const hint = document.getElementById('quiz-ready-hint');
+        const btn = document.getElementById('quiz-ready-btn');
+        if (hint) hint.style.display = 'flex';
+        if (btn) btn.style.display = 'none';
+        quizReadyAt = Date.now() + QUIZ_READY_MINUTES * 60 * 1000;
+        updateQuizCountdown();
+        quizReadyTimer = setTimeout(showQuizReadyPrompt, QUIZ_READY_MINUTES * 60 * 1000);
+        quizReadyInterval = setInterval(updateQuizCountdown, 1000);
+    }
+
+    function stopQuizReadyTimer() {
+        if (quizReadyTimer) { clearTimeout(quizReadyTimer); quizReadyTimer = null; }
+        if (quizReadyInterval) { clearInterval(quizReadyInterval); quizReadyInterval = null; }
+    }
+
+    function updateQuizCountdown() {
+        const el = document.getElementById('quiz-countdown');
+        if (!el) return;
+        const remain = Math.max(0, quizReadyAt - Date.now());
+        const min = Math.floor(remain / 60000);
+        const sec = Math.floor((remain % 60000) / 1000);
+        el.textContent = `Questions ready in ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')} · fresh each attempt`;
+    }
+
+    function showQuizReadyPrompt() {
+        if (quizReadyInterval) clearInterval(quizReadyInterval);
+        const btn = document.getElementById('quiz-ready-btn');
+        const countdown = document.getElementById('quiz-countdown');
+        if (countdown) countdown.textContent = 'Your comprehension questions are ready!';
+        if (btn) btn.style.display = 'inline-block';
+        const readyModal = document.getElementById('quiz-ready-modal');
+        if (readyModal) readyModal.style.display = 'flex';
+    }
+
+    function hideQuizReadyPrompt() {
+        const readyModal = document.getElementById('quiz-ready-modal');
+        if (readyModal) readyModal.style.display = 'none';
+    }
+
+    function startAiQuiz() {
+        if (!selectedMaterial) return;
+        window.location.href = `../quiz/ai_quiz.html?course_id=${encodeURIComponent(courseId)}&material_id=${encodeURIComponent(selectedMaterial.id)}&title=${encodeURIComponent(materialTitle.textContent)}`;
+    }
+
+    // ── Download & auto-generated assignment ─────────────────────────────────
+    // Downloading a material through the app records the download server-side
+    // so an AI assignment is generated for this student on that material.
+    async function triggerAutoGenerate() {
+        try {
+            await authFetch(`${API_BASE}/api/assignments/auto-generate`, { method: 'POST' });
+        } catch (err) {
+            console.error('Auto-generate failed:', err);
+        }
+    }
+
+    async function downloadMaterial() {
+        if (!selectedMaterial) return;
+        const btn = document.getElementById('download-btn');
+        if (btn) btn.disabled = true;
+        try {
+            const res = await authFetch(`${API_BASE}/api/materials/download?id=${encodeURIComponent(selectedMaterial.id)}`);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || 'Download failed');
+            }
+            const blob = await res.blob();
+            const disposition = res.headers.get('Content-Disposition') || '';
+            const filename = (disposition.match(/filename="?([^";]+)"?/) || [])[1] || 'material';
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(objectUrl);
+            if (typeof showToast === 'function') {
+                showToast('Material downloaded — an AI assignment will be generated for you.', 'success');
+            }
+            await triggerAutoGenerate();
+        } catch (err) {
+            console.error('Download error:', err);
+            if (typeof showToast === 'function') showToast(err.message || 'Download failed.', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    document.getElementById('download-btn')?.addEventListener('click', downloadMaterial);
+
+    document.getElementById('quiz-ready-btn')?.addEventListener('click', startAiQuiz);
+    document.getElementById('quiz-ready-yes')?.addEventListener('click', () => { hideQuizReadyPrompt(); startAiQuiz(); });
+    document.getElementById('quiz-ready-no')?.addEventListener('click', hideQuizReadyPrompt);
+    document.getElementById('quiz-ready-modal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('quiz-ready-modal')) hideQuizReadyPrompt();
     });
 
     // ─── PDF.js rendering ────────────────────────────────────────────────────

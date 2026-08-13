@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
@@ -20,14 +21,13 @@
         <aside class="sidebar">
             <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
             <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
-                <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
-                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
-                <a href="upload.html" class="nav-link active"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
-                <a href="create_quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-buildings"></i></span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon"><i class="bi bi-plus-circle"></i></span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Material</span></a>
             </nav>
             <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
             </div>
         </aside>
 
@@ -47,12 +47,41 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Academic Year</label>
+                            <select id="academic-year" class="form-input" required>
+                                <option value="" disabled selected>Loading years...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Semester</label>
+                            <select id="semester" class="form-input" required>
+                                <option value="" disabled selected>Select semester</option>
+                                <option value="First Semester">First Semester</option>
+                                <option value="Second Semester">Second Semester</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Material Title</label>
                             <input type="text" id="title" class="form-input" placeholder="e.g. Lecture 1 Notes" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Description</label>
                             <textarea id="description" class="form-input" rows="4" placeholder="Optional brief description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Organization</label>
+                            <div class="org-options" role="radiogroup" aria-label="Material organization">
+                                <label class="org-option"><input type="radio" name="organization" value="week" checked><span>Week by week</span></label>
+                                <label class="org-option"><input type="radio" name="organization" value="unit"><span>Unit / part</span></label>
+                                <label class="org-option"><input type="radio" name="organization" value="full"><span>Whole semester</span></label>
+                            </div>
+                            <div class="org-field" id="org-week-field">
+                                <input type="number" id="week-number" class="form-input" min="1" placeholder="e.g. 3 — the week this material belongs to">
+                            </div>
+                            <div class="org-field" id="org-unit-field" hidden>
+                                <input type="text" id="unit-label" class="form-input" placeholder="e.g. Unit 1 - Introduction, or Part 2">
+                            </div>
+                            <p class="form-hint" id="org-hint">Materials are shown to students grouped under this week, unit, or the whole course.</p>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Upload File</label>
@@ -75,9 +104,38 @@
 
         const courseSelect = document.getElementById('course-select');
         const form = document.getElementById('upload-form');
+        const academicYear = document.getElementById('academic-year');
 
         attachLogout('logout-btn');
         initProfilePopup();
+
+        function loadAcademicYears() {
+            const now = new Date().getFullYear();
+            const options = [];
+            for (let y = now; y >= now - 3; y--) {
+                options.push(`<option value="${y}/${y + 1}">${y}/${y + 1}</option>`);
+            }
+            academicYear.innerHTML = `
+                <option value="" disabled selected>Select academic year</option>
+                ${options.join('')}
+            `;
+        }
+
+        function setupOrganization() {
+            const radios = document.querySelectorAll('input[name="organization"]');
+            const weekField = document.getElementById('org-week-field');
+            const unitField = document.getElementById('org-unit-field');
+            const hint = document.getElementById('org-hint');
+            const apply = (value) => {
+                weekField.hidden = value !== 'week';
+                unitField.hidden = value !== 'unit';
+                if (value === 'week') hint.textContent = 'Materials are shown to students grouped under this week.';
+                else if (value === 'unit') hint.textContent = 'Materials are shown to students grouped under this unit / part.';
+                else hint.textContent = 'Materials are shown to students as whole-semester content (no week grouping).';
+            };
+            radios.forEach(r => r.addEventListener('change', () => apply(r.value)));
+            apply(document.querySelector('input[name="organization"]:checked')?.value || 'week');
+        }
 
         async function loadCourses() {
             try {
@@ -103,18 +161,35 @@
             e.preventDefault();
             const title = document.getElementById('title').value.trim();
             const description = document.getElementById('description').value.trim();
+            const weekNumber = document.getElementById('week-number').value.trim();
+            const unitLabel = document.getElementById('unit-label').value.trim();
+            const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
             const courseId = courseSelect.value;
+            const semesterVal = document.getElementById('semester').value;
             const fileInput = document.getElementById('file');
 
-            if (!title || !courseId || !fileInput.files.length) {
-                showToast('Please select a course, enter a title, and upload a file.', 'warning');
+            if (!title || !courseId || !academicYear.value || !semesterVal || !fileInput.files.length) {
+                showToast('Select a course, academic year, semester, enter a title, and upload a file.', 'warning');
                 return;
             }
+            if (organization === 'week' && !weekNumber) {
+                showToast('Enter the week number for this material.', 'warning');
+                return;
+            }
+            if (organization === 'unit' && !unitLabel) {
+                showToast('Enter a unit / part label for this material.', 'warning');
+                return;
+            }
+
+            const semester = `${academicYear.value} - ${semesterVal}`;
 
             const formData = new FormData();
             formData.append('title', title);
             formData.append('description', description);
             formData.append('course_id', courseId);
+            formData.append('semester', semester);
+            if (organization === 'week') formData.append('week_number', weekNumber);
+            if (organization === 'unit') formData.append('unit_label', unitLabel);
             formData.append('file', fileInput.files[0]);
 
             try {
@@ -136,6 +211,8 @@
             }
         });
 
+        loadAcademicYears();
+        setupOrganization();
         await loadCourses();
     });
     </script>

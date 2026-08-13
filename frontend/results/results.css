@@ -25,6 +25,7 @@
 }
 
 .results-icon { font-size: 3rem; display: block; margin-bottom: 1rem; }
+.results-icon .bi { color: var(--clr-primary); }
 
 .score-display { margin: 2.5rem 0; }
 

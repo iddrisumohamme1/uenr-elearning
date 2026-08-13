@@ -7,6 +7,13 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      # Keep the heavy ML runtimes (TensorFlow / PyTorch) off the 512 MB free
+      # plan. The backend then uses lightweight TF-IDF recommendations and the
+      # heuristic engagement analyzer. Flip these to true on a larger instance.
+      - key: SEMANTIC_SEARCH_ENABLED
+        value: false
+      - key: ENGAGEMENT_ML_ENABLED
+        value: false
       - key: CORS_ORIGINS
         sync: false
       - key: SUPABASE_URL

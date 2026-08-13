@@ -11,6 +11,9 @@ class MaterialOut(BaseModel):
     description: str | None = None
     content_url: str
     content_type: str | None = None
+    week_number: int | None = None
+    unit_label: str | None = None
+    semester: str | None = None
     created_at: str | None = None
 
 
@@ -20,6 +23,9 @@ class MaterialCreateResponse(BaseModel):
     description: str | None = None
     content_url: str
     content_type: str | None = None
+    week_number: int | None = None
+    unit_label: str | None = None
+    semester: str | None = None
     course_id: str
 
 

@@ -1,0 +1,118 @@
+/*
+   HOD DASHBOARD - DEPARTMENT COMMAND CENTER
+   frontend/hod/hod-dashboard.css
+   Loaded after dashboard.css; overrides only for this page.
+   Complements the shared pulse instrument (shared/pulse.css).
+*/
+
+/* - Top bar ------------------------------------------------------------ */
+.main-content { padding: 2.75rem 3rem 4rem; }
+.top-bar {
+  margin-bottom: 2.25rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.page-eyebrow { display: inline-flex; align-items: center; gap: 0.5rem; }
+.page-eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--clr-success);
+  box-shadow: 0 0 10px rgba(34,197,94,0.6);
+  animation: pulseDot 2.4s ease-in-out infinite;
+}
+@keyframes pulseDot { 50% { opacity: 0.35; } }
+
+/* - Pulse monitor card --------------------------------------------------- */
+.pulse-card { margin-bottom: 2rem; }
+
+/* - Readout tiles (instrument style) ------------------------------------- */
+.stats-grid { gap: 1.5rem; margin-bottom: 2rem; }
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 1.35rem 1.5rem 1.5rem;
+  transition: border-color var(--t-fast), transform var(--t-fast);
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--grad-primary);
+  opacity: 0.85;
+}
+.stat-card--danger::before { background: var(--clr-danger); }
+.stat-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.stat-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.stat-card .stat-value {
+  margin-top: 0.6rem;
+  font-size: clamp(1.9rem, 3.4vw, 2.35rem);
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.stat-value.text-danger { color: var(--clr-danger); }
+
+/* - Panels ---------------------------------------------------------------- */
+.panel-card { border-radius: var(--r-lg); padding: 1.5rem 1.5rem 1.6rem; }
+.panel-head { margin-bottom: 1.1rem; }
+.panel-head h3 {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+}
+.panel-sub { margin-top: 0.2rem; font-size: 0.82rem; }
+
+.my-class-item { padding: 0.9rem 0.25rem; }
+.my-class-head { gap: 0.75rem; }
+.my-class-none { margin-top: 0.4rem; }
+
+/* - Course ledger --------------------------------------------------------- */
+.course-list { gap: 0.75rem; margin-top: 0.75rem; }
+.course-item {
+  border-radius: var(--r-md);
+  transition: border-color var(--t-fast), transform var(--t-fast);
+}
+.course-item:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+
+/* - Department summary header --------------------------------------------- */
+.dept-summary { margin-top: 2.25rem; }
+.dept-summary .section-header {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.dept-summary .section-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+/* - Motion ----------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .page-eyebrow::before { animation: none; }
+  .stat-card, .stat-card:hover, .course-item, .course-item:hover { transform: none; }
+  .fade-in-up { animation: none; }
+}
+
+/* - Responsive ------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .main-content { padding: 2rem 1.75rem 3rem; }
+  .top-bar { padding-bottom: 1.25rem; }
+  .stats-grid { gap: 1.25rem; }
+}
+@media (max-width: 768px) {
+  .main-content { padding: 1.5rem; }
+  .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
+  .stat-card .stat-value { font-size: 1.75rem; }
+  .panel-card { padding: 1.25rem; }
+}

@@ -60,6 +60,11 @@
     margin-top: 1px;
 }
 
+.toast-error .toast-icon   { color: var(--clr-danger); }
+.toast-success .toast-icon { color: var(--clr-success); }
+.toast-warning .toast-icon { color: var(--clr-warning); }
+.toast-info .toast-icon    { color: var(--clr-primary); }
+
 .toast-body {
     flex: 1;
     min-width: 0;

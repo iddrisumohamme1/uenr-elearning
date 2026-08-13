@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignments - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="assignments.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" />
+                <span class="logo-text">UENR Learn</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon"><i class="bi bi-book"></i></span><span class="nav-label"> My Courses</span></a>
+                <a href="progress.html" class="nav-link"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-label"> My Progress</span></a>
+                <a href="assignments.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
+                <a href="inbox.html" class="nav-link"><span class="nav-icon"><i class="bi bi-inbox"></i></span><span class="nav-label"> Inbox</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon"><i class="bi bi-stars"></i></span><span class="nav-label"> Recommendations</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-graph-up-arrow"></i></span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Assignments</h1>
+                <div class="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar">S</div>
+                </div>
+            </header>
+
+            <div class="assign-summary" id="assign-summary">
+                <div class="summary-chip"><span id="due-count">–</span> due soon</div>
+                <div class="summary-chip"><span id="done-count">–</span> submitted</div>
+                <div class="summary-chip"><span id="late-count">–</span> late</div>
+            </div>
+
+            <div id="assign-groups" class="assign-groups">
+                <div class="loading-wrapper loading-full">
+                    <div class="spinner"></div>
+                    <p>Loading your assignments...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Submit modal -->
+    <div id="submit-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="modal-title">Submit assignment</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="modal-assignment"></p>
+            <textarea id="submit-content" rows="8" placeholder="Type your answer here..."></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="submit-btn" class="btn-primary">Submit assignment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-graded assignment modal -->
+    <div id="auto-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="auto-title">Assignment</h3>
+                <button class="modal-close" data-auto-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="auto-sub"></p>
+            <p class="assign-instructions" id="auto-instructions"></p>
+            <div id="auto-questions" class="auto-questions"></div>
+            <div class="modal-actions">
+                <button id="auto-cancel-btn" class="btn-secondary" data-auto-close="true">Cancel</button>
+                <button id="auto-submit-btn" class="btn-primary">Submit for grading</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="assignments.js"></script>
+</body>
+</html>

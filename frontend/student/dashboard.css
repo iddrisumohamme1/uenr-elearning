@@ -136,4 +136,27 @@
 .course-click { cursor: pointer; }
 .course-lecturer-name { font-size: 0.8rem; }
 
+/* Study-time warning strip */
+.study-warning {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    margin-bottom: var(--s8);
+    padding: var(--s4) var(--s5);
+    border-radius: var(--r-lg);
+    border: 1px solid rgba(245,158,11,0.35);
+    background: var(--warning-soft);
+    font-size: 0.9rem;
+}
+
+.study-warning i { color: var(--clr-warning); font-size: 1.1rem; }
+.study-warning span { flex: 1; }
+.study-warning a {
+    color: var(--clr-primary-light);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.study-warning a:hover { text-decoration: underline; }
+
 /* Responsive behaviour is handled centrally in shared/responsive.css */

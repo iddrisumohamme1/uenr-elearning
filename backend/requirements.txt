@@ -6,9 +6,12 @@ pydantic-settings
 python-dotenv
 python-multipart
 httpx
+google-genai
+pypdf
 scikit-learn
 pandas
 numpy
 xgboost
 sentence-transformers
+tensorflow
 joblib

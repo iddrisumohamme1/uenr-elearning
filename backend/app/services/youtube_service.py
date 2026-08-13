@@ -41,7 +41,7 @@ def search_youtube(query: str, max_results: int = 5) -> list:
     }
 
     try:
-        resp = httpx.get(YOUTUBE_SEARCH_URL, params=params, timeout=10.0)
+        resp = httpx.get(YOUTUBE_SEARCH_URL, params=params, timeout=4.0)
         resp.raise_for_status()
         payload = resp.json()
     except Exception as e:

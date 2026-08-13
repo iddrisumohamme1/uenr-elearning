@@ -1,4 +1,4 @@
--- Migration: 009_engagement_logs.sql
+-- Migration: 20260813000010_engagement_logs.sql
 -- Stores Two-Tower Neural Network classification results.
 -- Student Tower (9 features) + Interaction Tower (6 features) → dual-head output.
 

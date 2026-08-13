@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Progress - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="progress.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" />
+                <span class="logo-text">UENR Learn</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
+                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon"><i class="bi bi-book"></i></span><span class="nav-label"> My Courses</span></a>
+                <a href="progress.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-label"> My Progress</span></a>
+                <a href="assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
+                <a href="inbox.html" class="nav-link"><span class="nav-icon"><i class="bi bi-inbox"></i></span><span class="nav-label"> Inbox</span></a>
+                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon"><i class="bi bi-stars"></i></span><span class="nav-label"> Recommendations</span></a>
+                <a href="../analytics/analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-graph-up-arrow"></i></span><span class="nav-label"> Performance</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>My Progress</h1>
+                <div class="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar">S</div>
+                </div>
+            </header>
+
+            <!-- Energy panel: effort in, grade out -->
+            <section class="progress-hero">
+                <!-- Output: projected-grade gauge -->
+                <div class="panel output-panel">
+                    <p class="panel-eyebrow" id="dialEyebrow">Semester projection</p>
+                    <div class="gauge-wrap">
+                        <svg class="gauge-svg" viewBox="0 0 240 150" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="#3b82f6"/>
+                                    <stop offset="100%" stop-color="#06b6d4"/>
+                                </linearGradient>
+                            </defs>
+                            <g id="gaugeTicks"></g>
+                            <path id="dialTrack" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="14" stroke-linecap="round"/>
+                            <path id="dialArc" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="url(#dialGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283 283" stroke-dashoffset="283" style="transition: stroke-dashoffset .6s ease"/>
+                            <circle id="dialNeedle" r="8" fill="#fbbf24" stroke="#0a0f1e" stroke-width="3" cx="30" cy="130" style="transition: all .6s ease"/>
+                            <text id="dialGrade" x="120" y="92" text-anchor="middle" class="dial-grade">–</text>
+                            <text id="dialPct" x="120" y="118" text-anchor="middle" class="dial-pct">–</text>
+                        </svg>
+                        <p class="dial-delta" id="dialDelta" hidden></p>
+                    </div>
+                    <div id="dialCourses" class="dial-courses"></div>
+                </div>
+
+                <!-- Input: study effort + readings -->
+                <div class="panel input-panel">
+                    <div class="lever-block" id="leverWrap" hidden>
+                        <p class="panel-eyebrow">Energy in</p>
+                        <div class="lever-row">
+                            <span id="leverLabel">Weekly study time</span>
+                            <output id="leverVal">–</output>
+                        </div>
+                        <input type="range" id="studyLever" min="0" max="100" value="0" aria-label="Adjust your weekly study time">
+                        <p class="lever-note" id="leverNote"></p>
+                    </div>
+
+                    <div class="readouts">
+                        <div class="readout">
+                            <span class="readout-label">Quiz average</span>
+                            <span class="readout-value" id="quiz-avg">–</span>
+                        </div>
+                        <div class="readout">
+                            <span class="readout-label">Attendance</span>
+                            <span class="readout-value" id="attendance-rate">–</span>
+                        </div>
+                        <div class="readout">
+                            <span class="readout-label">Study warnings</span>
+                            <span class="readout-value" id="warning-count">–</span>
+                        </div>
+                    </div>
+
+                    <div id="warning-strip" class="warning-strip" hidden></div>
+                </div>
+            </section>
+
+            <!-- Per-course ledger -->
+            <section class="course-section">
+                <div class="section-head">
+                    <h2>Course channels</h2>
+                    <p class="text-muted">Weekly study time, quiz and assignment performance per course. Click a row to focus the gauge.</p>
+                </div>
+                <div id="course-ledger" class="course-ledger">
+                    <div class="loading-wrapper loading-full">
+                        <div class="spinner"></div>
+                        <p>Loading your progress...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Attendance self-log (collapsed) -->
+            <section class="course-section attendance-section">
+                <div class="section-head attendance-head">
+                    <div>
+                        <h2>Attendance</h2>
+                        <p class="text-muted">Self-report today's attendance so your lecturer can see who was present.</p>
+                    </div>
+                    <button type="button" id="attend-toggle" class="attend-toggle" aria-expanded="false">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        <span>Mark today's attendance</span>
+                    </button>
+                </div>
+                <div id="attendance-log" class="attend-list" hidden></div>
+            </section>
+        </main>
+    </div>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="progress.js"></script>
+</body>
+</html>

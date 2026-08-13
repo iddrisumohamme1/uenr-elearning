@@ -22,11 +22,50 @@ BUCKET_NAME = "materials"
 ALLOWED_PROXY_HOSTS = {"supabase.co", "supabase.in"}
 
 
+def _check_course_access(admin, user, course_id: str) -> dict:
+    """Shared access check used by list and download endpoints."""
+    try:
+        course_resp = with_retry(
+            lambda c: c.table("courses")
+            .select("id, title, department, lecturer_id")
+            .eq("id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    course_data = getattr(course_resp, "data", []) or []
+    if not course_data:
+        raise HTTPException(status_code=404, detail="Course not found.")
+    course = course_data[0]
+
+    if user["role"] == "student":
+        if course.get("department") != user.get("department"):
+            try:
+                enroll_resp = with_retry(
+                    lambda c: c.table("enrollments")
+                    .select("id")
+                    .eq("student_id", user["id"])
+                    .eq("course_id", course_id)
+                    .execute()
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"Failed to query enrollment: {exc}")
+            if not (getattr(enroll_resp, "data", []) or []):
+                raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
+    elif course.get("department") != user.get("department"):
+        raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
+    return course
+
+
 @router.post("/upload", response_model=MaterialOut, status_code=201)
 def upload_material(
     title: str = Form(...),
     course_id: str = Form(...),
     description: str | None = Form(None),
+    week_number: int | None = Form(None),
+    unit_label: str | None = Form(None),
+    semester: str | None = Form(None),
     file: UploadFile = File(...),
     user=Depends(require_role("lecturer", "hod")),
 ):
@@ -61,11 +100,13 @@ def upload_material(
     storage_path = f"{course_id}/{uuid4().hex}-{file_name}"
 
     try:
-        # Create the public storage bucket if it does not exist.
-        admin.storage.create_bucket(BUCKET_NAME, options={"public": True})
+        # Create the public storage bucket only if it does not already exist.
+        try:
+            admin.storage.get_bucket(BUCKET_NAME)
+        except Exception:
+            admin.storage.create_bucket(BUCKET_NAME, options={"public": True})
     except Exception as exc:
-        if "already exists" not in str(exc).lower():
-            raise HTTPException(status_code=500, detail=f"Failed to verify storage bucket: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to verify storage bucket: {exc}")
 
     try:
         bucket = admin.storage.from_(BUCKET_NAME)
@@ -86,6 +127,9 @@ def upload_material(
                     "description": description,
                     "content_url": public_url,
                     "content_type": file.content_type or "application/octet-stream",
+                    "week_number": week_number,
+                    "unit_label": unit_label,
+                    "semester": semester,
                 }
             )
             .execute()
@@ -107,45 +151,16 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
     """
     admin = get_admin_client()
 
-    try:
-        course_resp = with_retry(
-            lambda c: c.table("courses")
-            .select("id, title, department, lecturer_id")
-            .eq("id", course_id)
-            .execute()
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
-
-    course_data = getattr(course_resp, "data", []) or []
-    if not course_data:
-        raise HTTPException(status_code=404, detail="Course not found.")
-
-    course = course_data[0]
-    if user["role"] == "student":
-        if course.get("department") == user.get("department"):
-            pass
-        else:
-            try:
-                enroll_resp = with_retry(
-                    lambda c: c.table("enrollments")
-                    .select("id")
-                    .eq("student_id", user["id"])
-                    .eq("course_id", course_id)
-                    .execute()
-                )
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Failed to query enrollment: {exc}")
-            if not (getattr(enroll_resp, "data", []) or []):
-                raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
-    elif course.get("department") != user.get("department"):
-        raise HTTPException(status_code=403, detail="Access denied to materials for this course.")
+    course = _check_course_access(admin, user, course_id)
 
     try:
         materials_resp = with_retry(
             lambda c: c.table("materials")
-            .select("id, title, description, content_url, content_type, created_at")
+            .select("id, title, description, content_url, content_type, week_number, unit_label, semester, created_at")
             .eq("course_id", course_id)
+            .order("semester", desc=False)
+            .order("week_number", desc=False)
+            .order("unit_label", desc=False)
             .order("created_at", desc=True)
             .execute()
         )
@@ -159,18 +174,70 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
     )
 
 
-@router.get("/proxy")
-def proxy_material(url: str):
+@router.get("/download")
+def download_material(id: str, user=Depends(get_current_user)):
     """
-    Proxies a Supabase storage file so iframes can load it without
-    being blocked by X-Frame-Options / CORS headers from Supabase.
-    Only allows proxying URLs from Supabase storage hosts (SSRF protection).
+    Downloads a material file (Content-Disposition: attachment) and records the
+    download so the system can auto-generate an assignment for downloaders.
     """
-    # Validate URL to prevent SSRF
+    admin = get_admin_client()
+
+    try:
+        mat_resp = with_retry(
+            lambda c: c.table("materials")
+            .select("id, course_id, title, content_url, content_type")
+            .eq("id", id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query material: {exc}")
+
+    mat_data = getattr(mat_resp, "data", []) or []
+    if not mat_data:
+        raise HTTPException(status_code=404, detail="Material not found.")
+    material = mat_data[0]
+
+    _check_course_access(admin, user, material["course_id"])
+
+    if user["role"] == "student":
+        try:
+            admin.table("material_downloads").insert(
+                {
+                    "student_id": user["id"],
+                    "course_id": material["course_id"],
+                    "material_id": material["id"],
+                }
+            ).execute()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to record download: {exc}")
+
+    url = material.get("content_url") or ""
+    _validate_supabase_url(url)
+
+    try:
+        r = httpx.get(url, follow_redirects=True, timeout=30, verify=False)
+        r.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch file: {exc}")
+
+    filename = Path(urlparse(url).path).name or "material"
+    content_type = material.get("content_type") or r.headers.get("content-type", "application/octet-stream")
+    return StreamingResponse(
+        iter([r.content]),
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+        },
+    )
+
+
+def _validate_supabase_url(url: str) -> str:
+    """Validate a URL is a Supabase storage URL (SSRF protection)."""
     try:
         parsed = urlparse(url)
         hostname = (parsed.hostname or "").lower()
-        # Allow Supabase storage hosts (*.supabase.co, *.supabase.in)
         if not any(hostname.endswith(h) for h in ALLOWED_PROXY_HOSTS):
             raise HTTPException(status_code=400, detail="Proxy only allows Supabase storage URLs.")
         if parsed.scheme not in ("https", "http"):
@@ -179,6 +246,17 @@ def proxy_material(url: str):
         raise
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid URL.")
+    return url
+
+
+@router.get("/proxy")
+def proxy_material(url: str):
+    """
+    Proxies a Supabase storage file so iframes can load it without
+    being blocked by X-Frame-Options / CORS headers from Supabase.
+    Only allows proxying URLs from Supabase storage hosts (SSRF protection).
+    """
+    _validate_supabase_url(url)
 
     try:
         r = httpx.get(url, follow_redirects=True, timeout=30, verify=False)

@@ -1,0 +1,101 @@
+/* 
+   LECTURER ASSIGNMENTS PAGE
+   frontend/lecturer/assignments.css
+*/
+
+.create-panel, .assign-section {
+  background: var(--bg-card);
+  background-image: var(--grad-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: var(--s6);
+  margin-bottom: var(--s8);
+}
+
+.assign-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s4);
+}
+
+.assign-form .form-label { display: block; margin-bottom: var(--s2); font-size: 0.85rem; color: var(--text-secondary); }
+.assign-form .form-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+}
+.assign-form .form-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--ring); }
+
+.assign-item {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s5);
+  margin-bottom: var(--s4);
+  transition: border-color var(--t-fast);
+}
+.assign-item:hover { border-color: var(--border-strong); }
+
+.assign-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.assign-item-head h4 { font-size: 1rem; }
+
+.assign-badges { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.badge { font-size: 0.72rem; font-weight: 700; border-radius: var(--r-full); padding: var(--s1) var(--s3); text-transform: uppercase; letter-spacing: 0.04em; }
+.badge--count { color: var(--clr-accent); background: var(--accent-soft); }
+.badge--ontime { color: var(--clr-success); background: var(--success-soft); }
+.badge--none { color: var(--text-muted); background: var(--bg-elevated); }
+
+.assign-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: var(--s3); }
+.assign-meta span { margin-right: var(--s4); }
+
+.assign-actions { display: flex; justify-content: flex-end; }
+
+/* Submission cards */
+.sub-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s4);
+  margin-bottom: var(--s3);
+}
+.sub-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.sub-head-right { display: flex; align-items: center; gap: var(--s2); }
+.sub-name { font-weight: 700; font-size: 0.9rem; }
+.sub-time { font-size: 0.75rem; color: var(--text-muted); }
+.sub-grade {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--clr-success);
+  margin: var(--s1) 0;
+}
+.sub-feedback {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+  white-space: pre-wrap;
+}
+.sub-content {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+  white-space: pre-wrap;
+}

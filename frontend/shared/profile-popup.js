@@ -40,7 +40,7 @@ function initProfilePopup() {
                     <h3>Appearance</h3>
                     <div class="setting-row">
                         <div class="setting-label">
-                            <span class="icon">${getTheme() === 'dark' ? '🌙' : '☀️'}</span>
+                            <span class="icon">${getTheme() === 'dark' ? '<i class="bi bi-moon-stars-fill"></i>' : '<i class="bi bi-sun-fill"></i>'}</span>
                             <span id="theme-label">${getTheme() === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
                         </div>
                         <div class="theme-toggle ${getTheme() === 'dark' ? 'active' : ''}" id="theme-toggle-btn"></div>
@@ -97,7 +97,7 @@ function initProfilePopup() {
         const icon = label.previousElementSibling;
         btn.classList.toggle('active', newTheme === 'dark');
         label.textContent = newTheme === 'dark' ? 'Dark Mode' : 'Light Mode';
-        icon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+        icon.innerHTML = newTheme === 'dark' ? '<i class="bi bi-moon-stars-fill"></i>' : '<i class="bi bi-sun-fill"></i>';
     });
 
     // Avatar upload

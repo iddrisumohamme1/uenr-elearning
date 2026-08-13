@@ -1,4 +1,4 @@
--- Migration: 010_fix_engagement_logs_nullable.sql
+-- Migration: 20260813000012_fix_engagement_logs_nullable.sql
 -- Allow nullable columns for lightweight telemetry logs that don't include classification.
 
 -- Drop existing constraints by recreating the table

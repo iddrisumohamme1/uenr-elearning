@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pulseSegMod = document.getElementById('pulse-seg-mod');
     const pulseSegEngaged = document.getElementById('pulse-seg-engaged');
     const pulseCaption = document.getElementById('pulse-caption');
+    const legendRisk = document.getElementById('legend-risk');
+    const legendMod = document.getElementById('legend-mod');
+    const legendEngaged = document.getElementById('legend-eng');
     const totalStudentsEl = document.getElementById('total-students');
     const totalCoursesEl = document.getElementById('total-courses');
     const criticalStudentsEl = document.getElementById('critical-students');
@@ -33,6 +36,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
+    // ── Messaging ─────────────────────────────────────────────────────────────
+    const messageModal = document.getElementById('message-modal');
+    const studentsModal = document.getElementById('students-modal');
+    let messageRecipient = null;
+
+    const closeModal = (m) => { if (m) m.hidden = true; };
+    document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
+        btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
+    );
+    [messageModal, studentsModal].forEach(m => m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
+
+    function openMessage(studentName, studentId, courseLabel, courseId) {
+        messageRecipient = { student_id: studentId, course_id: courseId };
+        document.getElementById('message-to').textContent = `Message ${studentName}`;
+        document.getElementById('message-course').textContent = courseLabel || '';
+        document.getElementById('message-content').value = '';
+        messageModal.hidden = false;
+        document.getElementById('message-content').focus();
+    }
+
+    document.getElementById('message-send').addEventListener('click', async () => {
+        const content = document.getElementById('message-content').value;
+        if (!content.trim()) {
+            showToast('Write a message before sending.', 'error');
+            return;
+        }
+        const btn = document.getElementById('message-send');
+        btn.disabled = true;
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_id: messageRecipient.student_id,
+                    course_id: messageRecipient.course_id,
+                    content,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showToast(data.message || 'Message sent.', 'success');
+                closeModal(messageModal);
+            } else {
+                showToast(data.detail || 'Could not send message.', 'error');
+            }
+        } catch (err) {
+            showToast('Could not send message.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    function animateCount(el, target) {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const dur = reduce ? 0 : 650;
+        const start = performance.now();
+        const from = 0;
+        function step(now) {
+            const t = Math.min(1, (now - start) / dur);
+            const eased = 1 - Math.pow(1 - t, 3);
+            el.textContent = String(Math.round(from + (target - from) * eased));
+            if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
     function setPulse(atRisk, moderate, engaged, caption) {
         const total = atRisk + moderate + engaged;
         if (total === 0) {
@@ -41,14 +110,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             pulseSegMod.style.width = '0%';
             pulseSegEngaged.style.width = '0%';
             pulseAtRiskEl.textContent = '0';
+            legendRisk.textContent = '0';
+            legendMod.textContent = '0';
+            legendEngaged.textContent = '0';
             pulseCaption.textContent = caption || 'No engagement data yet.';
             return;
         }
-        pulseScoreEl.textContent = Math.round(((moderate + engaged) / total) * 100);
+        const score = Math.round(((moderate + engaged) / total) * 100);
+        animateCount(pulseScoreEl, score);
         pulseSegRisk.style.width = `${(atRisk / total) * 100}%`;
         pulseSegMod.style.width = `${(moderate / total) * 100}%`;
         pulseSegEngaged.style.width = `${(engaged / total) * 100}%`;
         pulseAtRiskEl.textContent = String(atRisk);
+        legendRisk.textContent = String(atRisk);
+        legendMod.textContent = String(moderate);
+        legendEngaged.textContent = String(engaged);
         pulseCaption.textContent = caption || 'Reach out to the students flagged below.';
     }
 
@@ -112,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 totalCoursesEl.textContent = '0';
                 totalStudentsEl.textContent = '0';
                 criticalStudentsEl.textContent = '0';
-                tableBody.innerHTML = '<tr><td colspan="4" class="table-loading"><p class="text-muted">No courses assigned yet. Upload content or create a quiz to get started.</p></td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p class="text-muted">No courses assigned yet. Upload content or create a quiz to get started.</p></td></tr>';
                 return;
             }
 
@@ -172,13 +248,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         student_id: s.student_id,
                         full_name: s.full_name || null,
                         course: `${course.code || 'N/A'} - ${course.title}`,
+                        course_id: course.id,
                         comprehension: s.comprehension_label || 'Unknown'
                     });
                 });
             });
 
             if (atRiskRows.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="table-loading"><p class="text-muted">No students are at risk right now.</p></td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p class="text-muted">No students are at risk right now.</p></td></tr>';
             } else {
                 tableBody.innerHTML = atRiskRows.slice(0, 15).map(row => {
                     const displayName = row.full_name || (row.student_id || 'Unknown').substring(0, 8) + '…';
@@ -187,19 +264,97 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <td class="student-cell">${displayName}</td>
                             <td>${row.course}</td>
                             <td><span class="badge badge--warning">${row.comprehension}</span></td>
-                            <td><span class="badge badge--danger">At Risk</span></td>
+                            <td class="status-cell"><span class="badge badge--danger">At Risk</span></td>
+                            <td><button class="btn-msg" data-name="${displayName}" data-id="${row.student_id}" data-course="${row.course}">Message</button></td>
                         </tr>
                     `;
                 }).join('');
+
+                tableBody.querySelectorAll('.btn-msg').forEach(btn => {
+                    btn.addEventListener('click', () => openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, null));
+                });
             }
+
+            await loadCourseList(courses, atRiskRows);
         } catch (err) {
             console.error('Lecturer dashboard error:', err);
             setPulse(0, 0, 0, "Couldn't reach the server. Refresh to try again.");
             totalStudentsEl.textContent = '--';
             totalCoursesEl.textContent = '--';
             criticalStudentsEl.textContent = '--';
-            tableBody.innerHTML = '<tr><td colspan="4" class="table-loading"><p style="color:var(--clr-danger)">Unable to load dashboard data.</p></td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p style="color:var(--clr-danger)">Unable to load dashboard data.</p></td></tr>';
             showToast('Unable to load dashboard data.', 'error');
+        }
+    }
+
+    async function loadCourseList(courses, atRiskRows) {
+        const courseListBody = document.getElementById('course-list-body');
+        const atRiskPerCourse = {};
+        atRiskRows.forEach(r => { atRiskPerCourse[r.course_id] = (atRiskPerCourse[r.course_id] || 0) + 1; });
+
+        const rows = await Promise.all(courses.map(async (c) => {
+            let enrolled = '–';
+            try {
+                const res = await authFetch(`${API_BASE}/api/courses/${c.id}/students`);
+                if (res.ok) {
+                    const data = await res.json();
+                    enrolled = data.total_enrolled != null ? String(data.total_enrolled) : '–';
+                }
+            } catch (err) { /* keep – */ }
+            return {
+                id: c.id,
+                label: `${c.code || 'N/A'} - ${c.title}`,
+                enrolled,
+                atRisk: atRiskPerCourse[c.id] || 0,
+            };
+        }));
+
+        courseListBody.innerHTML = rows.map(row => `
+            <tr>
+                <td class="course-cell">${row.label}</td>
+                <td>${row.enrolled}</td>
+                <td class="status-cell">${row.atRisk ? `<span class="badge badge--danger">${row.atRisk}</span>` : '<span class="badge badge--success">0</span>'}</td>
+                <td><button class="btn-view" data-course-id="${row.id}" data-course-label="${row.label}">View students</button></td>
+            </tr>
+        `).join('');
+
+        courseListBody.querySelectorAll('[data-course-id]').forEach(btn => {
+            btn.addEventListener('click', () => openStudents(btn.dataset.courseId, btn.dataset.courseLabel));
+        });
+    }
+
+    async function openStudents(courseId, courseLabel) {
+        document.getElementById('students-title').textContent = courseLabel;
+        const body = document.getElementById('students-body');
+        studentsModal.hidden = false;
+        body.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading students…</p></div>';
+        try {
+            const res = await authFetch(`${API_BASE}/api/courses/${courseId}/students`);
+            if (!res.ok) throw new Error('students fetch failed');
+            const data = await res.json();
+            const students = data.students || [];
+            if (!students.length) {
+                body.innerHTML = '<p class="text-muted">No students are enrolled in this course yet.</p>';
+                return;
+            }
+            body.innerHTML = students.map(s => `
+                <div class="student-row">
+                    <div>
+                        <span class="student-name">${s.full_name || 'Unknown student'}</span>
+                        <span class="student-email">${s.email || ''}</span>
+                    </div>
+                    <button class="btn-msg" data-name="${s.full_name || 'Student'}" data-id="${s.student_id}" data-course="${courseLabel}">Message</button>
+                </div>
+            `).join('');
+            body.querySelectorAll('.btn-msg').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeModal(studentsModal);
+                    openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, courseId);
+                });
+            });
+        } catch (err) {
+            body.innerHTML = '<p class="text-muted">Unable to load students.</p>';
+            showToast('Unable to load students.', 'error');
         }
     }
 

@@ -1,0 +1,154 @@
+/* 
+   STUDENT INBOX PAGE
+   frontend/student/inbox.css
+*/
+
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    flex: 1;
+    padding: var(--s8);
+    background: var(--bg);
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s10);
+    padding-bottom: var(--s6);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 50;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+}
+
+.avatar {
+    width: 42px;
+    height: 42px;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: var(--shadow-glow);
+    border: 2px solid var(--border-strong);
+}
+
+.message-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s4);
+    max-width: 820px;
+}
+
+.message-item {
+    display: flex;
+    gap: var(--s4);
+    padding: var(--s5);
+    background: var(--bg-card);
+    background-image: var(--grad-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    cursor: pointer;
+    transition: transform var(--t-base), border-color var(--t-base), box-shadow var(--t-base);
+    animation: fadeInUp var(--t-slow) both;
+}
+
+.message-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+
+.message-item.unread { border-color: var(--border-focus); box-shadow: var(--shadow-glow); }
+
+.message-avatar {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: #fff;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+}
+
+.message-body { flex: 1; min-width: 0; }
+
+.message-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s3);
+    margin-bottom: var(--s1);
+}
+
+.message-sender { font-weight: 700; font-size: 0.95rem; }
+
+.message-dot {
+    color: var(--clr-primary);
+    font-size: 0.7rem;
+}
+
+.message-course {
+    font-size: 0.75rem;
+    color: var(--clr-accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.message-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.message-item.open .message-text { -webkit-line-clamp: unset; }
+
+.message-time {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.message-mark-read {
+    flex-shrink: 0;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 11px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--clr-primary-light);
+    background: var(--primary-soft);
+    border: 1px solid var(--border-focus);
+    border-radius: var(--r-full);
+    cursor: pointer;
+    transition: background var(--t-base), color var(--t-base), border-color var(--t-base);
+}
+
+.message-mark-read:hover {
+    background: var(--clr-primary);
+    color: #fff;
+    border-color: var(--clr-primary);
+}
+
+.empty-state { text-align: center; color: var(--text-muted); padding: var(--s10); }

@@ -19,6 +19,24 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str = ""
     # Service role key — server-side only, bypasses RLS. NEVER expose to the browser.
     SUPABASE_SERVICE_ROLE_KEY: str = ""
+    # Google Gemini API key for AI quiz generation (leave empty for mock quizzes).
+    GEMINI_API_KEY: str = ""
+    # Gemini model used for quiz generation.
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+
+    # Groq API key — preferred provider when set (OpenAI-compatible).
+    # When empty, the service falls back to Gemini.
+    GROQ_API_KEY: str = ""
+    # Groq model id, e.g. "llama-3.3-70b-versatile".
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+
+    # --- Heavy ML model switches ---
+    # On small instances (e.g. Render 512 MB free tier) keep these False so
+    # PyTorch (sentence-transformers) and TensorFlow never load into memory.
+    # When disabled the services fall back to lightweight TF-IDF search and a
+    # heuristic engagement analyzer.
+    SEMANTIC_SEARCH_ENABLED: bool = True
+    ENGAGEMENT_ML_ENABLED: bool = True
 
     # --- App ---
     APP_NAME: str = "UENR E-Learning Platform"

@@ -217,3 +217,39 @@ def enroll_course(payload: EnrollmentRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=f"Enrollment failed: {exc}")
 
     return {"status": "ok", "message": "Successfully enrolled."}
+
+
+@router.get("/{course_id}/students")
+def get_enrolled_students(course_id: str, user=Depends(require_role("lecturer", "hod"))):
+    """
+    Returns the list of students enrolled in a specific course.
+    Lecturers can use this to see the number of students enrolled.
+    """
+    admin = get_admin_client()
+    
+    # Optional: Verify course belongs to the lecturer/HOD's department
+    
+    try:
+        resp = with_retry(
+            lambda c: c.table("enrollments")
+            .select("student_id, users!student_id(full_name, email)")
+            .eq("course_id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch enrolled students: {exc}")
+        
+    enrollments = getattr(resp, "data", []) or []
+    return {
+        "course_id": course_id,
+        "total_enrolled": len(enrollments),
+        "students": [
+            {
+                "student_id": row["student_id"],
+                "full_name": row["users"]["full_name"] if row.get("users") else None,
+                "email": row["users"]["email"] if row.get("users") else None
+            }
+            for row in enrollments
+        ]
+    }
+

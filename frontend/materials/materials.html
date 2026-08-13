@@ -11,26 +11,34 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="materials.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
     <div class="viewer-container">
-        <!-- Top Bar -->
+        <!-- Top bar -->
         <header class="viewer-header">
             <div class="header-left">
-                <a href="../student/dashboard.html" class="back-btn">← Back</a>
+                <a href="../student/dashboard.html" class="back-btn"><i class="bi bi-arrow-left"></i><span>Dashboard</span></a>
+                <span class="crumb-sep">/</span>
                 <h1 id="material-title">Course Material</h1>
             </div>
-            <div class="engagement-status">
-                <span class="status-dot"></span>
-                <span id="engagement-label">Tracking Engagement...</span>
+            <div class="header-actions">
+                <div class="engagement-status">
+                    <span class="status-dot"></span>
+                    <span id="engagement-label">Tracking engagement…</span>
+                </div>
+                <button id="download-btn" class="download-btn" style="display:none"><i class="bi bi-download"></i> Download</button>
             </div>
         </header>
 
         <div class="viewer-layout">
-            <!-- Content Area -->
+            <!-- Reading surface -->
             <main class="content-area" id="content-viewer">
+                <div class="reading-ribbon" aria-hidden="true">
+                    <div class="reading-ribbon-fill" id="reading-ribbon-fill"></div>
+                </div>
                 <div class="slide-content" id="content-placeholder">
                     <div class="loading-wrapper">
                         <div class="spinner"></div>
@@ -39,30 +47,37 @@
                 </div>
             </main>
 
-            <!-- Sidebar -->
+            <!-- Contents index -->
             <aside class="viewer-sidebar">
                 <div class="sidebar-section">
-                    <h3>Topics</h3>
-                    <div id="topic-list" class="topic-list">
-                        <!-- Topics dynamically loaded -->
-                    </div>
-                </div>
-
-                <div class="sidebar-section">
-                    <h3>Materials</h3>
+                    <h3 class="sidebar-eyebrow">Contents</h3>
+                    <select id="semester-filter" class="semester-filter">
+                        <option value="all">All semesters</option>
+                    </select>
                     <div id="material-list" class="topic-list">
                         <!-- Material list loaded here -->
                     </div>
                 </div>
 
                 <div class="sidebar-section">
-                    <h3>Engagement Pulse</h3>
+                    <h3 class="sidebar-eyebrow">Session</h3>
                     <div class="pulse-container">
                         <div class="pulse-bar" id="pulse-bar" style="width: 0%"></div>
                     </div>
+                    <p class="pulse-readout">
+                        <span id="reading-time">00:00</span>
+                        <span class="text-muted">reading</span>
+                    </p>
                     <p class="text-muted" style="font-size: 0.75rem">We're monitoring your activity to help you stay focused.</p>
                 </div>
             </aside>
+        </div>
+
+        <!-- Quiz-ready beacon dock -->
+        <div class="quiz-ready-banner" id="quiz-ready-hint" style="display:none">
+            <i class="bi bi-lightbulb"></i>
+            <span id="quiz-countdown"></span>
+            <button id="quiz-ready-btn" class="quiz-ready-btn" style="display:none">Take the comprehension check</button>
         </div>
     </div>
 
@@ -73,6 +88,19 @@
             <p id="mq-difficulty" class="mq-meta">Question 1 of 3</p>
             <h3 id="question-text">Loading question...</h3>
             <div id="option-grid" class="option-grid"></div>
+        </div>
+    </div>
+
+    <!-- Ready Prompt Modal (shown when the reading timer finishes) -->
+    <div id="quiz-ready-modal" class="modal">
+        <div class="modal-content">
+            <span class="mq-badge">Comprehension Check Ready</span>
+            <h3>Ready to answer questions about this material?</h3>
+            <p class="mq-meta">You've spent some time reading. Test what you've learned with a short AI quiz — a fresh set every time.</p>
+            <div class="mq-actions">
+                <button id="quiz-ready-yes" class="option-btn">Start Questions</button>
+                <button id="quiz-ready-no" class="option-btn">Not yet</button>
+            </div>
         </div>
     </div>
 

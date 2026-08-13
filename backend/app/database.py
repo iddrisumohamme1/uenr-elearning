@@ -14,9 +14,27 @@ from functools import lru_cache
 import sys
 import time
 
+import httpx
 from supabase import create_client, Client
+from supabase.lib.client_options import SyncClientOptions
 
 from app.core.config import settings
+
+
+# Timeouts for the underlying HTTP client. A short connect timeout makes
+# transient network drops (see with_retry) fail fast so retries kick in
+# quickly instead of stalling each attempt for the httpx default (5s).
+_DB_TIMEOUT = httpx.Timeout(15.0, connect=3.0)
+
+
+def _build_client(url: str, key: str) -> Client:
+    return create_client(
+        url,
+        key,
+        options=SyncClientOptions(
+            httpx_client=httpx.Client(timeout=_DB_TIMEOUT),
+        ),
+    )
 
 
 # Transient network failures (killed pooled connections on flaky networks,
@@ -82,7 +100,7 @@ def get_admin_client() -> Client:
             "Supabase admin credentials missing. Set SUPABASE_URL and "
             "SUPABASE_SERVICE_ROLE_KEY in backend/.env"
         )
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return _build_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 @lru_cache(maxsize=1)
@@ -93,4 +111,4 @@ def get_anon_client() -> Client:
             "Supabase anon credentials missing. Set SUPABASE_URL and "
             "SUPABASE_ANON_KEY in backend/.env"
         )
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    return _build_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)

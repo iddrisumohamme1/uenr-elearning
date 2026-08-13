@@ -262,6 +262,10 @@
   transform: scale(1.08) rotate(-4deg);
 }
 
+.feature-card__icon .bi {
+  color: var(--clr-primary);
+}
+
 .feature-card__title {
   margin-bottom: var(--s3);
 }
@@ -353,6 +357,10 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--r-full);
+}
+
+.role-card__avatar .bi {
+  color: var(--clr-primary);
 }
 
 .role-card__list {

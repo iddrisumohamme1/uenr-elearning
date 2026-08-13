@@ -33,10 +33,10 @@
     }
 
     const ICONS = {
-        error:   '✕',
-        success: '✓',
-        warning: '⚠',
-        info:    'ℹ'
+        error:   '<i class="bi bi-x-circle-fill"></i>',
+        success: '<i class="bi bi-check-circle-fill"></i>',
+        warning: '<i class="bi bi-exclamation-triangle-fill"></i>',
+        info:    '<i class="bi bi-info-circle-fill"></i>'
     };
 
     const TITLES = {

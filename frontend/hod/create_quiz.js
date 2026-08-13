@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         div.className = 'question-builder';
         div.dataset.questionNum = qNum;
         div.innerHTML = `
-            <button type="button" class="btn-remove-question" onclick="this.parentElement.remove()">✕ Remove</button>
+            <button type="button" class="btn-remove-question" onclick="this.parentElement.remove()"> <i class="bi bi-x-lg"></i> Remove</button>
             <h3>Question ${qNum}</h3>
             <div class="form-group">
                 <textarea class="form-input question-text" rows="3" placeholder="Enter your question here..." required></textarea>

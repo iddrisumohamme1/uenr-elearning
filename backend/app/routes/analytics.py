@@ -8,6 +8,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
+from app.routes.study import _predict_percentage, _quiz_stats, _attendance_stats
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -254,4 +255,110 @@ def department_summary(user=Depends(require_role("hod"))):
             "highly_engaged": {"count": high,"pct": round(high    / total * 100, 1)},
         },
         "by_course": dict(by_course),
+    }
+
+@router.get("/predict-grade/{student_id}/{course_id}")
+def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user)):
+    """
+    Predicts the likely end-of-semester grade for a student in a course by
+    blending quiz performance, comprehension classification, attendance and
+    weekly study time into a 0-100 percentage with a letter grade and a
+    "what-if" projection for improving study time.
+    """
+    if user["role"] == "student" and user["id"] != student_id:
+        raise HTTPException(status_code=403, detail="Can only predict own grade")
+
+    admin = get_admin_client()
+    course_ids = [course_id]
+
+    # Comprehension signal from the latest Two-Tower classifications
+    comp_class = None
+    try:
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
+            .select("comprehension_class")
+            .eq("student_id", student_id)
+            .eq("course_id", course_id)
+            .not_.is_("comprehension_class", "null")
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+        logs = getattr(resp, "data", []) or []
+        if logs:
+            comp_class = round(sum(float(l["comprehension_class"]) for l in logs) / len(logs), 2)
+    except Exception:
+        pass
+
+    quiz_stats = _quiz_stats(admin, student_id, course_ids)
+    attendance = _attendance_stats(admin, student_id, course_ids)
+    quiz_avg = quiz_stats.get(course_id)
+    attendance_rate = attendance.get("per_course", {}).get(course_id)
+
+    # Weekly study coverage
+    study_coverage = None
+    try:
+        from datetime import datetime, timedelta
+        from app.routes.study import MINUTES_PER_MATERIAL, STUDY_WINDOW_DAYS
+        window_start = (datetime.utcnow() - timedelta(days=STUDY_WINDOW_DAYS)).isoformat() + "Z"
+        mat_resp = with_retry(
+            lambda c: c.table("materials").select("id").eq("course_id", course_id).execute()
+        )
+        materials_count = len(getattr(mat_resp, "data", []) or [])
+        logs_resp = with_retry(
+            lambda c: c.table("engagement_logs")
+            .select("time_spent")
+            .eq("student_id", student_id)
+            .eq("course_id", course_id)
+            .gte("created_at", window_start)
+            .execute()
+        )
+        time_spent_minutes = round(
+            sum(float(l.get("time_spent") or 0) for l in (getattr(logs_resp, "data", []) or [])) / 60, 1
+        )
+        recommended = round(materials_count * MINUTES_PER_MATERIAL, 1) if materials_count else 0
+        if recommended:
+            study_coverage = min(100.0, round(time_spent_minutes / recommended * 100, 1))
+    except Exception as exc:
+        print(f"[analytics] study coverage error: {exc}")
+
+    if quiz_avg is None and comp_class is None and attendance_rate is None and study_coverage is None:
+        return {
+            "status": "success",
+            "prediction": "Insufficient Data",
+            "advice": "Please engage more with the platform and take more quizzes so we can predict your performance.",
+        }
+
+    predicted = _predict_percentage(
+        quiz_avg=quiz_avg,
+        comprehension_class=comp_class,
+        attendance_rate=attendance_rate,
+        study_coverage=study_coverage,
+    )
+
+    percentage = predicted["percentage"]
+    if percentage is None:
+        advice = "Please engage more with the platform so we can predict your performance."
+    elif percentage >= 80:
+        advice = "You are on track for a strong result. Keep your current study rhythm going."
+    elif percentage >= 60:
+        advice = "You are doing well. Add a little more weekly study time and review the recommended resources to push higher."
+    elif percentage >= 50:
+        advice = "You are at the pass boundary. Increasing your weekly study time and taking more quizzes will help secure a better grade."
+    else:
+        advice = "You are at risk. Prioritise this course — aim for at least 20 minutes of study per material and complete the practice questions."
+
+    return {
+        "status": "success",
+        "predicted_percentage": percentage,
+        "predicted_grade": predicted["grade"],
+        "prediction": f"{predicted['grade']} ({percentage}%)" if percentage is not None else "Insufficient Data",
+        "signals": {
+            "quiz_avg": quiz_avg,
+            "comprehension_class": comp_class,
+            "attendance_present_rate": attendance_rate,
+            "study_coverage": study_coverage,
+        },
+        "what_if": predicted["what_if"],
+        "advice": advice,
     }

@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routes import auth, courses, engagement, recommendations, micro_questions, users, analytics, quiz, materials, students
+from app.routes import auth, courses, engagement, recommendations, micro_questions, users, analytics, quiz, materials, students, attendance, messages, assignments, resources, study
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -48,6 +48,11 @@ app.include_router(analytics.router)
 app.include_router(quiz.router)
 app.include_router(materials.router)
 app.include_router(students.router)
+app.include_router(attendance.router)
+app.include_router(messages.router)
+app.include_router(assignments.router)
+app.include_router(resources.router)
+app.include_router(study.router)
 
 
 @app.get("/")

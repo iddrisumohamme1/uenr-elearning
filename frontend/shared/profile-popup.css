@@ -190,6 +190,9 @@
 
 .setting-label .icon {
     font-size: 1.1rem;
+    color: var(--clr-primary);
+    display: inline-flex;
+    align-items: center;
 }
 
 /* Toggle Switch */

@@ -1,6 +1,7 @@
 /* 
    RECOMMENDATIONS MODULE LOGIC
    frontend/recommendations/recommendations.js
+   Search-engine style: query in, ranked result rows out.
 */
 
 function escapeHTML(str) {
@@ -12,14 +13,13 @@ function escapeHTML(str) {
         .replace(/'/g, '&#39;');
 }
 
-const EXAMPLE_CONCEPTS = [
-    'Database normalization and SQL joins',
-    'Pointers and memory allocation in C++',
-    'Neural network backpropagation',
-    'Design patterns in software engineering',
-    'HTTP and REST APIs',
-    'Recursion and data structures',
-];
+function extractDomain(url) {
+    try {
+        return new URL(url).hostname.replace(/^www\./, '');
+    } catch (e) {
+        return url || '';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('student').catch(() => null);
@@ -35,11 +35,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const loadingEl = document.getElementById('loading-state');
     const errorEl = document.getElementById('error-state');
+    const errorMsgEl = document.getElementById('error-message');
     const listEl = document.getElementById('recommendations-list');
-    const weakBannerEl = document.getElementById('weak-topics-banner');
-    const weakChipsEl = document.getElementById('weak-topic-chips');
+    const resultsInfoEl = document.getElementById('results-info');
+    const relatedSearchesEl = document.getElementById('related-searches');
+    const relatedChipsEl = document.getElementById('related-chips');
     const conceptsInput = document.getElementById('weak-concepts');
-    const getRecsBtn = document.getElementById('get-recs-btn');
+    const searchForm = document.getElementById('search-form');
+    const clearBtn = document.getElementById('clear-search');
+    const pendingEl = document.getElementById('pending-recs');
+    const pendingListEl = document.getElementById('pending-recs-list');
 
     const sourceLabels = {
         material: 'Course Material',
@@ -47,113 +52,118 @@ document.addEventListener('DOMContentLoaded', async () => {
         article: 'Article',
     };
 
+    const sourceIcons = {
+        material: 'bi bi-journal-text',
+        youtube: 'bi bi-youtube',
+        article: 'bi bi-globe2',
+    };
+
     function showLoading() {
         loadingEl.style.display = 'block';
         errorEl.style.display = 'none';
         listEl.innerHTML = '';
+        resultsInfoEl.style.display = 'none';
     }
 
     function showError(msg) {
         loadingEl.style.display = 'none';
         errorEl.style.display = 'block';
-        document.getElementById('error-message').textContent = msg;
+        errorMsgEl.textContent = msg;
     }
 
-    function buildResourceLink(rec) {
-        if (rec.url) {
-            return `<a href="${escapeHTML(rec.url)}" target="_blank" rel="noopener noreferrer" class="btn-go">Open Resource</a>`;
-        }
+    function showResultsInfo(count, elapsedMs) {
+        if (!count) return;
+        resultsInfoEl.style.display = 'block';
+        resultsInfoEl.textContent =
+            `About ${count} ${count === 1 ? 'result' : 'results'} (${(elapsedMs / 1000).toFixed(2)} seconds)`;
+    }
+
+    function resourceHref(rec) {
+        if (rec.url) return { href: rec.url, external: true };
         if (rec.source === 'material' && rec.course_id) {
-            const viewerUrl = `../materials/materials.html?id=${encodeURIComponent(rec.course_id)}`;
-            return `<a href="${viewerUrl}" class="btn-go">View Course Materials</a>`;
+            return {
+                href: `../materials/materials.html?id=${encodeURIComponent(rec.course_id)}`,
+                external: false,
+            };
         }
-        return '';
+        return { href: '', external: false };
     }
 
-    function renderCards(recs) {
-        if (!recs.length) {
-            listEl.innerHTML = '<p class="text-muted">No recommendations found. Try different keywords.</p>';
-            return;
+    function renderResultRow(rec) {
+        const score = Math.max(0, Math.min(100, Number(rec.similarity_percent) || 0));
+        const source = sourceLabels[rec.source] || rec.source || 'Resource';
+        const icon = sourceIcons[rec.source] || 'bi bi-file-earmark';
+        const link = resourceHref(rec);
+
+        let domain = source;
+        let path = '';
+        if (rec.source === 'youtube' && rec.url) {
+            domain = 'YouTube';
+            path = extractDomain(rec.url);
+        } else if (rec.source === 'article' && rec.url) {
+            domain = extractDomain(rec.url);
+        } else if (rec.source === 'material' && rec.course_name) {
+            domain = 'Course Materials';
+            path = rec.course_name;
+        } else if (rec.source === 'material') {
+            domain = 'Course Materials';
         }
-        listEl.innerHTML = recs.map(rec => {
-            const score = Math.max(0, Math.min(100, Number(rec.similarity_percent) || 0));
-            const source = escapeHTML(sourceLabels[rec.source] || rec.source || '');
-            const type = escapeHTML(rec.type || 'Resource');
-            const thumb = rec.source === 'youtube' && rec.thumbnails
-                ? (rec.thumbnails.medium || rec.thumbnails.default || {}).url
-                : '';
-            const channel = rec.source === 'youtube' && rec.channel
-                ? `<p class="rec-channel">${escapeHTML(rec.channel)}</p>`
-                : '';
-            return `
-                <div class="rec-card">
-                    ${thumb ? `<a class="rec-thumb" href="${escapeHTML(rec.url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHTML(thumb)}" alt="${escapeHTML(rec.title)}" loading="lazy"></a>` : ''}
-                    <div class="rec-card-top">
-                        <span class="rec-type">${type}</span>
-                        ${source ? `<span class="rec-source">${source}</span>` : ''}
-                    </div>
-                    <h3 class="rec-title">${escapeHTML(rec.title)}</h3>
-                    ${channel}
-                    ${rec.reason ? `<p class="rec-reason">${escapeHTML(rec.reason)}</p>` : ''}
-                    ${rec.description && rec.description !== rec.title ? `<p class="rec-desc">${escapeHTML(rec.description)}</p>` : ''}
-                    <div class="rec-score">
-                        <span class="rec-score-label">Match strength</span>
-                        <div class="rec-score-bar"><span class="rec-score-fill" style="width:${score}%"></span></div>
-                        <span class="rec-score-value">${score.toFixed(0)}%</span>
-                    </div>
-                    ${buildResourceLink(rec)}
+
+        const title = link.href
+            ? `<a class="result-title" href="${escapeHTML(link.href)}"${link.external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHTML(rec.title)}</a>`
+            : `<h3 class="result-title">${escapeHTML(rec.title)}</h3>`;
+
+        const snippet = rec.description && rec.description !== rec.title
+            ? `<p class="result-snippet">${escapeHTML(rec.description)}</p>`
+            : '';
+
+        const reason = rec.reason
+            ? `<p class="result-reason">${escapeHTML(rec.reason)}</p>`
+            : '';
+
+        const matchBar = score > 0 ? `
+            <span class="result-match">
+                <span class="match-label">Match</span>
+                <span class="match-bar"><span class="match-fill" style="width:${score}%"></span></span>
+                <span class="match-value">${score.toFixed(0)}%</span>
+            </span>` : '';
+
+        return `
+            <div class="search-result">
+                <div class="result-domain-row">
+                    <span class="result-domain"><i class="${icon}" aria-hidden="true"></i>${escapeHTML(domain)}</span>
+                    ${path ? `<span class="result-path">${escapeHTML(path)}</span>` : ''}
                 </div>
-            `;
-        }).join('');
+                ${title}
+                ${reason}
+                ${snippet}
+                ${matchBar ? `<div class="result-meta">${matchBar}</div>` : ''}
+            </div>
+        `;
     }
 
-    function renderWeakTopics(weakTopics) {
-        if (!weakTopics || !weakTopics.length) {
-            weakBannerEl.style.display = 'none';
+    function renderResults(recs) {
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'none';
+        if (!recs.length) {
+            resultsInfoEl.style.display = 'none';
+            listEl.innerHTML = `
+                <p class="text-muted">No results found for "<strong>${escapeHTML(conceptsInput.value.trim())}</strong>".</p>
+                <p class="text-muted" style="margin-top:0.5rem">Try a different topic, or click one of the related searches above.</p>`;
             return;
         }
-        weakBannerEl.style.display = 'block';
-        weakChipsEl.innerHTML = weakTopics.map(t => `
-            <button type="button" class="topic-chip" data-topic="${escapeHTML(t.topic)}"
-                    title="Average score: ${escapeHTML(String(t.avg_score))}%">
-                ${escapeHTML(t.label)} <span class="chip-score">${escapeHTML(String(t.avg_score))}%</span>
-            </button>
-        `).join('');
-
-        weakChipsEl.querySelectorAll('.topic-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                conceptsInput.value = chip.dataset.topic;
-                getRecommendations();
-            });
-        });
-
-        const labels = weakTopics.map(t => t.label).join(', ');
-        conceptsInput.placeholder = `Detected: ${labels}`;
+        listEl.innerHTML = recs.map(renderResultRow).join('');
     }
 
-    function renderExampleChips() {
-        const container = document.getElementById('example-chips');
-        container.innerHTML = EXAMPLE_CONCEPTS.map(concept => `
-            <button type="button" class="topic-chip example-chip" data-concept="${escapeHTML(concept)}">
-                ${escapeHTML(concept)}
-            </button>
-        `).join('');
-        container.querySelectorAll('.example-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                conceptsInput.value = chip.dataset.concept;
-                getRecommendations();
-            });
-        });
-    }
-
-    async function getRecommendations() {
+    async function runSearch() {
         const concepts = conceptsInput.value.trim();
         if (!concepts) {
-            showError('Please describe what topics you\'re struggling with, or pick an example below.');
+            showError('Type a topic you need help with, or pick a related search below.');
             return;
         }
 
         showLoading();
+        const startedAt = performance.now();
         try {
             const res = await authFetch(`${API_BASE}/api/recommendations/`, {
                 method: 'POST',
@@ -161,15 +171,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify({ student_id: user.id, weak_concepts: concepts, top_n: 5 })
             });
             if (!res.ok) {
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 throw new Error(data.detail || 'Failed to get recommendations');
             }
             const data = await res.json();
-            renderCards(data.recommendations || []);
+            const recs = data.recommendations || [];
+            renderResults(recs);
+            showResultsInfo(recs.length, performance.now() - startedAt);
         } catch (err) {
             console.error('Error loading recommendations:', err);
             showError(err.message || 'Unable to load recommendations.');
         }
+    }
+
+    function renderRelatedChips(topics) {
+        if (!topics || !topics.length) {
+            relatedSearchesEl.style.display = 'none';
+            return;
+        }
+        relatedSearchesEl.style.display = 'flex';
+        relatedChipsEl.innerHTML = topics.map(t => `
+            <button type="button" class="related-chip" data-topic="${escapeHTML(t.topic)}"
+                    title="Average score: ${escapeHTML(String(t.avg_score))}%">
+                ${escapeHTML(t.label)}<span class="related-chip-score">${escapeHTML(String(t.avg_score))}%</span>
+            </button>
+        `).join('');
+        relatedChipsEl.querySelectorAll('.related-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                conceptsInput.value = chip.dataset.topic;
+                runSearch();
+            });
+        });
     }
 
     async function loadAutoDetection() {
@@ -177,16 +209,164 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await authFetch(`${API_BASE}/api/recommendations/auto`);
             if (!res.ok) return;
             const data = await res.json();
-            renderWeakTopics(data.weak_topics || []);
-            if ((data.recommendations || []).length) {
-                renderCards(data.recommendations);
-            }
+            renderRelatedChips(data.weak_topics || []);
         } catch (err) {
             console.error('Auto-detection failed:', err);
         }
     }
 
-    renderExampleChips();
+    async function loadPendingRecommendations() {
+        try {
+            const res = await authFetch(`${API_BASE}/api/recommendations/notifications`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const items = data.items || [];
+            if (items.length) {
+                pendingEl.style.display = 'block';
+                pendingListEl.innerHTML = items.map(n => {
+                    const rec = {
+                        url: n.resource_url || '',
+                        source: n.resource_source,
+                        course_id: n.course_id,
+                        course_name: n.course_name || '',
+                        title: n.resource_title,
+                        description: n.resource_description,
+                        reason: n.reason,
+                    };
+                    return renderResultRow(rec);
+                }).join('');
+            }
+            // Once surfaced to the student, clear the unread badge.
+            await authFetch(`${API_BASE}/api/recommendations/notifications/read`, { method: 'POST' });
+        } catch (err) {
+            console.error('Failed to load pending recommendations:', err);
+        }
+    }
+
+    /* ------------------------- AI TUTOR (Q&A) ------------------------- */
+
+    const tutorThread = document.getElementById('tutor-thread');
+    const tutorForm = document.getElementById('tutor-form');
+    const tutorInput = document.getElementById('tutor-input');
+    const tutorSend = document.getElementById('tutor-send');
+    const tutorCourse = document.getElementById('tutor-course');
+    const tutorError = document.getElementById('tutor-error');
+    const tutorFab = document.getElementById('tutor-fab');
+    const tutorPopup = document.getElementById('tutor-popup');
+    const tutorClose = document.getElementById('tutor-close');
+
+    function openTutor() {
+        tutorPopup.classList.add('open');
+        tutorPopup.setAttribute('aria-hidden', 'false');
+        tutorInput.focus();
+    }
+
+    function closeTutor() {
+        tutorPopup.classList.remove('open');
+        tutorPopup.setAttribute('aria-hidden', 'true');
+    }
+
+    tutorFab.addEventListener('click', openTutor);
+    tutorClose.addEventListener('click', closeTutor);
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeTutor();
+    });
+
+    async function loadTutorCourses() {
+        try {
+            const res = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
+            if (!res.ok) return;
+            const courses = await res.json();
+            if (!courses || !courses.length) return;
+            tutorCourse.innerHTML = '<option value="">General (any topic)</option>' +
+                courses.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.title)}</option>`).join('');
+        } catch (err) {
+            console.error('Failed to load tutor course list:', err);
+        }
+    }
+
+    function appendTutorBubble(text, isUser) {
+        const bubble = document.createElement('div');
+        bubble.className = `tutor-bubble ${isUser ? 'tutor-bubble-user' : 'tutor-bubble-ai'}`;
+        bubble.innerHTML = escapeHTML(text).replace(/\n/g, '<br>');
+        tutorThread.appendChild(bubble);
+        tutorThread.scrollTop = tutorThread.scrollHeight;
+        return bubble;
+    }
+
+    function showTutorError(msg) {
+        tutorError.textContent = msg;
+        tutorError.style.display = 'block';
+    }
+
+    function hideTutorError() {
+        tutorError.style.display = 'none';
+    }
+
+    async function sendTutorQuestion() {
+        const question = tutorInput.value.trim();
+        if (!question || tutorSend.disabled) return;
+
+        hideTutorError();
+        appendTutorBubble(question, true);
+        tutorInput.value = '';
+
+        const loading = document.createElement('div');
+        loading.className = 'tutor-bubble tutor-bubble-ai tutor-loading';
+        loading.innerHTML = '<span class="spinner"></span><span>Thinking...</span>';
+        tutorThread.appendChild(loading);
+        tutorThread.scrollTop = tutorThread.scrollHeight;
+
+        tutorSend.disabled = true;
+        tutorSend.querySelector('i').className = 'bi bi-hourglass-split';
+        try {
+            const res = await authFetch(`${API_BASE}/api/recommendations/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question,
+                    course_id: tutorCourse.value || null,
+                })
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || 'The AI tutor could not answer right now.');
+            }
+            const data = await res.json();
+            loading.remove();
+            appendTutorBubble(data.answer || 'No answer received.', false);
+        } catch (err) {
+            loading.remove();
+            showTutorError(err.message || 'Unable to reach the AI tutor.');
+            tutorInput.value = question;
+        } finally {
+            tutorSend.disabled = false;
+            tutorSend.querySelector('i').className = 'bi bi-send';
+            tutorInput.focus();
+        }
+    }
+
+    tutorForm.addEventListener('submit', e => {
+        e.preventDefault();
+        sendTutorQuestion();
+    });
+
+    searchForm.addEventListener('submit', e => {
+        e.preventDefault();
+        runSearch();
+    });
+
+    conceptsInput.addEventListener('input', () => {
+        clearBtn.style.display = conceptsInput.value ? 'flex' : 'none';
+    });
+    clearBtn.style.display = 'none';
+    clearBtn.addEventListener('click', () => {
+        conceptsInput.value = '';
+        clearBtn.style.display = 'none';
+        conceptsInput.focus();
+    });
+
+    loadPendingRecommendations();
     loadAutoDetection();
-    getRecsBtn.addEventListener('click', getRecommendations);
+    loadTutorCourses();
 });

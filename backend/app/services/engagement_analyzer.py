@@ -19,6 +19,8 @@
 import os
 import numpy as np
 
+from app.core.config import settings
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
@@ -54,7 +56,10 @@ class TwoTowerAnalyzer:
     def __init__(self):
         self.model      = None
         self._tf_loaded = False
-        self._load()
+        if settings.ENGAGEMENT_ML_ENABLED:
+            self._load()
+        else:
+            print("[TwoTower] TensorFlow disabled by config - heuristic fallback active.")
 
     # ── Initialisation ────────────────────────────────────────────────────────
 
@@ -171,5 +176,14 @@ class TwoTowerAnalyzer:
         return self.model is not None
 
 
-# Singleton loaded at import time
-analyzer = TwoTowerAnalyzer()
+# Singleton created lazily so importing this module never loads TensorFlow.
+# TensorFlow is only imported on the first classification request, and only if
+# ENGAGEMENT_ML_ENABLED is True (keeps 512 MB Render instances alive).
+_analyzer = None
+
+
+def get_analyzer() -> "TwoTowerAnalyzer":
+    global _analyzer
+    if _analyzer is None:
+        _analyzer = TwoTowerAnalyzer()
+    return _analyzer

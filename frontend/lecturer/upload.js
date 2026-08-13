@@ -11,9 +11,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const courseSelect = document.getElementById('course-select');
     const form = document.getElementById('upload-form');
+    const academicYear = document.getElementById('academic-year');
 
     attachLogout('logout-btn');
     initProfilePopup();
+
+    function setupOrganization() {
+        const radios = document.querySelectorAll('input[name="organization"]');
+        const weekField = document.getElementById('org-week-field');
+        const unitField = document.getElementById('org-unit-field');
+        const hint = document.getElementById('org-hint');
+        const apply = (value) => {
+            weekField.hidden = value !== 'week';
+            unitField.hidden = value !== 'unit';
+            if (value === 'week') hint.textContent = 'Materials are shown to students grouped under this week.';
+            else if (value === 'unit') hint.textContent = 'Materials are shown to students grouped under this unit / part.';
+            else hint.textContent = 'Materials are shown to students as whole-semester content (no week grouping).';
+        };
+        radios.forEach(r => r.addEventListener('change', () => apply(r.value)));
+        apply(document.querySelector('input[name="organization"]:checked')?.value || 'week');
+    }
+
+    function loadAcademicYears() {
+        const now = new Date().getFullYear();
+        const options = [];
+        for (let y = now; y >= now - 3; y--) {
+            options.push(`<option value="${y}/${y + 1}">${y}/${y + 1}</option>`);
+        }
+        academicYear.innerHTML = `
+            <option value="" disabled selected>Select academic year</option>
+            ${options.join('')}
+        `;
+    }
 
     async function loadCourses() {
         try {
@@ -41,18 +70,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const title = document.getElementById('title').value.trim();
         const description = document.getElementById('description').value.trim();
+        const weekNumber = document.getElementById('week-number').value.trim();
+        const unitLabel = document.getElementById('unit-label').value.trim();
+        const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
         const courseId = courseSelect.value;
+        const semesterVal = document.getElementById('semester').value;
         const fileInput = document.getElementById('file');
 
-        if (!title || !courseId || !fileInput.files.length) {
-            showToast('Please select a course, enter a title, and upload a file.', 'warning');
+        if (!title || !courseId || !academicYear.value || !semesterVal || !fileInput.files.length) {
+            showToast('Select a course, academic year, semester, enter a title, and upload a file.', 'warning');
             return;
         }
+        if (organization === 'week' && !weekNumber) {
+            showToast('Enter the week number for this material.', 'warning');
+            return;
+        }
+        if (organization === 'unit' && !unitLabel) {
+            showToast('Enter a unit / part label for this material.', 'warning');
+            return;
+        }
+
+        const semester = `${academicYear.value} - ${semesterVal}`;
 
         const formData = new FormData();
         formData.append('title', title);
         formData.append('description', description);
         formData.append('course_id', courseId);
+        formData.append('semester', semester);
+        if (organization === 'week') formData.append('week_number', weekNumber);
+        if (organization === 'unit') formData.append('unit_label', unitLabel);
         formData.append('file', fileInput.files[0]);
 
         try {
@@ -74,5 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    loadAcademicYears();
     await loadCourses();
+    setupOrganization();
 });

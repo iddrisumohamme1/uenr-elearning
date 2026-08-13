@@ -9,12 +9,18 @@ from typing import List, Optional
 
 from app.core.security import require_role, get_current_user
 from app.database import get_admin_client, with_retry
+from app.services.material_content import material_text_from_url
+from app.services.quiz_generator import quiz_ai
 from app.services.recommendation_engine import engine, detect_topic
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
 # Score below this (as a percentage) marks a topic as a weakness.
 WEAK_SCORE_THRESHOLD = 60.0
+
+# A quiz score below this triggers an automatic resource recommendation that is
+# surfaced to the student as a sidebar notification.
+RECOMMEND_THRESHOLD = 60.0
 
 TOPIC_LABELS = {
     "machine_learning": "Machine Learning",
@@ -50,6 +56,11 @@ class AutoRecommendationResponse(BaseModel):
     recommendations: List[dict]
 
 
+class AskTutorRequest(BaseModel):
+    question: str
+    course_id: Optional[str] = None
+
+
 def _decorate_recommendations(results: list, query: str) -> list:
     """Attach a human-readable reason + percentage to each recommendation."""
     short = " ".join(query.split())[:80] or query
@@ -60,6 +71,61 @@ def _decorate_recommendations(results: list, query: str) -> list:
         item["similarity_percent"] = round(float(item.get("similarity_score", 0)) * 100, 1)
         decorated.append(item)
     return decorated
+
+
+def record_auto_recommendation(
+    student_id: str,
+    course_id: str,
+    submission_id: str,
+    score: float,
+    weak_concept: str,
+    top_n: int = 2,
+    include_web: bool = False,
+) -> list:
+    """
+    Generate resource recommendations for a weak concept and store them as
+    unread notifications for the student. Returns the created notification rows.
+    Never raises — a failing recommendation must not break quiz submission.
+
+    `include_web` is off by default so the fast path (used right after a quiz)
+    only searches the local pool (every course's materials + curated external
+    resources) and skips the network-bound live YouTube search.
+    """
+    try:
+        results = engine.get_recommendations(
+            weak_concepts=weak_concept,
+            top_n=top_n,
+            include_web=include_web,
+        )
+    except Exception as e:
+        print(f"[Recommendation] Auto-recommendation failed: {e}")
+        return []
+
+    created = []
+    for r in results:
+        title = (r.get("title") or "").strip()
+        if not title:
+            continue
+        try:
+            resp = with_retry(
+                lambda c, r=r: c.table("recommendation_notifications").insert({
+                    "student_id": student_id,
+                    "course_id": course_id,
+                    "submission_id": submission_id,
+                    "score": score,
+                    "weak_concept": weak_concept,
+                    "resource_title": title,
+                    "resource_url": r.get("url") or "",
+                    "resource_source": r.get("source") or "material",
+                    "resource_type": r.get("type") or "Resource",
+                    "resource_description": r.get("description") or "",
+                    "reason": f"Recommended for: \u201c{weak_concept}\u201d (quiz score {score}%)",
+                }).execute()
+            )
+            created.extend(getattr(resp, "data", []) or [])
+        except Exception as e:
+            print(f"[Recommendation] Failed to store notification: {e}")
+    return created
 
 
 def _dedupe(results: list) -> list:
@@ -104,6 +170,48 @@ def get_recommendations(payload: RecommendationRequest, user: dict = Depends(req
         weak_concepts=payload.weak_concepts,
         recommendations=_decorate_recommendations(results, payload.weak_concepts),
     )
+
+
+@router.post("/ask")
+def ask_tutor(payload: AskTutorRequest, user: dict = Depends(require_role("student"))):
+    """
+    Answers a student's question with the AI tutor. When ``course_id`` is given,
+    the answer is grounded in that course's material content.
+    """
+    question = (payload.question or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+    material_context = ""
+    if payload.course_id:
+        try:
+            admin = get_admin_client()
+            mat_resp = with_retry(
+                lambda c: c.table("materials")
+                .select("title, description, content_url, content_type")
+                .eq("course_id", payload.course_id)
+                .execute()
+            )
+            parts = []
+            for mat in getattr(mat_resp, "data", []) or []:
+                text = f"{mat.get('title', '')} - {mat.get('description', '')}".strip()
+                content_url = mat.get("content_url") or ""
+                content_type = (mat.get("content_type") or "").lower()
+                if content_url:
+                    extracted = material_text_from_url(content_url, content_type)
+                    if extracted:
+                        text = f"{text}\n{extracted}"
+                if text.strip():
+                    parts.append(text)
+            material_context = "\n\n".join(parts)[:15000]
+        except Exception as e:
+            print(f"[recommendations] Could not load course material context: {e}")
+
+    answer = quiz_ai.ask_tutor(question, material_context)
+    if not answer:
+        raise HTTPException(status_code=503, detail="AI tutor is unavailable. Please try again later.")
+
+    return {"status": "success", "answer": answer}
 
 
 @router.get("/auto", response_model=AutoRecommendationResponse)
@@ -186,6 +294,53 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
 @router.get("/resources")
 def list_all_resources(user: dict = Depends(get_current_user)):
     """Returns all available learning resources in the recommendation pool."""
+    engine._ensure_ready()
     if not engine.resources:
         raise HTTPException(status_code=404, detail="No learning resources available.")
     return {"total": len(engine.resources), "resources": engine.resources}
+
+
+@router.get("/notifications")
+def get_recommendation_notifications(user: dict = Depends(require_role("student"))):
+    """
+    Returns the student's unread auto-generated resource recommendations. The
+    sidebar reads this endpoint to show an unread badge on the Recommendations
+    link after login.
+    """
+    admin = get_admin_client()
+    try:
+        resp = with_retry(
+            lambda c: c.table("recommendation_notifications")
+            .select(
+                "id, course_id, score, weak_concept, resource_title, resource_url, "
+                "resource_source, resource_type, resource_description, reason, created_at"
+            )
+            .eq("student_id", user["id"])
+            .eq("is_read", False)
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not load recommendations: {e}")
+
+    items = getattr(resp, "data", []) or []
+    return {"unread_count": len(items), "items": items}
+
+
+@router.post("/notifications/read")
+def mark_recommendations_read(user: dict = Depends(require_role("student"))):
+    """Marks all of the student's recommendation notifications as read."""
+    admin = get_admin_client()
+    try:
+        resp = with_retry(
+            lambda c: c.table("recommendation_notifications")
+            .update({"is_read": True})
+            .eq("student_id", user["id"])
+            .eq("is_read", False)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not update recommendations: {e}")
+
+    updated = len(getattr(resp, "data", []) or [])
+    return {"status": "success", "updated": updated}

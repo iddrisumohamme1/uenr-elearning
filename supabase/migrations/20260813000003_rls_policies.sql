@@ -1,5 +1,5 @@
 -- ROW LEVEL SECURITY (RLS) POLICIES
--- migrations/002_rls_policies.sql
+-- migrations/20260813000003_rls_policies.sql
 
 -- 1. Enable RLS on all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;

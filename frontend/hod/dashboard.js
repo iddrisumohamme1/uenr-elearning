@@ -30,6 +30,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
+    function animateCount(el, target) {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const dur = reduce ? 0 : 650;
+        const start = performance.now();
+        function step(now) {
+            const t = Math.min(1, (now - start) / dur);
+            const eased = 1 - Math.pow(1 - t, 3);
+            el.textContent = String(Math.round(target * eased));
+            if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
     function setDeptPulse(atRisk, moderate, engaged, total, caption) {
         const pulseScoreEl = document.getElementById('dept-pulse-score');
         const pulseAtRiskEl = document.getElementById('dept-pulse-at-risk');
@@ -39,20 +52,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             mod: document.getElementById('dept-seg-mod'),
             engaged: document.getElementById('dept-seg-engaged'),
         };
+        const legendRisk = document.getElementById('dept-legend-risk');
+        const legendMod = document.getElementById('dept-legend-mod');
+        const legendEngaged = document.getElementById('dept-legend-eng');
         if (total === 0) {
             pulseScoreEl.textContent = '--';
             pulseAtRiskEl.textContent = '0';
             segs.risk.style.width = '0%';
             segs.mod.style.width = '0%';
             segs.engaged.style.width = '0%';
+            legendRisk.textContent = '0';
+            legendMod.textContent = '0';
+            legendEngaged.textContent = '0';
             captionEl.textContent = caption || 'No engagement data yet.';
             return;
         }
-        pulseScoreEl.textContent = Math.round(((moderate + engaged) / total) * 100);
+        animateCount(pulseScoreEl, Math.round(((moderate + engaged) / total) * 100));
         pulseAtRiskEl.textContent = String(atRisk);
         segs.risk.style.width = `${(atRisk / total) * 100}%`;
         segs.mod.style.width = `${(moderate / total) * 100}%`;
         segs.engaged.style.width = `${(engaged / total) * 100}%`;
+        legendRisk.textContent = String(atRisk);
+        legendMod.textContent = String(moderate);
+        legendEngaged.textContent = String(engaged);
         captionEl.textContent = caption;
     }
 

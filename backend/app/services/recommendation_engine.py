@@ -8,13 +8,14 @@
 # Sentence-BERT (all-MiniLM-L6-v2) is used when available;
 # falls back to TF-IDF keyword matching when sentence-transformers is absent.
 
-import os
 import math
+import threading
 import time
 from collections import Counter
 
 # ── Supabase client ───────────────────────────────────────────────────────────
 from app.database import get_admin_client
+from app.core.config import settings
 
 # How long before the resource pool is refreshed from Supabase (seconds).
 RESOURCE_TTL_SECONDS = 300
@@ -196,8 +197,14 @@ class RecommendationEngine:
         self._model_failed = False
         self.resources = []
         self.resource_embeddings = None
+        self._embeddings_by_id = {}
         self._last_refresh = 0.0
-        self._load_resources()
+        self._refresh_lock = threading.Lock()
+        # The resource pool and the Sentence-BERT model are loaded lazily on the
+        # first request instead of at import time, keeping boot memory low on
+        # small instances (Render 512 MB). A background refresh still runs.
+        self._load_started = False
+        self._load_lock = threading.Lock()
 
     # ── Resource pool ─────────────────────────────────────────────────────────
     def _load_resources(self):
@@ -206,18 +213,38 @@ class RecommendationEngine:
         external = self._flatten_external_resources()
         self.resources = internal + external
         self._last_refresh = time.time()
-        self._compute_embeddings()
+        self.resource_embeddings = self._compute_embeddings(self.resources)
         print(f"[Recommendation] Pool ready: {len(internal)} internal + {len(external)} external resources.")
 
     def _refresh_resources(self):
-        """Reload the internal material pool if it is older than the TTL."""
-        if time.time() - self._last_refresh < RESOURCE_TTL_SECONDS:
-            return
+        """Reload the internal material pool. Runs in a background thread so a
+        slow Supabase reload never blocks a student's quiz submission."""
         internal = self._load_materials_from_supabase()
         external = self._flatten_external_resources()
-        self.resources = internal + external
+        new_resources = internal + external
+        matrix = self._compute_embeddings(new_resources)
+        self.resources = new_resources
+        self.resource_embeddings = matrix
         self._last_refresh = time.time()
-        self._compute_embeddings()
+        print(f"[Recommendation] Pool refreshed: {len(internal)} internal + {len(external)} external resources.")
+
+    def _trigger_refresh(self):
+        """Kick off a pool refresh in the background without blocking the caller.
+        At most one refresh runs at a time; requests keep using the last-known pool."""
+        if time.time() - self._last_refresh < RESOURCE_TTL_SECONDS:
+            return
+        if not self._refresh_lock.acquire(blocking=False):
+            return
+
+        def _do():
+            try:
+                self._refresh_resources()
+            except Exception as e:
+                print(f"[Recommendation] Pool refresh failed: {e}")
+            finally:
+                self._refresh_lock.release()
+
+        threading.Thread(target=_do, daemon=True).start()
 
     def _load_materials_from_supabase(self) -> list:
         try:
@@ -228,14 +255,12 @@ class RecommendationEngine:
             course_ids = list({r["course_id"] for r in rows if r.get("course_id")})
             course_map = {}
             if course_ids:
-                for cid in course_ids:
-                    try:
-                        cresp = admin.table("courses").select("id, title, department").eq("id", cid).limit(1).execute()
-                        cdata = getattr(cresp, "data", []) or []
-                        if cdata:
-                            course_map[cid] = cdata[0]
-                    except Exception:
-                        pass
+                try:
+                    # Fetch all courses in a single query instead of one per material.
+                    cresp = admin.table("courses").select("id, title, department").in_("id", course_ids).execute()
+                    course_map = {c["id"]: c for c in (getattr(cresp, "data", []) or [])}
+                except Exception:
+                    pass
 
             result = []
             for r in rows:
@@ -262,8 +287,9 @@ class RecommendationEngine:
     def _flatten_external_resources() -> list:
         flat = []
         for topic, items in EXTERNAL_RESOURCES.items():
-            for item in items:
+            for idx, item in enumerate(items):
                 entry = dict(item)
+                entry["id"] = f"ext:{topic}:{idx}"
                 entry["topic"] = topic
                 entry["course_id"] = ""
                 entry["material_id"] = ""
@@ -272,15 +298,34 @@ class RecommendationEngine:
         return flat
 
     # ── Embedding model ───────────────────────────────────────────────────────
+    def _ensure_ready(self):
+        """Load the resource pool (and the semantic model, if enabled) exactly
+        once, lazily, on the first request. Safe for concurrent callers."""
+        if self._load_started:
+            return
+        with self._load_lock:
+            if self._load_started:
+                return
+            self._load_started = True
+            try:
+                self._load_resources()
+            except Exception as e:
+                print(f"[Recommendation] Pool load failed: {e}")
+            self._ensure_model()
+
     def _ensure_model(self):
         """Lazily load the Sentence-BERT model on first use."""
         if self.model is not None or self._model_failed:
+            return
+        if not settings.SEMANTIC_SEARCH_ENABLED:
+            print("[Recommendation] Semantic search disabled by config. Using TF-IDF.")
+            self._model_failed = True
             return
         try:
             from sentence_transformers import SentenceTransformer
             self.model = SentenceTransformer("all-MiniLM-L6-v2")
             print("[Recommendation] Sentence-BERT model loaded successfully.")
-            self._compute_embeddings()
+            self.resource_embeddings = self._compute_embeddings(self.resources)
         except ImportError:
             print("[Recommendation] sentence-transformers not installed. Using TF-IDF fallback.")
             self._model_failed = True
@@ -288,23 +333,37 @@ class RecommendationEngine:
             print(f"[Recommendation] WARN: Could not load Sentence-BERT ({e}). Using TF-IDF fallback.")
             self._model_failed = True
 
-    def _compute_embeddings(self):
-        if self.model is not None and self.resources:
-            import numpy as np
+    def _compute_embeddings(self, resources):
+        """Embed only the resources not seen before and return a matrix aligned
+        to `resources`. Previously-embedded resources are reused from cache, so a
+        pool refresh only embeds newly uploaded materials instead of the whole pool."""
+        if self.model is None or not resources:
+            return None
+        import numpy as np
+        missing = [r for r in resources if r.get("id") not in self._embeddings_by_id]
+        if missing:
             descriptions = [
                 f"{r['title']} {r['description']} {r.get('topic', '')}"
-                for r in self.resources
+                for r in missing
             ]
             try:
-                self.resource_embeddings = self.model.encode(descriptions, convert_to_numpy=True)
-                print(f"[Recommendation] Computed embeddings for {len(descriptions)} resources.")
+                new_emb = self.model.encode(descriptions, convert_to_numpy=True)
+                for r, emb in zip(missing, new_emb):
+                    self._embeddings_by_id[r["id"]] = emb
             except Exception as e:
                 print(f"[Recommendation] WARN: embedding computation failed ({e}).")
-                self.resource_embeddings = None
+                return None
+        rows = [self._embeddings_by_id.get(r.get("id")) for r in resources]
+        if rows and all(row is not None for row in rows):
+            return np.stack(rows)
+        return None
 
     # ── Public API ────────────────────────────────────────────────────────────
-    def get_recommendations(self, weak_concepts: str, top_n: int = 3) -> list:
-        self._refresh_resources()
+    def get_recommendations(self, weak_concepts: str, top_n: int = 3, include_web: bool = True) -> list:
+        # Lazy-load the pool + model on first use (idempotent afterwards).
+        self._ensure_ready()
+        # Pool refresh (if any) runs in the background — the student never waits on it.
+        self._trigger_refresh()
         if not self.resources:
             return []
 
@@ -312,17 +371,20 @@ class RecommendationEngine:
         pool_results = []
         if self.model is not None and self.resource_embeddings is not None:
             try:
-                pool_results = self._semantic_search(weak_concepts, top_n)
+                pool_results = self._semantic_search(weak_concepts, top_n * 2)
             except Exception as e:
                 print(f"[Recommendation] Semantic search error: {e}. Falling back to TF-IDF.")
         if not pool_results:
-            pool_results = self._tfidf_search(weak_concepts, top_n)
+            pool_results = self._tfidf_search(weak_concepts, top_n * 2)
 
-        youtube_results = self._youtube_recommendations(weak_concepts, top_n)
-
-        combined = pool_results + youtube_results
-        combined.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
-        return combined[:top_n]
+        # Live web (YouTube) search is optional and network-bound; the fast path
+        # (e.g. during quiz submission) can skip it and use the curated pool only.
+        results = pool_results
+        if include_web:
+            youtube_results = self._youtube_recommendations(weak_concepts, top_n)
+            results = pool_results + youtube_results
+            results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
+        return results[:top_n]
 
     def _youtube_recommendations(self, query: str, top_n: int) -> list:
         """Fetch live YouTube videos for the weak concept and map them into the

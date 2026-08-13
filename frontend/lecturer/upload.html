@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
@@ -20,12 +21,13 @@
         <aside class="sidebar">
             <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
             <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label"> Dashboard</span></a>
-                <a href="upload.html" class="nav-link active"><span class="nav-icon">📤</span><span class="nav-label"> Upload Content</span></a>
-                <a href="create_quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
+                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
+                <a href="upload.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Content</span></a>
+                <a href="assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
+                <a href="resources.html" class="nav-link"><span class="nav-icon"><i class="bi bi-magic"></i></span><span class="nav-label"> Study Resources</span></a>
             </nav>
             <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
             </div>
         </aside>
 
@@ -44,12 +46,41 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Academic Year</label>
+                            <select id="academic-year" class="form-input" required>
+                                <option value="" disabled selected>Loading years...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Semester</label>
+                            <select id="semester" class="form-input" required>
+                                <option value="" disabled selected>Select semester</option>
+                                <option value="First Semester">First Semester</option>
+                                <option value="Second Semester">Second Semester</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Material Title</label>
                             <input type="text" id="title" class="form-input" placeholder="e.g. Introduction to SQL" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Description</label>
                             <textarea id="description" class="form-input" rows="4" placeholder="Optional brief description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Organization</label>
+                            <div class="org-options" role="radiogroup" aria-label="Material organization">
+                                <label class="org-option"><input type="radio" name="organization" value="week" checked><span>Week by week</span></label>
+                                <label class="org-option"><input type="radio" name="organization" value="unit"><span>Unit / part</span></label>
+                                <label class="org-option"><input type="radio" name="organization" value="full"><span>Whole semester</span></label>
+                            </div>
+                            <div class="org-field" id="org-week-field">
+                                <input type="number" id="week-number" class="form-input" min="1" placeholder="e.g. 3 — the week this material belongs to">
+                            </div>
+                            <div class="org-field" id="org-unit-field" hidden>
+                                <input type="text" id="unit-label" class="form-input" placeholder="e.g. Unit 1 - Introduction, or Part 2">
+                            </div>
+                            <p class="form-hint" id="org-hint">Materials are shown to students grouped under this week, unit, or the whole course.</p>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Upload File</label>

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from app.database import get_admin_client, with_retry
 from app.core.security import get_current_user, require_role
-from app.services.engagement_analyzer import analyzer
+from app.services.engagement_analyzer import get_analyzer
 
 router = APIRouter(prefix="/api/engagement", tags=["engagement"])
 
@@ -179,7 +179,7 @@ def classify_engagement(payload: EngagementRequest, user=Depends(get_current_use
     interaction_dict = payload.interaction.model_dump()
 
     # ── Run Two-Tower inference ───────────────────────────────────────────────
-    result = analyzer.classify(student_dict, interaction_dict)
+    result = get_analyzer().classify(student_dict, interaction_dict)
 
     # ── Persist to Supabase ───────────────────────────────────────────────────
     record = {
@@ -318,7 +318,7 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
             lambda c: c.table("quiz_results")
             .select("score, quizzes!inner(course_id)")
             .eq("student_id", payload.student_id)
-            .order("created_at", desc=True)
+            .order("submitted_at", desc=True)
             .limit(10)
             .execute()
         )
@@ -369,7 +369,7 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
     }
 
     # ── Run Two-Tower inference ───────────────────────────────────────────────
-    result = analyzer.classify(student_defaults, interaction_defaults)
+    result = get_analyzer().classify(student_defaults, interaction_defaults)
 
     # ── Persist to Supabase ───────────────────────────────────────────────────
     record = {

@@ -13,7 +13,9 @@
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="../shared/pulse.css">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="hod-dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
@@ -21,14 +23,13 @@
         <aside class="sidebar">
             <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
             <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link active"><span class="nav-icon">🏠</span><span class="nav-label"> Overview</span></a>
-                <a href="department_analytics.html" class="nav-link"><span class="nav-icon">🏛️</span><span class="nav-label"> Dept Analytics</span></a>
-                <a href="create_course.html" class="nav-link"><span class="nav-icon">➕</span><span class="nav-label"> Add Course</span></a>
-                <a href="upload.html" class="nav-link"><span class="nav-icon">📤</span><span class="nav-label"> Upload Material</span></a>
-                <a href="create_quiz.html" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label"> Create Quiz</span></a>
+                <a href="dashboard.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Overview</span></a>
+                <a href="department_analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-buildings"></i></span><span class="nav-label"> Dept Analytics</span></a>
+                <a href="create_course.html" class="nav-link"><span class="nav-icon"><i class="bi bi-plus-circle"></i></span><span class="nav-label"> Add Course</span></a>
+                <a href="upload.html" class="nav-link"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Material</span></a>
             </nav>
             <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon">🚪</span><span class="nav-label"> Logout</span></button>
+                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
             </div>
         </aside>
 
@@ -64,24 +65,24 @@
                     <span class="pulse-seg pulse-seg--engaged" id="dept-seg-engaged"></span>
                 </div>
                 <div class="pulse-legend">
-                    <span class="pulse-legend-item"><span class="dot dot--risk"></span>At risk</span>
-                    <span class="pulse-legend-item"><span class="dot dot--mod"></span>Moderate</span>
-                    <span class="pulse-legend-item"><span class="dot dot--engaged"></span>Engaged</span>
+                    <span class="pulse-legend-item"><span class="dot dot--risk"></span>At risk<b id="dept-legend-risk">0</b></span>
+                    <span class="pulse-legend-item"><span class="dot dot--mod"></span>Moderate<b id="dept-legend-mod">0</b></span>
+                    <span class="pulse-legend-item"><span class="dot dot--engaged"></span>Engaged<b id="dept-legend-eng">0</b></span>
                 </div>
                 <p class="pulse-caption text-muted" id="dept-pulse-caption">Reading the department…</p>
             </section>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h3>Active Courses</h3>
+                    <span class="stat-label">Active Courses</span>
                     <p class="stat-value" id="stat-courses">--</p>
                 </div>
                 <div class="stat-card">
-                    <h3>Avg Engagement</h3>
+                    <span class="stat-label">Avg Engagement</span>
                     <p class="stat-value" id="stat-engagement">--%</p>
                 </div>
-                <div class="stat-card">
-                    <h3>At-Risk Students</h3>
+                <div class="stat-card stat-card--danger">
+                    <span class="stat-label">At-Risk Students</span>
                     <p class="stat-value text-danger" id="stat-at-risk">--</p>
                 </div>
             </div>
@@ -90,12 +91,12 @@
                 <section class="panel-card fade-in-up">
                     <div class="panel-head">
                         <h3>My Classes</h3>
-                        <p class="text-muted panel-sub" id="my-classes-sub">Courses you teach</p>
+                        <p class="text-muted panel-sub" id="my-classes-sub">Courses </p>
                     </div>
                     <div id="my-classes-list" class="course-list">
                         <div class="loading-wrapper">
                             <div class="spinner"></div>
-                            <p>Loading your classes…</p>
+                            <p>Loading classes…</p>
                         </div>
                     </div>
                 </section>
@@ -118,7 +119,7 @@
                 <div class="section-header">
                     <div>
                         <h2>Department Courses</h2>
-                        <p class="text-muted">Courses currently assigned to your department lecturers.</p>
+                        <p class="text-muted">Courses assigned you</p>
                     </div>
                     <div class="section-actions">
                         <a href="upload.html" class="btn-auth btn-sm">Upload Material</a>

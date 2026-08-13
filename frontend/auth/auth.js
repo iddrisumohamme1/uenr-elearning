@@ -6,6 +6,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const loginForm = document.getElementById('login-form');
 
+    // Always start with a clean form — no stale values from a previous visit
+    // or browser autofill.
+    if (loginForm) loginForm.reset();
+
     // If a stored session exists, validate it against the server before
     // auto-redirecting. Stale localStorage data must not hijack the login screen.
     if (loginForm) {
@@ -92,6 +96,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Handle Registration
     const registerForm = document.getElementById('register-form');
     if (registerForm) {
+        // Always start with a clean form — no stale values from a previous visit
+        // or browser autofill.
+        registerForm.reset();
+
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isSubmitting) return;
