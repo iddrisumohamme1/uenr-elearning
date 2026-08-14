@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const previewBody = document.getElementById('preview-body');
     const publishBtn = document.getElementById('publish-btn');
     const publishedList = document.getElementById('published-list');
+    const deleteModal = document.getElementById('delete-modal');
+    const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
 
     const FORMAT_LABELS = {
         summary: 'Summary',
@@ -36,10 +38,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         practice_questions: 'bi-pencil-square',
     };
 
+    function escapeHTML(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+    }
+
     let selectedCourseId = null;
     let selectedMaterialId = null;
     let selectedCourseName = '';
     let pendingResource = null;
+    let pendingDeleteId = null;
+
+    const closeModal = (m) => { if (m) m.hidden = true; };
+    document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
+        btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
+    );
+
+    function openDeleteModal(id) {
+        pendingDeleteId = id;
+        deleteModal.hidden = false;
+    }
 
     function setStage(doneUpTo) {
         document.querySelectorAll('#stage-rail .stage').forEach((el, i) => {
@@ -128,16 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).join('');
 
             publishedList.querySelectorAll('.btn-live-delete').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    if (!confirm('Remove this published resource? Students will no longer see it.')) return;
-                    const res = await authFetch(`${API_BASE}/api/resources/${btn.dataset.id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        showToast('Resource removed.', 'success');
-                        loadPublished(courseId);
-                    } else {
-                        showToast('Could not remove resource.', 'error');
-                    }
-                });
+                btn.addEventListener('click', () => openDeleteModal(btn.dataset.id));
             });
         } catch (err) {
             publishedList.innerHTML = '<p class="text-muted">Unable to load published resources.</p>';
@@ -148,6 +158,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         preview.hidden = true;
         pendingResource = null;
     }
+
+    deleteConfirmBtn.addEventListener('click', async () => {
+        if (!pendingDeleteId) return;
+        deleteConfirmBtn.disabled = true;
+        deleteConfirmBtn.textContent = 'Removing…';
+        try {
+            const res = await authFetch(`${API_BASE}/api/resources/${pendingDeleteId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Resource removed.', 'success');
+                closeModal(deleteModal);
+                loadPublished(selectedCourseId);
+            } else {
+                showToast('Could not remove resource.', 'error');
+            }
+        } catch (err) {
+            showToast('Could not remove resource.', 'error');
+        } finally {
+            pendingDeleteId = null;
+            deleteConfirmBtn.disabled = false;
+            deleteConfirmBtn.innerHTML = '<i class="bi bi-trash"></i> Remove resource';
+        }
+    });
 
     courseSelect.addEventListener('change', () => {
         selectedCourseId = courseSelect.value;

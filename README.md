@@ -25,6 +25,7 @@ An intelligent web-based e-learning platform that monitors student engagement an
 | Auth | Supabase Auth + JWT Bearer Tokens |
 | Storage | Supabase Storage (materials, avatars) |
 | Design System | Shared CSS variables, light/dark theme, responsive breakpoints |
+| Hosting | Render (FastAPI web service) + Vercel (static frontend) |
 
 ## Project Structure
 ```
@@ -44,15 +45,15 @@ FYP/
 │   │   ├── theme.js              # Light/dark theme toggle (localStorage)
 │   │   └── session.js            # Auth session, token refresh, role guards, nav badges
 │   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
-│   ├── student/                  # Dashboard, assignments, inbox, progress, study resources
+│   ├── student/                  # Dashboard, assignments, inbox, progress, study aids
 │   ├── courses/                  # Course catalog & enrollment
 │   ├── materials/                # Material viewer (engagement tracking + micro-questions)
 │   ├── quiz/                     # Quiz taking interface (incl. AI-generated quizzes)
 │   ├── results/                  # Quiz results page
 │   ├── analytics/                # Student performance analytics
 │   ├── recommendations/          # AI-powered recommendations
-│   ├── lecturer/                 # Dashboard, resources, my courses, assignments, quiz creation, upload
-│   ├── hod/                      # Dashboard, department analytics/courses, course & quiz creation
+│   ├── lecturer/                 # Dashboard, study press, my courses, assignments, quiz creation, upload
+│   ├── hod/                      # Dashboard, department course hub, course & quiz creation
 │   ├── css/                      # Landing page styles
 │   ├── image/                    # Static images (logo, etc.)
 │   └── index.html                # Landing page
@@ -94,6 +95,10 @@ FYP/
 │   └── models/                   # Trained model artifacts (e.g. student_engagement_model.keras)
 ├── supabase/                     # Database migrations (SQL) & seed data
 ├── .env.example                  # Root environment template
+├── requirements.txt              # Root redirect → backend/requirements.txt (Render default)
+├── render.yaml                   # Render Blueprint (backend web service)
+├── vercel.json                   # Vercel config (frontend output directory)
+├── Dockerfile                    # Container image (host-safe dependency set)
 └── start.ps1                     # Quick-start script
 ```
 
@@ -150,6 +155,22 @@ Then visit http://127.0.0.1:5500/frontend/index.html
 ```
 Starts the backend (skips if already running on port 8001) and opens the landing page.
 
+## Deployment
+
+### Backend — Render
+- Import the repo into Render as a Web Service (or use the included `render.yaml` blueprint).
+- Build command: `pip install -r backend/requirements.txt`
+- Start command: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Set these in the Render dashboard (the blueprint marks them `sync: false`): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS`.
+- Heavy ML packages (TensorFlow, Sentence Transformers, XGBoost) live in `backend/requirements-ml.txt` and are **not** installed on the free tier. The app auto-falls back to the heuristic engagement analyzer and hand-rolled TF-IDF search; flip `ENGAGEMENT_ML_ENABLED` / `SEMANTIC_SEARCH_ENABLED` to `true` on a larger instance.
+- Smoke check: `GET https://<your-service>.onrender.com/api/health`
+
+### Frontend — Vercel
+- Import the repo; set **Output Directory** to `frontend` (see `vercel.json`) and Framework to *Other* — no build step needed, it's a static site.
+- The API base URL is resolved in `frontend/shared/session.js`: `http://localhost:8001` on `localhost`/`127.0.0.1`, otherwise `https://uenr-elearning-api.onrender.com`. Edit this line if your Render service URL differs.
+
+> **Security note:** real credentials never live in the repo. `backend/.env` is gitignored; all `.env.example` files contain placeholders only.
+
 ## Key Features
 
 ### Engagement Tracking
@@ -181,6 +202,12 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Quiz creation with manual or AI-generated questions (Gemini/Groq)
 - Instant grading and per-question feedback
 - Weak-topic detection feeds the recommendation engine
+
+### Study Resources ("The Study Press")
+- Lecturers feed an uploaded material through the press and generate a **summary**, **key points**, or **practice questions** (Gemini/Groq)
+- Proof the AI output, then publish it to a course; students see it under **Study Aids** on their dashboard
+- Published resources can be removed by the lecturer (styled confirmation modal)
+- Student visibility is scoped by course enrollment; lecturers/HODs by course ownership/department
 
 ### Recommendations
 - Takes weak concepts (from quiz history) as input

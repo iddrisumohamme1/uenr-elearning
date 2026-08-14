@@ -132,6 +132,21 @@
         </main>
     </div>
 
+    <!-- Remove published resource confirmation -->
+    <div id="delete-modal" class="modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+            <div class="modal-head">
+                <h3 id="delete-modal-title">Remove this resource?</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted">This removes the resource immediately. Students will no longer see it, and this cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="delete-confirm-btn" class="btn-danger"><i class="bi bi-trash"></i> Remove resource</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../shared/sidebar.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>

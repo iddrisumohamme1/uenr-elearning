@@ -43,22 +43,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => inputs.forEach(unlock), 3000);
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('reason') === 'expired') {
+        showToast('Your session expired. Please log in again.', 'info');
+    }
+
     // If a stored session exists, validate it against the server before
     // auto-redirecting. Stale localStorage data must not hijack the login screen.
     if (loginForm) {
         const existingUser = JSON.parse(localStorage.getItem('user'));
         const existingToken = localStorage.getItem('token');
         if (existingUser && existingToken) {
-            try {
-                const user = await refreshAccessToken();
-                if (user) {
-                    window.location.href = `../${user.role}/dashboard.html`;
-                    return;
+            if (isSessionExpired()) {
+                clearSession();
+            } else {
+                try {
+                    const user = await refreshAccessToken();
+                    if (user) {
+                        window.location.href = `../${user.role}/dashboard.html`;
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[auth] Stored session invalid, showing login form.');
                 }
-            } catch (err) {
-                console.warn('[auth] Stored session invalid, showing login form.');
+                clearSession();
             }
-            clearSession();
         }
     }
 
@@ -118,6 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     localStorage.setItem('token', data.access_token);
                     localStorage.setItem('refresh_token', data.refresh_token);
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('session_start', String(Date.now()));
                     const role = data.user.role;
                     showToast('Login successful. Redirecting...', 'success');
                     setTimeout(() => {
@@ -222,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             localStorage.setItem('token', loginData.access_token);
                             localStorage.setItem('refresh_token', loginData.refresh_token);
                             localStorage.setItem('user', JSON.stringify(loginData.user));
+                            localStorage.setItem('session_start', String(Date.now()));
                             setTimeout(() => {
                                 window.location.href = `../${loginData.user.role}/dashboard.html`;
                             }, 700);

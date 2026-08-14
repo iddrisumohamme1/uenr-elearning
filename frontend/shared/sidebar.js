@@ -19,8 +19,7 @@
     const NAV_SETS = {
         hod: [
             { folder: 'hod', file: 'dashboard.html', icon: 'bi-house-door', label: 'Overview' },
-            { folder: 'lecturer', file: 'my_courses.html', icon: 'bi-journal-bookmark', label: 'My Courses' },
-            { folder: 'hod', file: 'department_courses.html', icon: 'bi-journal-text', label: 'Department Courses' },
+            { folder: 'hod', file: 'department_courses.html', icon: 'bi-journal-text', label: 'Courses' },
             { folder: 'hod', file: 'create_course.html', icon: 'bi-plus-circle', label: 'Add Course' },
             { folder: 'hod', file: 'upload.html', icon: 'bi-cloud-arrow-up', label: 'Upload Material' },
         ],
@@ -32,6 +31,7 @@
         student: [
             { folder: 'student', file: 'dashboard.html', icon: 'bi-house-door', label: 'Dashboard' },
             { folder: 'courses', file: 'courses.html', icon: 'bi-book', label: 'My Courses' },
+            { folder: 'student', file: 'study_resources.html', icon: 'bi-lightbulb', label: 'Study Aids' },
             { folder: 'student', file: 'progress.html', icon: 'bi-speedometer2', label: 'My Progress' },
             { folder: 'student', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
             { folder: 'student', file: 'inbox.html', icon: 'bi-inbox', label: 'Inbox' },

@@ -20,6 +20,21 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:8001'
     : 'https://uenr-elearning-api.onrender.com';
 
+// Sessions last this long since login (ms). Enforced on every page load, so a
+// refresh past the lifetime logs the user out instead of keeping them in.
+const SESSION_LIFETIME_MS = 4 * 60 * 60 * 1000;
+const SESSION_START_KEY = 'session_start';
+
+function getSessionStart() {
+    const raw = localStorage.getItem(SESSION_START_KEY);
+    return raw ? Number(raw) : 0;
+}
+
+function isSessionExpired() {
+    const start = getSessionStart();
+    return start > 0 && Date.now() - start > SESSION_LIFETIME_MS;
+}
+
 /**
  * Attempt to refresh the access token using the stored refresh token.
  * Returns the new user object on success, null on failure.
@@ -63,6 +78,20 @@ async function requireSession(...allowedRoles) {
     if (!user || !token) {
         window.location.href = '../auth/login.html';
         throw new Error('No session');
+    }
+
+    // Enforce the session lifetime: a refresh past the limit clears the
+    // session and forces a fresh login.
+    if (isSessionExpired()) {
+        clearSession();
+        window.location.href = '../auth/login.html?reason=expired';
+        throw new Error('Session expired');
+    }
+
+    // Sessions started before this check existed have no start time — begin
+    // the clock now instead of logging them out immediately.
+    if (!getSessionStart()) {
+        localStorage.setItem(SESSION_START_KEY, String(Date.now()));
     }
 
     // Role guard: redirect to correct dashboard if wrong role
@@ -111,6 +140,7 @@ function clearSession() {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    localStorage.removeItem(SESSION_START_KEY);
 }
 
 /**
