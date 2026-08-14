@@ -1,0 +1,136 @@
+/*
+   STUDENT STUDY RESOURCES READER
+   frontend/student/study-resources.css
+   Reads the same "printed study aid" language as the lecturer's Study Press:
+   Space Grotesk for headings, IBM Plex Mono for labels, per-format chips,
+   and handout-style sheets for the content.
+*/
+
+.main-content { padding: 2.75rem 3rem 4rem; }
+.top-bar-title { width: 100%; display: flex; flex-direction: column; gap: 0.25rem; }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+.title-row h1 { font-family: 'Space Grotesk', var(--font-display); font-size: clamp(1.5rem, 3vw, 2.1rem); line-height: 1.1; }
+.page-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--clr-accent);
+}
+
+/* ── Course picker ──────────────────────────────────────────────────────── */
+.reader-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: var(--s6);
+  margin-bottom: var(--s8);
+}
+.reader-label {
+  display: block;
+  margin-bottom: var(--s2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.reader-select {
+  width: 100%;
+  max-width: 560px;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.reader-select:focus {
+  outline: none;
+  border-color: var(--clr-accent);
+  box-shadow: var(--ring);
+}
+.reader-select option { background: var(--bg-surface); color: var(--text-primary); }
+
+/* ── List / empty states ────────────────────────────────────────────────── */
+.resource-list { display: flex; flex-direction: column; gap: var(--s8); }
+.reader-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+}
+.reader-empty i { font-size: 2.4rem; color: var(--clr-accent); display: block; margin-bottom: 1rem; }
+.reader-empty h3 { font-family: 'Space Grotesk', var(--font-display); font-size: 1.15rem; margin-bottom: 0.35rem; }
+.reader-empty .text-muted { font-size: 0.85rem; max-width: 34rem; margin: 0 auto; }
+
+/* ── Format chips ───────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.65rem;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+.chip--summary { color: var(--clr-primary-light); background: var(--primary-soft); }
+.chip--key_points { color: var(--clr-accent); background: var(--accent-soft); }
+.chip--practice_questions { color: var(--clr-energy); background: var(--energy-soft); }
+
+/* ── Handout sheets ─────────────────────────────────────────────────────── */
+.sheet {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--clr-accent);
+  border-radius: var(--r-xl);
+  padding: var(--s6);
+  box-shadow: var(--shadow-sm);
+}
+.sheet[data-type="summary"] { border-left-color: var(--clr-primary); }
+.sheet[data-type="key_points"] { border-left-color: var(--clr-accent); }
+.sheet[data-type="practice_questions"] { border-left-color: var(--clr-energy); }
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.sheet-date { font-size: 0.74rem; color: var(--text-muted); }
+.sheet-title {
+  margin-top: 0.9rem;
+  font-family: 'Space Grotesk', var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sheet-body {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.92rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .main-content { padding: 2rem 1.75rem 3rem; }
+}
+@media (max-width: 768px) {
+  .main-content { padding: 1.5rem; }
+  .sheet { padding: var(--s4); }
+  .title-row { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}

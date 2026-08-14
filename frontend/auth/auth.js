@@ -5,10 +5,43 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+
+    // Show/hide password toggles (shared by login and register forms)
+    document.querySelectorAll('.password-toggle').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const input = btn.closest('.password-wrap').querySelector('input');
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.querySelector('.bi').className = 'bi ' + (show ? 'bi-eye-slash' : 'bi-eye');
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+    });
 
     // Always start with a clean form — no stale values from a previous visit
-    // or browser autofill.
-    if (loginForm) loginForm.reset();
+    // or browser autofill. Chrome autofills saved credentials AFTER
+    // DOMContentLoaded, so a plain reset() is not enough: keep the inputs
+    // readonly (autofill skips readonly fields) until the user actually
+    // touches one, then unlock it.
+    const activeForm = loginForm || registerForm;
+    if (activeForm) {
+        const inputs = Array.from(activeForm.querySelectorAll('input'));
+        const unlock = (inp) => inp.removeAttribute('readonly');
+        inputs.forEach((inp) => {
+            inp.setAttribute('readonly', '');
+            inp.addEventListener('focus', () => unlock(inp), { once: true });
+            inp.addEventListener('pointerdown', () => unlock(inp), { once: true });
+        });
+        activeForm.querySelectorAll('.password-toggle').forEach((btn) => {
+            btn.addEventListener('pointerdown', () => {
+                const inp = btn.closest('.password-wrap').querySelector('input');
+                if (inp) unlock(inp);
+            }, { once: true });
+        });
+        activeForm.reset();
+        // Safety net: never leave a field locked if focus events are missed.
+        setTimeout(() => inputs.forEach(unlock), 3000);
+    }
 
     // If a stored session exists, validate it against the server before
     // auto-redirecting. Stale localStorage data must not hijack the login screen.
@@ -28,6 +61,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             clearSession();
         }
     }
+
+    // Field-level validation helpers (used by the register form)
+    const setError = (input, message) => {
+        input.classList.add('invalid');
+        const errorEl = document.getElementById(input.id + '-error');
+        if (errorEl) errorEl.textContent = message;
+    };
+    const clearError = (input) => {
+        input.classList.remove('invalid');
+        const errorEl = document.getElementById(input.id + '-error');
+        if (errorEl) errorEl.textContent = '';
+    };
+    const clearErrors = (form) => form.querySelectorAll('.form-input').forEach(clearError);
 
     const roleCards = document.querySelectorAll('.role-card');
     let selectedRole = 'student';
@@ -94,24 +140,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Handle Registration
-    const registerForm = document.getElementById('register-form');
     if (registerForm) {
-        // Always start with a clean form — no stale values from a previous visit
-        // or browser autofill.
-        registerForm.reset();
+        const fullnameInput = document.getElementById('fullname');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const departmentSelect = document.getElementById('department');
+
+        // Clear a field's error as soon as the user fixes it
+        registerForm.querySelectorAll('.form-input').forEach((inp) => {
+            inp.addEventListener('input', () => clearError(inp));
+            inp.addEventListener('change', () => clearError(inp));
+        });
 
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isSubmitting) return;
 
-            const fullname = document.getElementById('fullname').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const department = document.getElementById('department') ? document.getElementById('department').value : null;
+            const fullname = fullnameInput.value.trim();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            const department = departmentSelect ? departmentSelect.value : null;
             const btn = registerForm.querySelector('.btn-auth');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-            if (!fullname || !email || !password) {
-                showToast('Please fill in all required fields.', 'warning');
+            clearErrors(registerForm);
+            let firstInvalid = null;
+            const flag = (input, message) => {
+                setError(input, message);
+                if (!firstInvalid) firstInvalid = input;
+            };
+
+            if (!fullname) flag(fullnameInput, 'Please enter your full name.');
+            if (!email) flag(emailInput, 'Please enter your email address.');
+            else if (!emailRegex.test(email)) flag(emailInput, 'Please enter a valid email address.');
+            if (!password) flag(passwordInput, 'Please enter a password.');
+            else if (password.length < 6) flag(passwordInput, 'Password must be at least 6 characters.');
+            if (!confirmPassword) flag(confirmPasswordInput, 'Please confirm your password.');
+            else if (password && confirmPassword !== password) flag(confirmPasswordInput, 'Passwords do not match.');
+            if ((selectedRole === 'lecturer' || selectedRole === 'hod') && !department) {
+                flag(departmentSelect, 'Department is required for lecturer and HOD accounts.');
+            }
+
+            if (firstInvalid) {
+                firstInvalid.focus();
+                showToast('Please fix the highlighted fields.', 'warning');
                 return;
             }
 
@@ -134,12 +208,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const data = await response.json();
                 if (response.ok) {
-                    showToast('Registration successful! Redirecting to login...', 'success');
+                    // Auto-login with the fresh credentials so the user lands
+                    // straight on their dashboard instead of the login page.
+                    showToast('Account created! Signing you in...', 'success');
+                    try {
+                        const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password })
+                        });
+                        const loginData = await loginRes.json();
+                        if (loginRes.ok) {
+                            localStorage.setItem('token', loginData.access_token);
+                            localStorage.setItem('refresh_token', loginData.refresh_token);
+                            localStorage.setItem('user', JSON.stringify(loginData.user));
+                            setTimeout(() => {
+                                window.location.href = `../${loginData.user.role}/dashboard.html`;
+                            }, 700);
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn('[auth] Auto-login failed, falling back to login page.', err);
+                    }
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 900);
                 } else {
-                    showToast('Registration failed: ' + (data.detail || 'Unable to create account'), 'error');
+                    const detail = data.detail || 'Unable to create account';
+                    const message = /already (?:been )?registered|already exists|already taken|duplicate/i.test(detail)
+                        ? 'An account with this email already exists.'
+                        : 'Registration failed: ' + detail;
+                    showToast(message, 'error');
                     isSubmitting = false;
                     btn.classList.remove('btn-loading');
                     btn.textContent = 'Create Account';

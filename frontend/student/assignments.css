@@ -273,6 +273,22 @@
     padding: var(--s10);
 }
 
+/* Download-to-unlock prompt (courses without assignments yet) */
+.assign-unlock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s4);
+    padding: var(--s4);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    background: var(--bg-elevated);
+}
+
+.assign-unlock-text h4 { font-size: 0.92rem; margin-bottom: var(--s1); }
+.assign-unlock-text p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+.assign-unlock .btn-submit { flex-shrink: 0; text-decoration: none; display: inline-flex; align-items: center; }
+
 /* Auto-generated assignments */
 .assign-item-auto { border-left: 3px solid var(--clr-primary); }
 

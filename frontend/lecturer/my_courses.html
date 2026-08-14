@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Courses - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="my-courses.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow">Course Ledger</p>
+                    <div class="title-row">
+                        <h1>My Courses</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="course-summary fade-in-up">
+                <div class="sum-item">
+                    <span class="sum-num" id="sum-courses">–</span>
+                    <span class="sum-label">Courses</span>
+                </div>
+                <div class="sum-item">
+                    <span class="sum-num" id="sum-students">–</span>
+                    <span class="sum-label">Students reached</span>
+                </div>
+                <div class="sum-item sum-item--risk">
+                    <span class="sum-num" id="sum-risk">–</span>
+                    <span class="sum-label">At risk now</span>
+                </div>
+            </div>
+
+            <div class="course-grid fade-in-up" id="course-grid">
+                <div class="loading-wrapper loading-full">
+                    <div class="spinner"></div>
+                    <p>Loading your courses…</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Message student modal -->
+    <div id="message-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="message-to">Message student</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="message-course"></p>
+            <textarea id="message-content" rows="5" placeholder="Write a short message with feedback or study advice…"></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="message-send" class="btn-primary">Send message</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course students modal -->
+    <div id="students-modal" class="modal modal-wide" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="students-title">Enrolled students</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <div id="students-body" class="students-body">
+                <div class="loading-wrapper loading-full">
+                    <div class="spinner"></div>
+                    <p>Loading students…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/sidebar.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="my_courses.js"></script>
+</body>
+</html>

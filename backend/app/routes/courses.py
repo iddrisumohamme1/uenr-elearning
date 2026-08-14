@@ -31,6 +31,10 @@ class CourseCreateRequest(BaseModel):
     lecturer_id: str
 
 
+class CourseUpdateRequest(BaseModel):
+    lecturer_id: str | None = None
+
+
 @router.post("/create", response_model=CourseOut)
 def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod"))):
     """Allow the HOD to create a course for their own department."""
@@ -82,31 +86,209 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
     )
 
 
+def _get_department_course(course_id: str, department: str, admin):
+    """Fetch a course row and confirm it belongs to the given department."""
+    try:
+        resp = with_retry(
+            lambda c: c.table("courses")
+            .select("id, code, title, lecturer_id, department")
+            .eq("id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    rows = getattr(resp, "data", []) or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="Course not found.")
+    if rows[0].get("department") != department:
+        raise HTTPException(status_code=403, detail="Course does not belong to your department.")
+    return rows[0]
+
+
+def _resolve_lecturer(payload_lecturer_id: str, department: str, admin):
+    """Validate a lecturer id and return the user row, or 404/400/403 on failure."""
+    if not payload_lecturer_id:
+        return None
+    try:
+        lecturer_resp = with_retry(
+            lambda c: c.table("users")
+            .select("id, full_name, role, department")
+            .eq("id", payload_lecturer_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query lecturer: {exc}")
+
+    lecturer_data = getattr(lecturer_resp, "data", []) or []
+    if not lecturer_data:
+        raise HTTPException(status_code=404, detail="Lecturer not found.")
+
+    lecturer = lecturer_data[0]
+    if lecturer.get("role") not in ("lecturer", "hod"):
+        raise HTTPException(status_code=400, detail="Selected user is not a lecturer.")
+    if lecturer.get("department") != department:
+        raise HTTPException(status_code=403, detail="Lecturer must belong to the HOD's department.")
+    return lecturer
+
+
+@router.patch("/{course_id}", response_model=CourseOut)
+def update_course_assignment(course_id: str, payload: CourseUpdateRequest, user=Depends(require_role("hod"))):
+    """Assign or resign a lecturer on one of the HOD's courses.
+
+    Provide a `lecturer_id` to assign (or reassign) the course to that
+    lecturer; pass `lecturer_id: null` to resign the current lecturer and
+    leave the course unassigned.
+    """
+    if not user.get("department"):
+        raise HTTPException(status_code=400, detail="HOD department is not configured.")
+
+    admin = get_admin_client()
+    course = _get_department_course(course_id, user["department"], admin)
+    lecturer = _resolve_lecturer(payload.lecturer_id, user["department"], admin) if payload.lecturer_id else None
+
+    try:
+        update_response = with_retry(
+            lambda c: c.table("courses")
+            .update({"lecturer_id": payload.lecturer_id})
+            .eq("id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to update course assignment: {exc}")
+
+    updated_data = getattr(update_response, "data", []) or []
+    updated = updated_data[0] if updated_data else course
+    return CourseOut(
+        id=updated.get("id"),
+        code=updated.get("code"),
+        title=updated.get("title"),
+        lecturer_id=updated.get("lecturer_id"),
+        lecturer_name=lecturer.get("full_name") if lecturer else None,
+    )
+
+
+@router.delete("/{course_id}")
+def delete_course(course_id: str, user=Depends(require_role("hod"))):
+    """Delete one of the HOD's courses and everything tied to it.
+
+    Removes the course row plus its enrollments, materials (and storage
+    files), quizzes, questions, quiz results, and engagement logs so no
+    orphaned rows are left behind.
+    """
+    if not user.get("department"):
+        raise HTTPException(status_code=400, detail="HOD department is not configured.")
+
+    admin = get_admin_client()
+    course = _get_department_course(course_id, user["department"], admin)
+
+    try:
+        materials_resp = with_retry(
+            lambda c: c.table("materials")
+            .select("id, content_url")
+            .eq("course_id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course materials: {exc}")
+    material_rows = getattr(materials_resp, "data", []) or []
+
+    try:
+        quizzes_resp = with_retry(
+            lambda c: c.table("quizzes")
+            .select("id")
+            .eq("course_id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course quizzes: {exc}")
+    quiz_ids = [row["id"] for row in (getattr(quizzes_resp, "data", []) or []) if row.get("id")]
+
+    try:
+        # engagement_logs reference materials, so resolve material ids first.
+        material_ids = [row["id"] for row in material_rows if row.get("id")]
+        if material_ids:
+            with_retry(
+                lambda c: c.table("engagement_logs")
+                .delete()
+                .in_("material_id", material_ids)
+                .execute()
+            )
+        if quiz_ids:
+            with_retry(
+                lambda c: c.table("questions")
+                .delete()
+                .in_("quiz_id", quiz_ids)
+                .execute()
+            )
+            with_retry(
+                lambda c: c.table("quiz_results")
+                .delete()
+                .in_("quiz_id", quiz_ids)
+                .execute()
+            )
+            with_retry(
+                lambda c: c.table("quizzes")
+                .delete()
+                .in_("id", quiz_ids)
+                .execute()
+            )
+        with_retry(
+            lambda c: c.table("materials")
+            .delete()
+            .eq("course_id", course_id)
+            .execute()
+        )
+        with_retry(
+            lambda c: c.table("enrollments")
+            .delete()
+            .eq("course_id", course_id)
+            .execute()
+        )
+        with_retry(
+            lambda c: c.table("courses")
+            .delete()
+            .eq("id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete course: {exc}")
+
+    # Clean up the uploaded material files for this course in storage.
+    for row in material_rows:
+        content_url = row.get("content_url") or ""
+        if content_url and "/materials/" in content_url:
+            path = content_url.split("/materials/", 1)[-1].split("?")[0]
+            if path:
+                try:
+                    admin.storage.from_("materials").remove([path])
+                except Exception:
+                    pass
+
+    return {"status": "ok", "message": f"Course {course.get('code') or course.get('title')} deleted."}
+
+
 @router.get("/", response_model=List[CourseOut])
 def list_department_courses(user=Depends(get_current_user)):
     """Return courses for the logged-in user's department.
 
-    Students (and any account without a configured department) see every course;
-    lecturers and HODs only see courses from their own department.
+    Every account is scoped to their own department. Accounts without a
+    configured department (legacy students) see an empty catalog rather
+    than every course.
     """
     department = user.get("department")
     admin = get_admin_client()
+    if not department:
+        return []
+
     try:
-        if department:
-            lecturers = with_retry(
-                lambda c: c.table("users")
-                .select("id, full_name")
-                .eq("department", department)
-                .in_("role", ["lecturer", "hod"])
-                .execute()
-            )
-        else:
-            lecturers = with_retry(
-                lambda c: c.table("users")
-                .select("id, full_name")
-                .in_("role", ["lecturer", "hod"])
-                .execute()
-            )
+        lecturers = with_retry(
+            lambda c: c.table("users")
+            .select("id, full_name")
+            .eq("department", department)
+            .in_("role", ["lecturer", "hod"])
+            .execute()
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to query lecturers: {exc}")
 
@@ -118,19 +300,12 @@ def list_department_courses(user=Depends(get_current_user)):
     lecturer_map = {row["id"]: row["full_name"] for row in lecturer_rows}
 
     try:
-        if department:
-            courses_response = with_retry(
-                lambda c: c.table("courses")
-                .select("id, code, title, lecturer_id")
-                .eq("department", department)
-                .execute()
-            )
-        else:
-            courses_response = with_retry(
-                lambda c: c.table("courses")
-                .select("id, code, title, lecturer_id")
-                .execute()
-            )
+        courses_response = with_retry(
+            lambda c: c.table("courses")
+            .select("id, code, title, lecturer_id")
+            .eq("department", department)
+            .execute()
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to query courses: {exc}")
 
@@ -194,19 +369,20 @@ def enroll_course(payload: EnrollmentRequest, user=Depends(get_current_user)):
     if not lecturer_id:
         raise HTTPException(status_code=400, detail="Course is not assigned to a lecturer.")
 
-    # Only enforce the department gate for accounts that have a department
-    # (lecturers/HODs). Students are often registered without one and may
-    # enroll in any course.
+    # A department is required to enroll: students must be scoped to the
+    # courses of their own department.
     department = user.get("department")
-    if department:
-        try:
-            lecturer_resp = with_retry(lambda c: c.table("users").select("department").eq("id", lecturer_id).execute())
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to query lecturer: {exc}")
+    if not department:
+        raise HTTPException(status_code=400, detail="Department is required before enrolling in courses.")
 
-        lecturer_data = getattr(lecturer_resp, "data", []) or []
-        if not lecturer_data or lecturer_data[0].get("department") != department:
-            raise HTTPException(status_code=403, detail="Cannot enroll in a course outside your department.")
+    try:
+        lecturer_resp = with_retry(lambda c: c.table("users").select("department").eq("id", lecturer_id).execute())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query lecturer: {exc}")
+
+    lecturer_data = getattr(lecturer_resp, "data", []) or []
+    if not lecturer_data or lecturer_data[0].get("department") != department:
+        raise HTTPException(status_code=403, detail="Cannot enroll in a course outside your department.")
 
     try:
         with_retry(lambda c: c.table("enrollments").insert({

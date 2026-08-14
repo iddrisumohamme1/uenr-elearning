@@ -104,3 +104,11 @@
 
 /* Compact variant used for per-course rows */
 .pulse-bar--sm { height: 8px; margin-top: 0.5rem; box-shadow: none; }
+
+/* - Compact screens -------------------------------------------------------- */
+@media (max-width: 560px) {
+  .pulse-card { padding: 1.5rem 1.25rem 1.25rem; }
+  .pulse-score { font-size: clamp(2.1rem, 7vw, 2.5rem); }
+  .pulse-readout { padding: 0.75rem 1rem; }
+  .pulse-bar { height: 12px; }
+}

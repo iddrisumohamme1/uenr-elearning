@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Courses - HOD | UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="hod-dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow" id="dept-name">Department</p>
+                    <div class="title-row">
+                        <h1>Department Courses</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <section class="dept-summary">
+                    <div class="section-header">
+                        <div>
+                            <h2>Course Ledger</h2>
+                            <!-- <p class="text-muted">Assign, resign, or remove courses in your department</p> -->
+                        </div>
+                    </div>
+                    <div class="table-toolbar">
+                        <label class="filter-wrap" for="lecturer-filter">
+                            <i class="bi bi-funnel" aria-hidden="true"></i>
+                            <span>Lecturer</span>
+                            <select id="lecturer-filter" class="form-input filter-select" data-dropdown data-dropdown-size="sm" aria-label="Filter courses by lecturer">
+                                <option value="">All lecturers</option>
+                            </select>
+                        </label>
+                        <p class="text-muted table-count" id="course-count"></p>
+                    </div>
+                    <div class="data-table data-table--courses">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Course</th>
+                                    <th scope="col">Lecturer</th>
+                                    <th scope="col" class="actions-col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hod-course-list">
+                                <tr class="loading-row">
+                                    <td colspan="3">
+                                        <div class="loading-wrapper">
+                                            <div class="spinner"></div>
+                                            <p>Loading department courses…</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="modal-overlay" id="delete-modal" hidden>
+                    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+                        <div class="modal-head">
+                            <h3 id="delete-modal-title">Delete Course</h3>
+                            <button class="modal-close" data-close-modal="delete-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <p class="modal-body text-muted" id="delete-modal-text">Are you sure you want to delete this course? This will permanently remove its enrollments, materials, quizzes, and all related data.</p>
+                        <div class="modal-actions">
+                            <button class="btn-auth btn-sm" data-close-modal="delete-modal">Cancel</button>
+                            <button class="btn-auth btn-sm btn-danger" id="confirm-delete-btn">Delete Course</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="assign-modal" hidden>
+                    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
+                        <div class="modal-head">
+                            <h3 id="assign-modal-title">Assign Lecturer</h3>
+                            <button class="modal-close" data-close-modal="assign-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <p class="modal-body text-muted" id="assign-modal-course"></p>
+                        <div class="form-group">
+                            <label class="form-label" for="assign-lecturer-select">Lecturer</label>
+                            <select id="assign-lecturer-select" class="form-input" data-dropdown></select>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn-auth btn-sm" data-close-modal="assign-modal">Cancel</button>
+                            <button class="btn-auth btn-sm" id="confirm-assign-btn">Assign</button>
+                        </div>
+                    </div>
+                </div>
+        </main>
+    </div>
+    <script src="../shared/sidebar.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
+    <script src="department_courses.js"></script>
+</body>
+</html>

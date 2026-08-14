@@ -1,49 +1,83 @@
 /* 
    LECTURER STUDY RESOURCES PAGE LOGIC
    frontend/lecturer/resources.js
+   "The Study Press" — choose a material, compose an AI study aid, prove it,
+   then publish it for the class.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = await requireSession('lecturer').catch(() => null);
+    const user = await requireSession('lecturer', 'hod').catch(() => null);
     if (!user) return;
 
+    document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
     attachLogout('logout-btn');
     initProfilePopup();
 
     const courseSelect = document.getElementById('course-select');
     const materialSelect = document.getElementById('material-select');
-    const typeSelect = document.getElementById('type-select');
     const generateBtn = document.getElementById('generate-btn');
+    const genStatus = document.getElementById('gen-status');
     const preview = document.getElementById('preview');
+    const previewType = document.getElementById('preview-type');
     const previewTitle = document.getElementById('preview-title');
+    const previewCourse = document.getElementById('preview-course');
     const previewBody = document.getElementById('preview-body');
     const publishBtn = document.getElementById('publish-btn');
     const publishedList = document.getElementById('published-list');
+
+    const FORMAT_LABELS = {
+        summary: 'Summary',
+        key_points: 'Key Points',
+        practice_questions: 'Practice Questions',
+    };
+    const FORMAT_CHIPS = {
+        summary: 'bi-text-paragraph',
+        key_points: 'bi-list-check',
+        practice_questions: 'bi-pencil-square',
+    };
 
     let selectedCourseId = null;
     let selectedMaterialId = null;
     let selectedCourseName = '';
     let pendingResource = null;
 
-    async function loadCourses() {
+    function setStage(doneUpTo) {
+        document.querySelectorAll('#stage-rail .stage').forEach((el, i) => {
+            el.classList.toggle('is-done', i < doneUpTo);
+            el.classList.toggle('is-active', i === doneUpTo);
+        });
+    }
+
+    function selectedFormat() {
+        const checked = document.querySelector('input[name="format"]:checked');
+        return checked ? checked.value : 'summary';
+    }
+
+    async function loadCourses(preselectId) {
         try {
-            const res = await authFetch(`${API_BASE}/api/courses/`);
+            const res = await authFetch(`${API_BASE}/api/courses/mine`);
             const courses = await res.json();
             if (!Array.isArray(courses) || !courses.length) {
-                courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
+                courseSelect.innerHTML = '<option value="" disabled>No courses assigned to you yet</option>';
+                genStatus.textContent = 'You have no courses assigned yet. Ask an HOD to assign you one.';
                 return;
             }
             courseSelect.innerHTML = `
                 <option value="" disabled selected>Select a course</option>
                 ${courses.map(c => `<option value="${c.id}">${c.title} (${c.code || 'No code'})</option>`).join('')}
             `;
+            if (preselectId && courses.some(c => c.id === preselectId)) {
+                courseSelect.value = preselectId;
+                courseSelect.dispatchEvent(new Event('change'));
+            }
         } catch (err) {
             courseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
+            genStatus.textContent = 'Could not load your courses. Check your connection and try again.';
         }
     }
 
     async function loadMaterials(courseId) {
-        materialSelect.innerHTML = '<option value="" disabled selected>Loading materials...</option>';
+        materialSelect.innerHTML = '<option value="" disabled selected>Loading materials…</option>';
         try {
             const res = await authFetch(`${API_BASE}/api/materials/course/${courseId}`);
             if (!res.ok) throw new Error('materials failed');
@@ -70,33 +104,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const res = await authFetch(`${API_BASE}/api/resources/course/${courseId}`);
             if (!res.ok) throw new Error('resources failed');
-            const resources = res.json && (await res.json()).resources || [];
+            const data = await res.json();
+            const resources = (data && data.resources) || [];
             if (!resources.length) {
-                publishedList.innerHTML = '<p class="text-muted">No published resources for this course yet.</p>';
+                publishedList.innerHTML = '<p class="text-muted">No published resources for this course yet. Run the press above to publish the first one.</p>';
                 return;
             }
-            publishedList.innerHTML = resources.map(r => `
-                <div class="resource-item">
-                    <div class="resource-head">
-                        <div>
-                            <h4>${r.title}</h4>
-                            <div class="resource-meta">${r.resource_type.replace('_', ' ')} · created ${new Date(r.created_at).toLocaleDateString()}</div>
+            publishedList.innerHTML = resources.map(r => {
+                const type = r.resource_type || 'summary';
+                return `
+                    <article class="live-card">
+                        <div class="live-card-top">
+                            <span class="chip chip--${type}"><i class="bi ${FORMAT_CHIPS[type] || 'bi-file-text'}"></i> ${(FORMAT_LABELS[type] || type).replace('_', ' ')}</span>
+                            <span class="live-date">${new Date(r.created_at).toLocaleDateString()}</span>
                         </div>
-                        <button class="btn-msg" data-id="${r.id}">Delete</button>
-                    </div>
-                    <div class="resource-text">${r.content_text}</div>
-                </div>
-            `).join('');
+                        <h3>${escapeHTML(r.title)}</h3>
+                        <div class="live-text">${escapeHTML(r.content_text)}</div>
+                        <div class="live-foot">
+                            <button class="btn-live-delete" data-id="${r.id}"><i class="bi bi-trash"></i> Remove</button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
 
-            publishedList.querySelectorAll('.btn-msg').forEach(btn => {
+            publishedList.querySelectorAll('.btn-live-delete').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    if (!confirm('Delete this study resource?')) return;
+                    if (!confirm('Remove this published resource? Students will no longer see it.')) return;
                     const res = await authFetch(`${API_BASE}/api/resources/${btn.dataset.id}`, { method: 'DELETE' });
                     if (res.ok) {
-                        showToast('Resource deleted.', 'success');
+                        showToast('Resource removed.', 'success');
                         loadPublished(courseId);
                     } else {
-                        showToast('Could not delete resource.', 'error');
+                        showToast('Could not remove resource.', 'error');
                     }
                 });
             });
@@ -105,37 +144,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function resetPreview() {
+        preview.hidden = true;
+        pendingResource = null;
+    }
+
     courseSelect.addEventListener('change', () => {
         selectedCourseId = courseSelect.value;
         const opt = courseSelect.selectedOptions[0];
-        selectedCourseName = opt ? opt.textContent : '';
-        preview.hidden = true;
-        pendingResource = null;
+        selectedCourseName = opt ? opt.textContent.replace(/\s*\([^)]*\)\s*$/, '') : '';
+        resetPreview();
+        setStage(selectedCourseId ? 1 : 0);
         if (selectedCourseId) {
             loadMaterials(selectedCourseId);
             loadPublished(selectedCourseId);
+            genStatus.textContent = 'Choose a material, then pick a format.';
+        } else {
+            materialSelect.innerHTML = '<option value="" disabled selected>Select a course first</option>';
+            genStatus.textContent = 'Pick a course to start.';
         }
     });
 
     materialSelect.addEventListener('change', () => {
         selectedMaterialId = materialSelect.value;
-        preview.hidden = true;
-        pendingResource = null;
+        resetPreview();
+        genStatus.textContent = selectedMaterialId
+            ? 'Choose a format, then generate a preview.'
+            : 'Choose a material to continue.';
+    });
+
+    document.querySelectorAll('input[name="format"]').forEach(radio => {
+        radio.addEventListener('change', resetPreview);
     });
 
     generateBtn.addEventListener('click', async () => {
         if (!selectedCourseId || !selectedMaterialId) {
             showToast('Select a course and a material first.', 'warning');
+            genStatus.textContent = 'Select a course and a material first.';
             return;
         }
         generateBtn.disabled = true;
-        generateBtn.textContent = 'Generating…';
+        generateBtn.textContent = 'Composing…';
+        genStatus.textContent = 'The press is running — this can take a few seconds.';
         preview.hidden = true;
         try {
             const res = await authFetch(`${API_BASE}/api/resources/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ material_id: selectedMaterialId, resource_type: typeSelect.value }),
+                body: JSON.stringify({ material_id: selectedMaterialId, resource_type: selectedFormat() }),
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
@@ -146,13 +202,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     resource_type: data.resource_type,
                     content_text: data.content_text,
                 };
-                previewTitle.textContent = `${data.title} · ${selectedCourseName}`;
+                preview.dataset.type = data.resource_type;
+                previewType.textContent = FORMAT_LABELS[data.resource_type] || data.resource_type;
+                previewTitle.textContent = data.title;
+                previewCourse.textContent = selectedCourseName;
                 previewBody.textContent = data.content_text;
                 preview.hidden = false;
+                setStage(2);
+                genStatus.textContent = 'Proof ready — review it, then publish for your students.';
             } else {
+                genStatus.textContent = data.detail || 'AI generation failed. Try again.';
                 showToast(data.detail || 'AI generation failed. Try again.', 'error');
             }
         } catch (err) {
+            genStatus.textContent = 'AI generation failed. Try again.';
             showToast('AI generation failed. Try again.', 'error');
         } finally {
             generateBtn.disabled = false;
@@ -163,6 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     publishBtn.addEventListener('click', async () => {
         if (!pendingResource) return;
         publishBtn.disabled = true;
+        publishBtn.textContent = 'Publishing…';
         try {
             const res = await authFetch(`${API_BASE}/api/resources/publish`, {
                 method: 'POST',
@@ -171,19 +235,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                showToast('Resource published for students.', 'success');
+                showToast('Published for students.', 'success');
+                genStatus.textContent = 'Published. Your students can read it now.';
                 preview.hidden = true;
                 pendingResource = null;
+                setStage(1);
                 loadPublished(selectedCourseId);
             } else {
+                genStatus.textContent = data.detail || 'Could not publish resource.';
                 showToast(data.detail || 'Could not publish resource.', 'error');
             }
         } catch (err) {
+            genStatus.textContent = 'Could not publish resource.';
             showToast('Could not publish resource.', 'error');
         } finally {
             publishBtn.disabled = false;
+            publishBtn.textContent = 'Publish for students';
         }
     });
 
-    await loadCourses();
+    const params = new URLSearchParams(window.location.search);
+    await loadCourses(params.get('course'));
 });

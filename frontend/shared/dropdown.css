@@ -1,0 +1,210 @@
+/*
+ * ==============================================================================
+ * SHARED CUSTOM DROPDOWN
+ * ==============================================================================
+ * File: frontend/shared/dropdown.css
+ * Purpose: Theme-aware custom dropdown component that upgrades every
+ *          <select data-dropdown>. Pairs with shared/dropdown.js.
+ *
+ * The native <select> stays in the DOM (visually hidden) and its value is kept
+ * in sync, so every existing form/filter still works. On desktop the option
+ * list opens as a floating card; on small screens it becomes a bottom sheet.
+ * ==============================================================================
+ */
+
+/* Visually-hidden helper for the native select kept in the DOM */
+.dd__native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Wrapper — mirrors the native select's layout footprint */
+.dd {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.dd--block { display: block; width: 100%; }
+.dd--block .dd__trigger { width: 100%; }
+
+/* Trigger — the visible control */
+.dd__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: auto;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  text-align: left;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+.dd__trigger:hover { border-color: var(--border-strong); }
+.dd__trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--ring);
+}
+.dd__trigger[aria-expanded="true"] { border-color: var(--border-focus); }
+
+/* Placeholder (empty value) state */
+.dd__trigger.dd__trigger--placeholder { color: var(--text-muted); font-weight: 500; }
+
+.dd__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dd__chevron {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform var(--t-fast);
+}
+.dd__trigger[aria-expanded="true"] .dd__chevron { transform: rotate(180deg); }
+
+/* Size variant — compact (filters, inline pickers) */
+.dd--sm .dd__trigger {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: var(--r-sm);
+}
+.dd--sm .dd__value { max-width: 240px; }
+.dd--sm .dd__chevron { font-size: 0.72rem; }
+
+/* Panel — the floating option card */
+.dd__panel {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 100%;
+  max-width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 0.35rem;
+  animation: ddIn 160ms ease both;
+}
+.dd__panel--up {
+  top: auto;
+  bottom: calc(100% + 0.4rem);
+}
+@keyframes ddIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dd__panel--up { animation-name: ddInUp; }
+@keyframes ddInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Option rows */
+.dd__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text-primary);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.dd__option:hover,
+.dd__option:focus-visible { background: var(--bg-elevated); outline: none; }
+.dd__option[aria-selected="true"] {
+  background: var(--primary-soft);
+  color: var(--clr-primary-light);
+  font-weight: 600;
+}
+.dd__option .dd__check { opacity: 0; transition: opacity var(--t-fast); }
+.dd__option[aria-selected="true"] .dd__check { opacity: 1; }
+.dd__option[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  background: transparent;
+}
+.dd__option + .dd__option-sep { border-top: 1px solid var(--border); }
+
+/* Empty list message */
+.dd__empty {
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Mobile — the panel becomes a bottom sheet */
+@media (max-width: 560px) {
+  .dd__panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 60vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: 0;
+    padding: 0.5rem;
+    transform: translateY(0);
+    animation: ddSheetIn 200ms ease both;
+  }
+  .dd__panel::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 0 auto 0.5rem;
+    border-radius: var(--r-full);
+    background: var(--border-strong);
+  }
+  .dd__panel--up {
+    top: auto;
+    bottom: 0;
+    animation-name: ddSheetIn;
+  }
+  .dd__option { padding: 0.75rem; font-size: 1rem; }
+}
+@keyframes ddSheetIn {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .dd__panel, .dd__panel--up, .dd__chevron { animation: none !important; transition: none !important; }
+}

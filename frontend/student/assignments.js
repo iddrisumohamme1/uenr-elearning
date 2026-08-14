@@ -192,20 +192,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!res.ok) continue;
                 const data = await res.json();
                 const assignments = data.assignments || [];
-                if (!assignments.length) continue;
-
-                assignments.forEach(a => {
-                    const [cls] = statusLabel(a);
-                    if (cls === 'done') done++;
-                    else if (cls === 'late') late++;
-                    else dueSoon++;
-                });
+                if (assignments.length) {
+                    assignments.forEach(a => {
+                        const [cls] = statusLabel(a);
+                        if (cls === 'done') done++;
+                        else if (cls === 'late') late++;
+                        else dueSoon++;
+                    });
+                }
 
                 groups.push({ course, assignments });
             }
 
             if (!groups.length) {
-                groupsEl.innerHTML = '<div class="empty-state">No assignments have been set for your courses yet. Check back soon.</div>';
+                groupsEl.innerHTML = '<div class="empty-state">No assignments yet. Download a course material to unlock your AI-generated assignment.</div>';
             } else {
                 groupsEl.innerHTML = groups.map(({ course, assignments }, gi) => `
                     <div class="assign-group" style="animation-delay: ${gi * 80}ms">
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <h3>${course.title}</h3>
                             <span class="group-count">${assignments.length} assignment${assignments.length === 1 ? '' : 's'}</span>
                         </div>
-                        ${assignments.map(a => {
+                        ${assignments.length ? assignments.map(a => {
                             const [cls, label] = statusLabel(a);
                             const gradeChip = a.auto_generated && a.submitted
                                 ? `<div class="auto-grade">
@@ -246,7 +246,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             : `<button class="btn-submit" data-assign-id="${a.id}" data-course="${course.title}">Submit assignment</button>`)}
                                 </div>
                             </div>`;
-                        }).join('')}
+                        }).join('') : `
+                        <div class="assign-unlock">
+                            <div class="assign-unlock-text">
+                                <h4>Download material to unlock your assignment</h4>
+                                <p>No assignment yet — download this course's material and an AI assignment will be generated for you.</p>
+                            </div>
+                            <a class="btn-submit" href="../materials/materials.html?id=${course.id}">Download material</a>
+                        </div>`}
                     </div>
                 `).join('');
 

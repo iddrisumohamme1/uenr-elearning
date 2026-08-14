@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../shared/typography.css">
     <link rel="stylesheet" href="../shared/responsive.css">
     <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
     <link rel="stylesheet" href="auth.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -38,20 +39,35 @@
                 </div>
             </div>
             
-            <form id="register-form">
+            <form id="register-form" autocomplete="off">
                 <div class="form-group">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" class="form-input" id="fullname" placeholder="John Doe" required>
+                    <label class="form-label" for="fullname">Full Name</label>
+                    <input type="text" class="form-input" id="fullname" name="fullname" placeholder="John Doe" autocomplete="off" required>
+                    <small class="field-error" id="fullname-error"></small>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Email Address</label>
-                    <input type="email" class="form-input" id="email" placeholder="john.doe@uenr.edu.gh" required>
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" class="form-input" id="email" name="email" placeholder="john.doe@uenr.edu.gh" autocomplete="off" required>
+                    <small class="field-error" id="email-error"></small>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-input" id="password" name="password" placeholder="••••••••" required>
+                    <label class="form-label" for="password">Password</label>
+                    <div class="password-wrap">
+                        <input type="password" class="form-input" id="password" name="password" placeholder="••••••••" autocomplete="new-password" required>
+                        <button type="button" class="password-toggle" aria-label="Show password"><i class="bi bi-eye"></i></button>
+                    </div>
+                    <small class="field-error" id="password-error"></small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirm_password">Confirm Password</label>
+                    <div class="password-wrap">
+                        <input type="password" class="form-input" id="confirm_password" name="confirm_password" placeholder="••••••••" autocomplete="new-password" required>
+                        <button type="button" class="password-toggle" aria-label="Show password"><i class="bi bi-eye"></i></button>
+                    </div>
+                    <small class="field-error" id="confirm_password-error"></small>
                 </div>
 
                 <!-- <div class="form-group">
@@ -60,8 +76,32 @@
                 </div> -->
 
                 <div class="form-group">
-                    <label class="form-label">Department </label>
-                    <input type="text" class="form-input" id="department" name="department" placeholder="e.g. Department of Computer Science and Informatics">
+                    <label class="form-label" for="department">Department</label>
+                    <select id="department" name="department" class="form-input" data-dropdown required>
+                        <option value="" disabled selected>Select your department</option>
+                        <option value="Civil Engineering">Civil Engineering</option>
+                        <option value="Computer Engineering">Computer Engineering</option>
+                        <option value="Electrical and Electronic Engineering">Electrical and Electronic Engineering</option>
+                        <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        <option value="Renewable Energy Engineering">Renewable Energy Engineering</option>
+                        <option value="Petroleum Engineering">Petroleum Engineering</option>
+                        <option value="Environmental Engineering">Environmental Engineering</option>
+                        <option value="Agricultural Engineering">Agricultural Engineering</option>
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Information Technology">Information Technology</option>
+                        <option value="Medical Laboratory Science">Medical Laboratory Science</option>
+                        <option value="Nursing">Nursing</option>
+                        <option value="Actuarial Science">Actuarial Science</option>
+                        <option value="Mathematics and Statistics">Mathematics and Statistics</option>
+                        <option value="Biological Science">Biological Science</option>
+                        <option value="Biochemistry ">Biochemistry</option>
+                        <option value="Chemistry">Chemistry</option>
+                        <option value="Natural Resources Management (Forestry, Ecotourism, Fisheries)">Natural Resources Management (Forestry, Ecotourism, Fisheries)</option>
+                        <option value="Climate Change and Sustainable Development">Climate Change and Sustainable Development</option>
+                        <option value="Sustainable and Development Minerals Mining">Sustainable and Development Minerals Mining</option>
+                        <option value="Fire, Safety and Disaster Management">Fire, Safety and Disaster Management</option>
+                    </select>
+                    <small class="field-error" id="department-error"></small>
                 </div>
                 <button type="submit" class="btn-auth">Create Account</button>
             </form>
@@ -73,6 +113,7 @@
     </div>
     <script src="../shared/session.js"></script>
     <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
     <script src="auth.js"></script>
 </body>
 </html>

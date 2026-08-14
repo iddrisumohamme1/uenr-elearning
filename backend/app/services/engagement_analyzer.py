@@ -65,7 +65,18 @@ class TwoTowerAnalyzer:
 
     def _load(self):
         try:
+            # Silence TensorFlow's startup noise (CPU feature INFO, oneDNN,
+            # GPU warning) before the import happens.
+            os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+            os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+            try:
+                import absl.logging as _absl_logging
+                _absl_logging.set_verbosity(_absl_logging.ERROR)
+            except Exception:
+                pass
+            import logging as _logging
             import tensorflow as tf
+            _logging.getLogger("tensorflow").setLevel(_logging.ERROR)
             self._tf_loaded = True
             if not os.path.exists(MODEL_PATH):
                 print(f"[TwoTower] WARN  Model not found: {MODEL_PATH}")

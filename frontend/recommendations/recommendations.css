@@ -364,17 +364,7 @@
 .tutor-course-select {
     flex: 1;
     min-width: 0;
-    background: var(--bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-sm);
-    font-family: var(--font-sans);
-    font-size: 0.82rem;
-    padding: 0.35rem 0.5rem;
-    outline: none;
-    cursor: pointer;
 }
-.tutor-course-select:focus { border-color: var(--clr-primary); }
 .tutor-thread {
     display: flex;
     flex-direction: column;

@@ -89,6 +89,16 @@
     flex-direction: column;
     gap: var(--s3);
 }
+.assign-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    font-size: 0.9rem;
+}
 .quiz-attempt {
     border: 1px solid var(--border);
     border-radius: var(--r-lg);

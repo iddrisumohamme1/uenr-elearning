@@ -52,10 +52,11 @@ async function refreshAccessToken() {
  * Require a valid session. Checks localStorage and validates the role.
  * Token validation happens lazily on first API call via authFetch.
  *
- * @param {string} requiredRole - Optional: 'student', 'lecturer', or 'hod'
+ * Accepts one or more allowed roles, e.g. requireSession('lecturer', 'hod').
+ * @param {...string} allowedRoles - e.g. 'student', 'lecturer', 'hod'
  * @returns {Promise<object>} The user object if session is valid
  */
-async function requireSession(requiredRole) {
+async function requireSession(...allowedRoles) {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('token');
 
@@ -65,7 +66,7 @@ async function requireSession(requiredRole) {
     }
 
     // Role guard: redirect to correct dashboard if wrong role
-    if (requiredRole && user.role !== requiredRole) {
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
         window.location.href = `../${user.role}/dashboard.html`;
         throw new Error('Wrong role');
     }
@@ -187,6 +188,22 @@ async function initNavBadges() {
             } catch (err) {
                 console.error('[session] Recommendation badge check failed:', err);
             }
+        }
+    }
+
+    // Pending assignments → badge on the Assignments link. The endpoint runs
+    // auto-generation first, so a freshly downloaded material shows up as a
+    // to-do assignment right after login.
+    const assignLink = findLink('assignments.html');
+    if (assignLink && !assignLink.querySelector('.nav-badge')) {
+        try {
+            const res = await authFetch(`${API_BASE}/api/assignments/pending-count`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.pending_count > 0) addNavBadge(assignLink, data.pending_count);
+            }
+        } catch (err) {
+            console.error('[session] Assignments badge check failed:', err);
         }
     }
 }

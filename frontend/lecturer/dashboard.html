@@ -14,24 +14,13 @@
     <link rel="stylesheet" href="../shared/pulse.css">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="lecturer-dashboard.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
-        <aside class="sidebar">
-            <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
-            <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
-                <a href="upload.html" class="nav-link"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Content</span></a>
-                <a href="assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
-                <a href="resources.html" class="nav-link"><span class="nav-icon"><i class="bi bi-magic"></i></span><span class="nav-label"> Study Resources</span></a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
-            </div>
-        </aside>
+        <aside class="sidebar" id="app-sidebar"></aside>
 
         <main class="main-content">
             <header class="top-bar">
@@ -103,63 +92,31 @@
                     </div>
                 </div>
 
-                <section class="at-risk-panel fade-in-up">
-                    <div class="panel-head">
-                        <h3>Students Needing Attention</h3>
-                        <p class="text-muted panel-sub">Engagement has dipped below the line</p>
+                <section class="at-risk-panel attention-board fade-in-up">
+                    <div class="panel-head attention-head">
+                        <div>
+                            <span class="attention-eyebrow">Attention Queue</span>
+                            <h3>Students Needing Attention</h3>
+                            <!-- <p class="text-muted panel-sub">Who's falling behind, and for how long</p> -->
+                        </div>
+                        <div class="attention-readout" aria-live="polite">
+                            <span class="attention-count" id="attention-count">--</span>
+                            <span class="attention-count-label">flagged</span>
+                            <span class="attention-count-sub" id="attention-count-sub"></span>
+                        </div>
                     </div>
-                    <div class="data-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Student</th>
-                                    <th>Course</th>
-                                    <th>Comprehension</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="real-time-body">
-                                <tr><td colspan="5" class="table-loading">
-                                    <div class="loading-wrapper">
-                                        <div class="spinner spinner-sm"></div>
-                                        <p>Loading student data…</p>
-                                    </div>
-                                </td></tr>
-                            </tbody>
-                        </table>
+                    <div class="cohort-strip" id="cohort-strip" hidden></div>
+                    <div id="queue-body">
+                        <div class="queue-loading">
+                            <div class="loading-wrapper">
+                                <div class="spinner spinner-sm"></div>
+                                <p>Loading student data…</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </section>
 
-            <section class="dashboard-grid course-list fade-in-up">
-                <div class="chart-card">
-                    <div class="panel-head">
-                        <h3>My Courses</h3>
-                        <p class="text-muted panel-sub">Enrolled students and who to reach out to</p>
-                    </div>
-                    <div class="data-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Course</th>
-                                    <th>Enrolled</th>
-                                    <th>At Risk</th>
-                                    <th>Students</th>
-                                </tr>
-                            </thead>
-                            <tbody id="course-list-body">
-                                <tr><td colspan="4" class="table-loading">
-                                    <div class="loading-wrapper">
-                                        <div class="spinner spinner-sm"></div>
-                                        <p>Loading courses…</p>
-                                    </div>
-                                </td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
         </main>
     </div>
 
@@ -179,23 +136,8 @@
         </div>
     </div>
 
-    <!-- Course students modal -->
-    <div id="students-modal" class="modal modal-wide" hidden>
-        <div class="modal-card">
-            <div class="modal-head">
-                <h3 id="students-title">Enrolled students</h3>
-                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
-            </div>
-            <div id="students-body" class="students-body">
-                <div class="loading-wrapper loading-full">
-                    <div class="spinner"></div>
-                    <p>Loading students…</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="../shared/sidebar.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>

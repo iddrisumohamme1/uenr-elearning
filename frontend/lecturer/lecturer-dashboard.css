@@ -115,3 +115,236 @@ tbody tr:hover { background: var(--bg-elevated); }
   .stat-tile .stat-value { font-size: 1.75rem; }
   .chart-card, .at-risk-panel { padding: 1.25rem; }
 }
+
+/* ── Attention board (triage queue) ─────────────────────────────────────── */
+.attention-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.attention-eyebrow {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--clr-accent);
+  margin-bottom: 0.3rem;
+}
+.attention-readout { text-align: right; }
+.attention-count {
+  display: block;
+  font-family: 'Space Grotesk', var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--clr-danger);
+  font-variant-numeric: tabular-nums;
+}
+.attention-count-label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+.attention-count-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* Cohort strip — one dot per flagged student, grouped per course */
+.cohort-strip {
+  display: flex;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow-x: auto;
+}
+.cohort-group { display: flex; align-items: center; gap: 0.35rem; }
+.cohort-group + .cohort-group {
+  padding-left: 0.75rem;
+  margin-left: 0.5rem;
+  border-left: 1px solid var(--border-strong);
+}
+.cohort-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  cursor: default;
+  transition: transform var(--t-fast);
+}
+.cohort-dot:hover { transform: scale(1.4); }
+.cohort-dot--low { background: var(--clr-danger); box-shadow: 0 0 8px rgba(239,68,68,0.5); animation: attentionPulse 2.4s ease-in-out infinite; }
+.cohort-dot--mod { background: var(--clr-warning); }
+.cohort-dot--good { background: var(--clr-success); }
+
+/* Course sections */
+.queue-course + .queue-course { margin-top: 1.5rem; }
+.queue-course-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.queue-course-code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--clr-accent);
+}
+.queue-course-title {
+  font-family: 'Space Grotesk', var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-course-count {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--clr-danger);
+  white-space: nowrap;
+}
+
+/* Student rows */
+.attention-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 0.25rem;
+  animation: queueRowIn var(--t-base) both;
+}
+.attention-row:nth-child(2) { animation-delay: 50ms; }
+.attention-row:nth-child(3) { animation-delay: 100ms; }
+.attention-row:nth-child(4) { animation-delay: 150ms; }
+.attention-row:nth-child(5) { animation-delay: 200ms; }
+.attention-row + .attention-row { border-top: 1px solid var(--border); }
+
+.attention-ring {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+.attention-row[data-sev="low"] .attention-ring { background: var(--clr-danger); animation: attentionPulse 2.4s ease-in-out infinite; }
+.attention-row[data-sev="mod"] .attention-ring { background: var(--clr-warning); }
+.attention-row[data-sev="good"] .attention-ring { background: var(--clr-success); }
+
+.attention-main { flex: 1; min-width: 0; }
+.attention-name { font-family: 'Space Grotesk', var(--font-display); font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.attention-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin-top: 0.3rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.meta-quiz.quiz--low { color: var(--clr-danger); }
+.meta-quiz.quiz--mod { color: var(--clr-warning); }
+.meta-quiz.quiz--good { color: var(--clr-success); }
+
+.attention-comp { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.comp-meter { display: flex; gap: 3px; }
+.comp-seg {
+  width: 7px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: background var(--t-fast);
+}
+.attention-row[data-sev="low"] .comp-seg.is-on { background: var(--clr-danger); border-color: transparent; }
+.attention-row[data-sev="mod"] .comp-seg.is-on { background: var(--clr-warning); border-color: transparent; }
+.attention-row[data-sev="good"] .comp-seg.is-on { background: var(--clr-success); border-color: transparent; }
+.comp-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.comp-label--low { color: var(--clr-danger); }
+.comp-label--mod { color: var(--clr-warning); }
+.comp-label--good { color: var(--clr-success); }
+
+.attention-action { flex-shrink: 0; }
+
+/* States */
+.queue-empty {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.75rem 1.25rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+}
+.queue-empty h4 { font-family: 'Space Grotesk', var(--font-display); font-size: 1.05rem; margin-bottom: 0.2rem; }
+.queue-empty .text-muted { font-size: 0.82rem; margin: 0; }
+.queue-clear-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 3px solid var(--clr-success);
+  box-shadow: 0 0 0 5px var(--success-soft), 0 0 18px rgba(34,197,94,0.35);
+}
+.queue-error { padding: 1.5rem; text-align: center; }
+.queue-loading { padding: 1rem 0; }
+
+@keyframes attentionPulse { 50% { opacity: 0.4; } }
+@keyframes queueRowIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cohort-dot--low,
+  .attention-row[data-sev="low"] .attention-ring { animation: none; }
+  .attention-row { animation: none; }
+}
+
+@media (max-width: 768px) {
+  .attention-head { flex-direction: column; }
+  .attention-readout { text-align: left; }
+  .attention-row { flex-wrap: wrap; }
+  .attention-comp { order: 3; width: 100%; }
+  .attention-action { width: 100%; display: inline-flex; align-items: center; justify-content: center; }
+}
+@media (max-width: 560px) {
+  /* Attention queue */
+  .attention-row { gap: 0.75rem; padding: 0.75rem 0.25rem; }
+  .attention-comp { gap: 0.4rem; }
+
+  /* Charts + panels */
+  .chart-box { height: 200px; }
+  .dashboard-grid { gap: 1rem; }
+
+  /* Modal */
+  .modal-overlay { padding: 1rem; }
+  .modal-card { padding: 1.25rem; }
+  .modal-actions { flex-wrap: wrap; gap: 0.5rem; }
+  .modal-actions .btn-auth { flex: 1 1 45%; min-width: 0; justify-content: center; }
+}
+@media (max-width: 400px) {
+  .modal-card { padding: 1rem; }
+  .attention-name { font-size: 0.88rem; }
+}

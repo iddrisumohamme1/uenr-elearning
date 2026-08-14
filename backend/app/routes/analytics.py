@@ -4,11 +4,12 @@
 #          to surface at-risk statistics, comprehension trends, and course-level metrics.
 
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
-from app.routes.study import _predict_percentage, _quiz_stats, _attendance_stats
+from app.routes.study import _predict_percentage, _quiz_stats, _attendance_stats, _assignment_stats
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -131,6 +132,71 @@ def course_at_risk(course_id: str, user=Depends(get_current_user)):
         for s in students:
             s["full_name"] = name_map.get(s.get("student_id")) or None
 
+        # Enrich each at-risk student with study signals so the lecturer can
+        # prioritise: total reading time, how long since any activity, and the
+        # latest quiz score in this course. Failures degrade to nulls rather
+        # than failing the whole request.
+        if student_ids:
+            reading_seconds = {}
+            latest_activity = {}
+            try:
+                logs_resp = with_retry(
+                    lambda c: c.table("engagement_logs")
+                    .select("student_id, time_spent, created_at")
+                    .eq("course_id", course_id)
+                    .in_("student_id", student_ids)
+                    .order("created_at", desc=True)
+                    .execute()
+                )
+                for log in (getattr(logs_resp, "data", []) or []):
+                    sid = log.get("student_id")
+                    if not sid:
+                        continue
+                    reading_seconds[sid] = reading_seconds.get(sid, 0) + float(log.get("time_spent") or 0)
+                    latest_activity.setdefault(sid, log.get("created_at"))
+            except Exception:
+                pass
+
+            latest_quiz = {}
+            try:
+                quiz_resp = with_retry(
+                    lambda c: c.table("quiz_results")
+                    .select("student_id, score, submitted_at, quizzes!inner(course_id)")
+                    .in_("student_id", student_ids)
+                    .order("submitted_at", desc=True)
+                    .execute()
+                )
+                seen = set()
+                for row in (getattr(quiz_resp, "data", []) or []):
+                    sid = row.get("student_id")
+                    quiz_course = (row.get("quizzes") or {}).get("course_id")
+                    if not sid or sid in seen or quiz_course != course_id or row.get("score") is None:
+                        continue
+                    seen.add(sid)
+                    latest_quiz[sid] = float(row["score"])
+            except Exception:
+                pass
+
+            now = datetime.utcnow()
+            for s in students:
+                sid = s.get("student_id")
+                total = reading_seconds.get(sid, 0)
+                s["reading_minutes"] = round(total / 60, 1) if total else 0
+                s["latest_quiz_score"] = latest_quiz.get(sid)
+                s["days_since_last_activity"] = None
+                last = latest_activity.get(sid) or s.get("created_at")
+                if last:
+                    try:
+                        raw = str(last)
+                        if raw.endswith("Z"):
+                            raw = raw[:-1] + "+00:00"
+                        last_dt = datetime.fromisoformat(raw)
+                        if last_dt.tzinfo is not None:
+                            last_dt = last_dt.astimezone(timezone.utc).replace(tzinfo=None)
+                        s["days_since_last_activity"] = max(0, (now - last_dt).days)
+                    except Exception:
+                        pass
+
         return {
             "course_id": course_id,
             "at_risk_count": len(students),
@@ -218,7 +284,7 @@ def department_summary(user=Depends(require_role("hod"))):
         try:
             resp = with_retry(
                 lambda c, cid=cid: c.table("engagement_logs")
-                .select("course_id, engagement_class, comprehension_class")
+                .select("course_id, student_id, engagement_class, comprehension_class")
                 .eq("course_id", cid)
                 .execute()
             )
@@ -234,6 +300,10 @@ def department_summary(user=Depends(require_role("hod"))):
     at_risk  = sum(1 for r in all_logs if r["engagement_class"] == 0)
     moderate = sum(1 for r in all_logs if r["engagement_class"] == 1)
     high     = sum(1 for r in all_logs if r["engagement_class"] == 2)
+    comp_low  = sum(1 for r in all_logs if r["comprehension_class"] == 0)
+    comp_mod  = sum(1 for r in all_logs if r["comprehension_class"] == 1)
+    comp_good = sum(1 for r in all_logs if r["comprehension_class"] == 2)
+    unique_students = len({r.get("student_id") for r in all_logs if r.get("student_id")})
 
     # Per-course breakdown
     by_course = defaultdict(lambda: {"at_risk": 0, "moderate": 0, "high": 0, "total": 0})
@@ -249,10 +319,16 @@ def department_summary(user=Depends(require_role("hod"))):
 
     return {
         "total_records": total,
+        "unique_students": unique_students,
         "department_engagement": {
             "at_risk":  {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
             "moderate": {"count": moderate, "pct": round(moderate / total * 100, 1)},
             "highly_engaged": {"count": high,"pct": round(high    / total * 100, 1)},
+        },
+        "department_comprehension": {
+            "low":      {"count": comp_low,  "pct": round(comp_low  / total * 100, 1)},
+            "moderate": {"count": comp_mod,  "pct": round(comp_mod  / total * 100, 1)},
+            "good":     {"count": comp_good, "pct": round(comp_good / total * 100, 1)},
         },
         "by_course": dict(by_course),
     }
@@ -292,8 +368,10 @@ def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user
 
     quiz_stats = _quiz_stats(admin, student_id, course_ids)
     attendance = _attendance_stats(admin, student_id, course_ids)
+    assignment_stats = _assignment_stats(admin, student_id, course_ids)
     quiz_avg = quiz_stats.get(course_id)
     attendance_rate = attendance.get("per_course", {}).get(course_id)
+    assignment_avg = assignment_stats.get(course_id, {}).get("grade_avg")
 
     # Weekly study coverage
     study_coverage = None
@@ -322,7 +400,7 @@ def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user
     except Exception as exc:
         print(f"[analytics] study coverage error: {exc}")
 
-    if quiz_avg is None and comp_class is None and attendance_rate is None and study_coverage is None:
+    if quiz_avg is None and comp_class is None and attendance_rate is None and study_coverage is None and assignment_avg is None:
         return {
             "status": "success",
             "prediction": "Insufficient Data",
@@ -334,6 +412,7 @@ def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user
         comprehension_class=comp_class,
         attendance_rate=attendance_rate,
         study_coverage=study_coverage,
+        assignment_avg=assignment_avg,
     )
 
     percentage = predicted["percentage"]
@@ -355,6 +434,7 @@ def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user
         "prediction": f"{predicted['grade']} ({percentage}%)" if percentage is not None else "Insufficient Data",
         "signals": {
             "quiz_avg": quiz_avg,
+            "assignment_avg": assignment_avg,
             "comprehension_class": comp_class,
             "attendance_present_rate": attendance_rate,
             "study_coverage": study_coverage,

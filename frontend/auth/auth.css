@@ -82,6 +82,64 @@
   background: var(--bg-elevated);
 }
 
+/* Field-level validation errors */
+.form-input.invalid {
+  border-color: var(--clr-danger);
+}
+.form-input.invalid:focus {
+  border-color: var(--clr-danger);
+  box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.15);
+}
+
+.field-error {
+  display: none;
+  margin-top: var(--s1);
+  font-size: 0.75rem;
+  color: var(--clr-danger);
+}
+.field-error.show {
+  display: block;
+}
+
+/* Custom dropdown trigger — match .form-input so it blends into the form */
+.dd__trigger {
+  background: var(--bg-card);
+  padding: var(--s2) var(--s3);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.dd__trigger.dd__trigger--placeholder { font-weight: 400; }
+
+/* Show/hide password toggle */
+.password-wrap {
+  position: relative;
+}
+.password-wrap .form-input {
+  padding-right: 3rem;
+}
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--s2);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.password-toggle:hover {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+}
+
 .btn-auth {
   width: 100%;
   padding: var(--s2);

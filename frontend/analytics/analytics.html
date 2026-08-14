@@ -18,21 +18,7 @@
 </head>
 <body>
     <div class="analytics-container">
-        <aside class="sidebar">
-            <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
-            <nav class="sidebar-nav">
-                <a href="../student/dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
-                <a href="../courses/courses.html" class="nav-link"><span class="nav-icon"><i class="bi bi-book"></i></span><span class="nav-label"> My Courses</span></a>
-                <a href="../student/progress.html" class="nav-link"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-label"> My Progress</span></a>
-                <a href="../student/assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
-                <a href="../student/inbox.html" class="nav-link"><span class="nav-icon"><i class="bi bi-inbox"></i></span><span class="nav-label"> Inbox</span></a>
-                <a href="../recommendations/recommendations.html" class="nav-link"><span class="nav-icon"><i class="bi bi-stars"></i></span><span class="nav-label"> Recommendations</span></a>
-                <a href="analytics.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-graph-up-arrow"></i></span><span class="nav-label"> Performance</span></a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
-            </div>
-        </aside>
+        <aside class="sidebar" id="app-sidebar"></aside>
 
         <main class="analytics-content">
             <header class="page-header">
@@ -143,6 +129,31 @@
                     </div>
                 </section>
 
+                <!-- Assignment Performance -->
+                <section class="quiz-performance">
+                    <div class="quiz-perf-head">
+                        <h3>Assignment Performance</h3>
+                        <p class="text-muted">Grades from your downloaded-material assignments</p>
+                    </div>
+                    <div class="stats-grid quiz-stats">
+                        <div class="stat-card">
+                            <h3>Assignment Average</h3>
+                            <p class="stat-value" id="assign-avg">--</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Submitted</h3>
+                            <p class="stat-value" id="assign-submitted">0/0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>On Time</h3>
+                            <p class="stat-value" id="assign-ontime">--</p>
+                        </div>
+                    </div>
+                    <div id="assignment-history" class="quiz-history">
+                        <p class="text-muted">Loading assignment results...</p>
+                    </div>
+                </section>
+
                 <section class="behavioral-insights">
                     <h3>Behavioral Insights</h3>
                     <div class="insight-card">
@@ -153,6 +164,7 @@
             </div>
         </main>
     </div>
+    <script src="../shared/sidebar.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Study Resources - Lecturer</title>
+    <title>Study Resources - UENR E-Learning</title>
     <link rel="stylesheet" href="../shared/variables.css">
     <link rel="stylesheet" href="../shared/reset.css">
     <link rel="stylesheet" href="../shared/typography.css">
@@ -11,85 +11,132 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="resources.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
-        <aside class="sidebar">
-            <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
-            <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Dashboard</span></a>
-                <a href="upload.html" class="nav-link"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Content</span></a>
-                <a href="assignments.html" class="nav-link"><span class="nav-icon"><i class="bi bi-journal-check"></i></span><span class="nav-label"> Assignments</span></a>
-                <a href="resources.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-magic"></i></span><span class="nav-label"> Study Resources</span></a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
-            </div>
-        </aside>
+        <aside class="sidebar" id="app-sidebar"></aside>
 
         <main class="main-content">
             <header class="top-bar">
-                <h1>Study Resources</h1>
-                <p class="text-muted">Generate summaries, key points and practice questions from your materials with AI.</p>
+                <div class="top-bar-title">
+                    <p class="page-eyebrow">The Study Press</p>
+                    <div class="title-row">
+                        <h1>Study Resources</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- <p class="text-muted" style="margin-top:0.5rem">
+                    Feed a lecture's material through the press — the AI turns it into a summary,
+                    key points, or practice questions. Proof it, then publish it for your class.
+                </p> -->
             </header>
 
-            <section class="gen-panel fade-in-up">
-                <div class="panel-head">
-                    <h3>Generate a Study Resource</h3>
-                    <p class="text-muted panel-sub">Choose a material and a format, preview the AI output, then publish it for your students</p>
-                </div>
-                <div class="gen-controls">
-                    <div class="form-group">
-                        <label class="form-label">Course</label>
-                        <select id="course-select" class="form-input" required>
-                            <option value="" disabled selected>Loading courses...</option>
+            <ol class="stage-rail fade-in-up" id="stage-rail" aria-label="Resource workflow">
+                <li class="stage is-active" data-stage="1">
+                    <span class="stage-num">01</span>
+                    <span class="stage-name">Choose</span>
+                    <span class="stage-desc">Material</span>
+                </li>
+                <li class="stage" data-stage="2">
+                    <span class="stage-num">02</span>
+                    <span class="stage-name">Compose</span>
+                    <span class="stage-desc">Format &amp; proof</span>
+                </li>
+                <li class="stage" data-stage="3">
+                    <span class="stage-num">03</span>
+                    <span class="stage-name">Publish</span>
+                    <span class="stage-desc">Send to students</span>
+                </li>
+            </ol>
+
+            <section class="press-panel fade-in-up">
+                <div class="press-row">
+                    <div class="press-field">
+                        <label class="press-label" for="course-select">Course</label>
+                        <select id="course-select" class="form-input" data-dropdown required>
+                            <option value="" disabled selected>Loading courses…</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Material</label>
-                        <select id="material-select" class="form-input" required>
+                    <div class="press-field">
+                        <label class="press-label" for="material-select">Material</label>
+                        <select id="material-select" class="form-input" data-dropdown required>
                             <option value="" disabled selected>Select a course first</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Format</label>
-                        <select id="type-select" class="form-input" required>
-                            <option value="summary">Summary</option>
-                            <option value="key_points">Key points</option>
-                            <option value="practice_questions">Practice questions</option>
-                        </select>
-                    </div>
-                    <button id="generate-btn" class="btn-auth btn-upload">Generate preview</button>
                 </div>
 
-                <div id="preview" class="preview" hidden>
-                    <div class="preview-head">
-                        <h4 id="preview-title">Preview</h4>
-                        <button id="publish-btn" class="btn-publish">Publish for students</button>
+                <fieldset class="format-group">
+                    <legend class="press-label">Study aid format</legend>
+                    <div class="format-grid">
+                        <label class="format-card">
+                            <input type="radio" name="format" value="summary" checked>
+                            <span class="format-icon"><i class="bi bi-text-paragraph"></i></span>
+                            <span class="format-name">Summary</span>
+                            <span class="format-desc">The whole material, condensed into a clean overview.</span>
+                        </label>
+                        <label class="format-card">
+                            <input type="radio" name="format" value="key_points">
+                            <span class="format-icon"><i class="bi bi-list-check"></i></span>
+                            <span class="format-name">Key Points</span>
+                            <span class="format-desc">The essential takeaways, pulled out point by point.</span>
+                        </label>
+                        <label class="format-card">
+                            <input type="radio" name="format" value="practice_questions">
+                            <span class="format-icon"><i class="bi bi-pencil-square"></i></span>
+                            <span class="format-name">Practice Questions</span>
+                            <span class="format-desc">Questions students can use to test themselves.</span>
+                        </label>
                     </div>
-                    <div id="preview-body" class="preview-body"></div>
+                </fieldset>
+
+                <div class="press-actions">
+                    <button id="generate-btn" class="btn-auth btn-press">
+                        <i class="bi bi-magic"></i> Generate preview
+                    </button>
+                    <p class="text-muted press-hint" aria-live="polite" id="gen-status">
+                        Pick a course, a material, and a format to start.
+                    </p>
+                </div>
+
+                <div id="preview" class="proof" hidden aria-live="polite">
+                    <div class="proof-stamp"><i class="bi bi-eye"></i> Proof — not yet live</div>
+                    <div class="proof-head">
+                        <div class="proof-title">
+                            <span class="proof-eyebrow" id="preview-type">Summary</span>
+                            <h3 id="preview-title">Preview</h3>
+                            <p class="text-muted" id="preview-course"></p>
+                        </div>
+                        <button id="publish-btn" class="btn-publish"><i class="bi bi-send"></i> Publish for students</button>
+                    </div>
+                    <div id="preview-body" class="proof-body"></div>
                 </div>
             </section>
 
-            <section class="gen-panel fade-in-up">
-                <div class="panel-head">
-                    <h3>Published Resources</h3>
-                    <p class="text-muted panel-sub">Everything students can currently see</p>
+            <section class="live-section fade-in-up">
+                <div class="live-head">
+                    <h2>Live on the course</h2>
+                    <p class="text-muted">Published resources your students can open right now</p>
                 </div>
-                <div id="published-list">
+                <div id="published-list" class="live-grid">
                     <p class="text-muted">Select a course to see its published resources.</p>
                 </div>
             </section>
         </main>
     </div>
+
+    <script src="../shared/sidebar.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
     <script src="resources.js"></script>
 </body>
 </html>

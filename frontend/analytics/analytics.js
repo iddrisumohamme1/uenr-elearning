@@ -200,5 +200,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ── Assignment performance ──────────────────────────────────────────────
+    try {
+        const studyRes = await authFetch(`${API_BASE}/api/study/summary/${user.id}`);
+        if (studyRes.ok) {
+            const sdata = await studyRes.json();
+            const rows = (sdata.courses || []).filter(c => (c.assignments_total || 0) > 0);
+            const total = rows.reduce((s, c) => s + c.assignments_total, 0);
+            const submitted = rows.reduce((s, c) => s + c.assignments_submitted, 0);
+            const onTime = rows.reduce((s, c) => s + c.assignments_on_time, 0);
+            const graded = rows.filter(c => c.assignments_grade_avg != null);
+            const avg = graded.length
+                ? Math.round(graded.reduce((s, c) => s + c.assignments_grade_avg, 0) / graded.length)
+                : null;
+
+            document.getElementById('assign-avg').textContent = avg != null ? `${avg}%` : '--';
+            document.getElementById('assign-submitted').textContent = `${submitted}/${total}`;
+            document.getElementById('assign-ontime').textContent = total ? `${onTime}/${total}` : '--';
+
+            const historyEl = document.getElementById('assignment-history');
+            if (!rows.length) {
+                historyEl.innerHTML = '<p class="text-muted">No assignments yet. Download a course material to generate an AI assignment.</p>';
+            } else {
+                historyEl.innerHTML = rows.map(c => {
+                    const g = c.assignments_grade_avg;
+                    const avgText = g != null ? `${g}%` : 'n/a';
+                    const cls = g == null ? '' : g >= 70 ? 'good' : g >= 50 ? 'moderate' : 'low';
+                    return `
+                        <div class="assign-row">
+                            <span class="qa-title">${c.course_title}<small>${c.course_code || ''}</small></span>
+                            <span class="qa-badge ${cls}">${avgText}</span>
+                            <span class="qa-score">${c.assignments_submitted}/${c.assignments_total}</span>
+                        </div>`;
+                }).join('');
+            }
+        }
+    } catch (err) {
+        console.error('Assignment performance failed:', err);
+    }
+
     showBody();
 });

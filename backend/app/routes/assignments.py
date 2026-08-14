@@ -148,14 +148,12 @@ def _load_material_text(admin, material_id: str) -> str:
         return ""
 
 
-@router.post("/auto-generate", status_code=201)
-def auto_generate_assignments(user=Depends(require_role("student"))):
+def _auto_generate_for_student(admin, user):
     """
     Creates a per-student AI assignment for every material the student has
     downloaded but does not yet have an auto-generated assignment for.
+    Returns the list of newly created assignment rows (empty when none).
     """
-    admin = get_admin_client()
-
     try:
         dl_resp = with_retry(
             lambda c: c.table("material_downloads")
@@ -168,7 +166,7 @@ def auto_generate_assignments(user=Depends(require_role("student"))):
 
     downloads = getattr(dl_resp, "data", []) or []
     if not downloads:
-        return {"status": "success", "created": 0, "assignments": []}
+        return []
 
     by_material = {d["material_id"]: d["course_id"] for d in downloads}
 
@@ -214,11 +212,76 @@ def auto_generate_assignments(user=Depends(require_role("student"))):
         except Exception as exc:
             print(f"[assignments] Failed to auto-generate for material {material_id}: {exc}")
 
+    return created
+
+
+@router.post("/auto-generate", status_code=201)
+def auto_generate_assignments(user=Depends(require_role("student"))):
+    """
+    Creates a per-student AI assignment for every material the student has
+    downloaded but does not yet have an auto-generated assignment for.
+    """
+    admin = get_admin_client()
+    created = _auto_generate_for_student(admin, user)
     return {
         "status": "success",
         "created": len(created),
         "assignments": [_sanitize_questions(a.get("questions")) for a in created],
     }
+
+
+@router.get("/pending-count")
+def pending_assignment_count(user=Depends(require_role("student"))):
+    """
+    Count of assignments the student has not yet submitted (manual ones plus
+    their own auto-generated ones). Runs auto-generation first so a material
+    downloaded on another page surfaces here immediately after login.
+    """
+    admin = get_admin_client()
+    _auto_generate_for_student(admin, user)
+
+    try:
+        enroll_resp = with_retry(
+            lambda c: c.table("enrollments")
+            .select("course_id")
+            .eq("student_id", user["id"])
+            .execute()
+        )
+        course_ids = [e["course_id"] for e in (getattr(enroll_resp, "data", []) or []) if e.get("course_id")]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch enrollments: {exc}")
+
+    if not course_ids:
+        return {"pending_count": 0}
+
+    try:
+        assign_resp = with_retry(
+            lambda c: c.table("assignments")
+            .select("id, auto_generated, student_id")
+            .in_("course_id", course_ids)
+            .execute()
+        )
+        assignments = getattr(assign_resp, "data", []) or []
+        visible = [
+            a for a in assignments
+            if not a.get("auto_generated") or a.get("student_id") == user["id"]
+        ]
+        if not visible:
+            return {"pending_count": 0}
+
+        assign_ids = [a["id"] for a in visible]
+        subs_resp = with_retry(
+            lambda c: c.table("assignment_submissions")
+            .select("assignment_id")
+            .eq("student_id", user["id"])
+            .in_("assignment_id", assign_ids)
+            .execute()
+        )
+        submitted = {s["assignment_id"] for s in (getattr(subs_resp, "data", []) or [])}
+        pending = sum(1 for a in visible if a["id"] not in submitted)
+        return {"pending_count": pending}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to count pending assignments: {exc}")
 
 
 @router.get("/course/{course_id}")

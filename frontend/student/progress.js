@@ -171,6 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const warnClass = c.warning == null ? 'ok' : 'warn';
             const warnIcon = c.warning == null ? 'bi-check-circle' : 'bi-exclamation-triangle';
             const onTime = c.assignments_on_time || 0;
+            const assignAvg = c.assignments_grade_avg != null ? ` · avg ${c.assignments_grade_avg}%` : '';
             const warningHtml = c.warning == null
                 ? 'You are meeting your weekly study target. Keep it up.'
                 : c.warning;
@@ -190,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="ledger-meta">
                         <span>${c.materials_count} materials</span>
                         <span>Quiz ${c.quiz_avg != null ? c.quiz_avg + '%' : 'n/a'}</span>
-                        <span>Assignments ${c.assignments_submitted}/${c.assignments_total}${c.assignments_total ? ` (${onTime} on time)` : ''}</span>
+                        <span>Assignments ${c.assignments_submitted}/${c.assignments_total}${c.assignments_total ? ` (${onTime} on time)` : ''}${assignAvg}</span>
                         <span>Attendance ${c.attendance_present_rate != null ? c.attendance_present_rate + '%' : 'n/a'}</span>
                     </div>
                     <div class="ledger-warning ${warnClass}">

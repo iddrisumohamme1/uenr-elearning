@@ -28,7 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalStudentsEl = document.getElementById('total-students');
     const totalCoursesEl = document.getElementById('total-courses');
     const criticalStudentsEl = document.getElementById('critical-students');
-    const tableBody = document.getElementById('real-time-body');
+    const queueBody = document.getElementById('queue-body');
+    const cohortStrip = document.getElementById('cohort-strip');
+    const attentionCount = document.getElementById('attention-count');
+    const attentionCountSub = document.getElementById('attention-count-sub');
 
     let engagementChart = null;
     let comprehensionChart = null;
@@ -38,14 +41,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── Messaging ─────────────────────────────────────────────────────────────
     const messageModal = document.getElementById('message-modal');
-    const studentsModal = document.getElementById('students-modal');
     let messageRecipient = null;
 
     const closeModal = (m) => { if (m) m.hidden = true; };
     document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
         btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
     );
-    [messageModal, studentsModal].forEach(m => m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
+    messageModal.addEventListener('click', (e) => { if (e.target === messageModal) closeModal(messageModal); });
 
     function openMessage(studentName, studentId, courseLabel, courseId) {
         messageRecipient = { student_id: studentId, course_id: courseId };
@@ -178,6 +180,95 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // ── Attention queue helpers ─────────────────────────────────────────────
+    function escapeHTML(str) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(str).replace(/[&<>"']/g, c => map[c]);
+    }
+
+    function severityOf(s) {
+        const cls = Number(s.comprehension_class);
+        if (cls === 0) return 0;   // low  -> highest urgency
+        if (cls === 2) return 2;   // good
+        return 1;                  // moderate
+    }
+
+    function severityClass(s) {
+        const sev = severityOf(s);
+        return sev === 0 ? 'low' : sev === 2 ? 'good' : 'mod';
+    }
+
+    function daysBetween(iso) {
+        if (!iso) return null;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return null;
+        return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+
+    function flagAgeLabel(iso) {
+        const days = daysBetween(iso);
+        if (days == null) return '';
+        if (days === 0) return 'flagged today';
+        return days === 1 ? 'flagged 1 day ago' : `flagged ${days} days ago`;
+    }
+
+    function idleLabel(days) {
+        if (days == null) return 'last active —';
+        if (days === 0) return 'active today';
+        return days === 1 ? 'idle 1 day' : `idle ${days} days`;
+    }
+
+    function quizReadout(score) {
+        if (score == null) return '<span class="meta-readout">quiz —</span>';
+        const cls = score < 50 ? 'low' : score < 70 ? 'mod' : 'good';
+        return `<span class="meta-readout meta-quiz quiz--${cls}">quiz ${Math.round(score)}%</span>`;
+    }
+
+    function allClearHTML(message) {
+        return `
+            <div class="queue-empty">
+                <span class="queue-clear-ring"></span>
+                <div>
+                    <h4>All clear</h4>
+                    <p class="text-muted">${message}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAttentionRow(row, courseLabel) {
+        const displayName = row.full_name || (row.student_id || 'Unknown').substring(0, 8) + '…';
+        const sev = severityClass(row);
+        const lit = sev === 'low' ? 1 : sev === 'mod' ? 2 : 3;
+        return `
+            <div class="attention-row" data-sev="${sev}">
+                <span class="attention-ring" aria-hidden="true"></span>
+                <div class="attention-main">
+                    <div class="attention-name">${escapeHTML(displayName)}</div>
+                    <div class="attention-meta">
+                        <span class="meta-readout">${flagAgeLabel(row.created_at)}</span>
+                        ${quizReadout(row.latest_quiz_score)}
+                        <span class="meta-readout">${row.reading_minutes ? `read ${Math.round(row.reading_minutes)} min` : 'no reading logged'}</span>
+                        <span class="meta-readout">${idleLabel(row.days_since_last_activity)}</span>
+                    </div>
+                </div>
+                <div class="attention-comp" aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
+                    <div class="comp-meter">
+                        <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
+                        <span class="comp-seg ${2 <= lit ? 'is-on' : ''}"></span>
+                        <span class="comp-seg ${3 <= lit ? 'is-on' : ''}"></span>
+                    </div>
+                    <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
+                </div>
+                <button class="attention-action btn-msg"
+                    data-name="${escapeHTML(displayName)}"
+                    data-id="${row.student_id}"
+                    data-course="${escapeHTML(courseLabel)}"
+                    data-course-id="${row.course_id}">Reach out</button>
+            </div>
+        `;
+    }
+
     async function loadDashboard() {
         try {
             const coursesRes = await authFetch(`${API_BASE}/api/courses/mine`);
@@ -188,7 +279,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 totalCoursesEl.textContent = '0';
                 totalStudentsEl.textContent = '0';
                 criticalStudentsEl.textContent = '0';
-                tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p class="text-muted">No courses assigned yet. Upload content or create a quiz to get started.</p></td></tr>';
+                attentionCount.textContent = '0';
+                attentionCountSub.textContent = 'no courses yet';
+                cohortStrip.hidden = true;
+                queueBody.innerHTML = allClearHTML('No courses assigned yet. Upload content or create a quiz to get started.');
                 return;
             }
 
@@ -241,120 +335,89 @@ document.addEventListener('DOMContentLoaded', async () => {
                 )
             );
 
-            const atRiskRows = [];
+            const groups = [];
+            const groupMap = {};
             atRiskResults.forEach(({ course, students }) => {
                 (students || []).forEach(s => {
-                    atRiskRows.push({
+                    if (!s || !s.student_id) return;
+                    if (!groupMap[course.id]) {
+                        groupMap[course.id] = {
+                            courseId: course.id,
+                            label: `${course.code || 'N/A'} · ${course.title}`,
+                            students: [],
+                        };
+                        groups.push(groupMap[course.id]);
+                    }
+                    groupMap[course.id].students.push({
                         student_id: s.student_id,
-                        full_name: s.full_name || null,
-                        course: `${course.code || 'N/A'} - ${course.title}`,
                         course_id: course.id,
-                        comprehension: s.comprehension_label || 'Unknown'
+                        full_name: s.full_name || null,
+                        comprehension_label: s.comprehension_label || 'Unknown',
+                        comprehension_class: s.comprehension_class,
+                        created_at: s.created_at,
+                        reading_minutes: s.reading_minutes,
+                        days_since_last_activity: s.days_since_last_activity,
+                        latest_quiz_score: s.latest_quiz_score,
                     });
                 });
             });
 
-            if (atRiskRows.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p class="text-muted">No students are at risk right now.</p></td></tr>';
-            } else {
-                tableBody.innerHTML = atRiskRows.slice(0, 15).map(row => {
-                    const displayName = row.full_name || (row.student_id || 'Unknown').substring(0, 8) + '…';
-                    return `
-                        <tr>
-                            <td class="student-cell">${displayName}</td>
-                            <td>${row.course}</td>
-                            <td><span class="badge badge--warning">${row.comprehension}</span></td>
-                            <td class="status-cell"><span class="badge badge--danger">At Risk</span></td>
-                            <td><button class="btn-msg" data-name="${displayName}" data-id="${row.student_id}" data-course="${row.course}">Message</button></td>
-                        </tr>
-                    `;
-                }).join('');
+            // Worst first: lowest comprehension, then the flag that has sat longest.
+            groups.forEach(g => {
+                g.students.sort((a, b) => {
+                    const sev = severityOf(a) - severityOf(b);
+                    if (sev !== 0) return sev;
+                    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+                });
+            });
+            groups.sort((a, b) => b.students.length - a.students.length);
 
-                tableBody.querySelectorAll('.btn-msg').forEach(btn => {
-                    btn.addEventListener('click', () => openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, null));
+            const totalFlagged = groups.reduce((n, g) => n + g.students.length, 0);
+            attentionCount.textContent = String(totalFlagged);
+            attentionCountSub.textContent = totalFlagged
+                ? `across ${groups.length} course${groups.length === 1 ? '' : 's'}`
+                : 'no one flagged';
+
+            if (totalFlagged === 0) {
+                cohortStrip.hidden = true;
+                queueBody.innerHTML = allClearHTML('No students are flagged right now — everyone is keeping pace.');
+            } else {
+                cohortStrip.hidden = false;
+                cohortStrip.innerHTML = groups.map(g => `
+                    <span class="cohort-group" title="${escapeHTML(g.label)}">
+                        ${g.students.map(s => {
+                            const name = s.full_name || s.student_id.substring(0, 8);
+                            return `<span class="cohort-dot cohort-dot--${severityClass(s)}" title="${escapeHTML(name)}"></span>`;
+                        }).join('')}
+                    </span>
+                `).join('');
+
+                queueBody.innerHTML = groups.map(g => `
+                    <div class="queue-course">
+                        <div class="queue-course-head">
+                            <span class="queue-course-code">${escapeHTML(g.label.split(' · ')[0])}</span>
+                            <h4 class="queue-course-title">${escapeHTML(g.label.split(' · ').slice(1).join(' · '))}</h4>
+                            <span class="queue-course-count">${g.students.length} flagged</span>
+                        </div>
+                        ${g.students.map(row => renderAttentionRow(row, g.label)).join('')}
+                    </div>
+                `).join('');
+
+                queueBody.querySelectorAll('.attention-action').forEach(btn => {
+                    btn.addEventListener('click', () => openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, btn.dataset.courseId || null));
                 });
             }
-
-            await loadCourseList(courses, atRiskRows);
         } catch (err) {
             console.error('Lecturer dashboard error:', err);
             setPulse(0, 0, 0, "Couldn't reach the server. Refresh to try again.");
             totalStudentsEl.textContent = '--';
             totalCoursesEl.textContent = '--';
             criticalStudentsEl.textContent = '--';
-            tableBody.innerHTML = '<tr><td colspan="5" class="table-loading"><p style="color:var(--clr-danger)">Unable to load dashboard data.</p></td></tr>';
+            attentionCount.textContent = '--';
+            attentionCountSub.textContent = '';
+            cohortStrip.hidden = true;
+            queueBody.innerHTML = '<div class="queue-error"><p class="text-muted" style="color:var(--clr-danger)">Unable to load dashboard data.</p></div>';
             showToast('Unable to load dashboard data.', 'error');
-        }
-    }
-
-    async function loadCourseList(courses, atRiskRows) {
-        const courseListBody = document.getElementById('course-list-body');
-        const atRiskPerCourse = {};
-        atRiskRows.forEach(r => { atRiskPerCourse[r.course_id] = (atRiskPerCourse[r.course_id] || 0) + 1; });
-
-        const rows = await Promise.all(courses.map(async (c) => {
-            let enrolled = '–';
-            try {
-                const res = await authFetch(`${API_BASE}/api/courses/${c.id}/students`);
-                if (res.ok) {
-                    const data = await res.json();
-                    enrolled = data.total_enrolled != null ? String(data.total_enrolled) : '–';
-                }
-            } catch (err) { /* keep – */ }
-            return {
-                id: c.id,
-                label: `${c.code || 'N/A'} - ${c.title}`,
-                enrolled,
-                atRisk: atRiskPerCourse[c.id] || 0,
-            };
-        }));
-
-        courseListBody.innerHTML = rows.map(row => `
-            <tr>
-                <td class="course-cell">${row.label}</td>
-                <td>${row.enrolled}</td>
-                <td class="status-cell">${row.atRisk ? `<span class="badge badge--danger">${row.atRisk}</span>` : '<span class="badge badge--success">0</span>'}</td>
-                <td><button class="btn-view" data-course-id="${row.id}" data-course-label="${row.label}">View students</button></td>
-            </tr>
-        `).join('');
-
-        courseListBody.querySelectorAll('[data-course-id]').forEach(btn => {
-            btn.addEventListener('click', () => openStudents(btn.dataset.courseId, btn.dataset.courseLabel));
-        });
-    }
-
-    async function openStudents(courseId, courseLabel) {
-        document.getElementById('students-title').textContent = courseLabel;
-        const body = document.getElementById('students-body');
-        studentsModal.hidden = false;
-        body.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading students…</p></div>';
-        try {
-            const res = await authFetch(`${API_BASE}/api/courses/${courseId}/students`);
-            if (!res.ok) throw new Error('students fetch failed');
-            const data = await res.json();
-            const students = data.students || [];
-            if (!students.length) {
-                body.innerHTML = '<p class="text-muted">No students are enrolled in this course yet.</p>';
-                return;
-            }
-            body.innerHTML = students.map(s => `
-                <div class="student-row">
-                    <div>
-                        <span class="student-name">${s.full_name || 'Unknown student'}</span>
-                        <span class="student-email">${s.email || ''}</span>
-                    </div>
-                    <button class="btn-msg" data-name="${s.full_name || 'Student'}" data-id="${s.student_id}" data-course="${courseLabel}">Message</button>
-                </div>
-            `).join('');
-            body.querySelectorAll('.btn-msg').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    closeModal(studentsModal);
-                    openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, courseId);
-                });
-            });
-        } catch (err) {
-            body.innerHTML = '<p class="text-muted">Unable to load students.</p>';
-            showToast('Unable to load students.', 'error');
         }
     }
 

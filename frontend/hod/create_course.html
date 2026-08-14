@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -18,23 +19,12 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <aside class="sidebar">
-            <div class="sidebar-header"><img class="logo" src="../image/UENR-LOGO.png" alt="UENR Learn logo" /><span class="logo-text"> UENR Learn</span></div>
-            <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-link"><span class="nav-icon"><i class="bi bi-house-door"></i></span><span class="nav-label"> Overview</span></a>
-                <a href="department_analytics.html" class="nav-link"><span class="nav-icon"><i class="bi bi-buildings"></i></span><span class="nav-label"> Dept Analytics</span></a>
-                <a href="create_course.html" class="nav-link active"><span class="nav-icon"><i class="bi bi-plus-circle"></i></span><span class="nav-label"> Add Course</span></a>
-                <a href="upload.html" class="nav-link"><span class="nav-icon"><i class="bi bi-cloud-arrow-up"></i></span><span class="nav-label"> Upload Material</span></a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="logout-btn"><span class="nav-icon"><i class="bi bi-box-arrow-right"></i></span><span class="nav-label"> Logout</span></button>
-            </div>
-        </aside>
+        <aside class="sidebar" id="app-sidebar"></aside>
 
         <main class="main-content">
             <header class="top-bar">
                 <h1>Add Department Course</h1>
-                <p class="text-muted">Create a new course and assign it to a lecturer in your department.</p>
+                <!-- <p class="text-muted">Create a new course and assign it to a lecturer in your department.</p> -->
             </header>
 
             <form id="create-course-form" class="course-form">
@@ -52,7 +42,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Assign Lecturer</label>
-                    <select id="lecturer-select" class="form-input" required>
+                    <select id="lecturer-select" class="form-input" data-dropdown required>
                         <option value="" disabled selected>Select a department lecturer</option>
                     </select>
                 </div>
@@ -60,9 +50,11 @@
             </form>
         </main>
     </div>
+    <script src="../shared/sidebar.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
     <script src="create_course.js"></script>
 </body>
 </html>

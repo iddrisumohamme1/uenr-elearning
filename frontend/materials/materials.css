@@ -259,20 +259,6 @@
 
 .semester-filter {
     width: 100%;
-    padding: var(--s2) var(--s3);
-    border-radius: var(--r-md);
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-primary);
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.semester-filter:focus {
-    outline: none;
-    border-color: var(--border-focus);
-    box-shadow: var(--ring);
 }
 
 .topic-list {

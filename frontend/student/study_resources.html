@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Resources - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="study-resources.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow">Study Aids</p>
+                    <div class="title-row">
+                        <h1>Study Resources</h1>
+                        <div class="user-profile">
+                            <span id="user-name">Loading...</span>
+                            <div class="avatar" id="user-avatar">S</div>
+                        </div>
+                    </div>
+                </div>
+                
+            </header>
+
+            <div class="reader-panel">
+                <label class="reader-label" for="course-select">Course</label>
+                <select id="course-select" class="reader-select" data-dropdown required>
+                    <option value="" disabled selected>Loading your courses…</option>
+                </select>
+            </div>
+
+            <div id="resource-list" class="resource-list" aria-live="polite">
+                <div class="reader-empty">
+                    <i class="bi bi-journal-text"></i>
+                    <h3>Pick a course</h3>
+                    <p class="text-muted">Choose a course above to read the study aids your lecturers have published.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../shared/sidebar.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
+    <script src="study_resources.js"></script>
+</body>
+</html>
