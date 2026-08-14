@@ -4,14 +4,14 @@
 ---
 
 ## Project Overview
-An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, and recommends external learning resources.
+An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, auto-generates AI assignments from course materials, and recommends external learning resources.
 
 ## User Roles
 | Role | Description |
 |------|-------------|
-| **Student** | Access materials, answer quizzes/micro-questions, receive personalized recommendations, track engagement |
-| **Lecturer** | Upload materials, monitor students in real-time, assign quizzes, view analytics dashboards |
-| **HOD** | Monitor departmental analytics, course performance reports, identify at-risk students early |
+| **Student** | Access materials, answer quizzes/micro-questions, complete AI-generated assignments, receive personalized recommendations, message lecturers, track engagement and progress |
+| **Lecturer** | Upload materials, monitor students in real-time, publish resources, create quizzes and assignments, message students, view analytics dashboards |
+| **HOD** | Monitor departmental analytics and courses, identify at-risk students early, create courses and quizzes |
 
 ## Tech Stack
 | Layer | Technology |
@@ -19,6 +19,8 @@ An intelligent web-based e-learning platform that monitors student engagement an
 | Frontend | HTML5, CSS3, Vanilla JavaScript (no framework) |
 | Backend | Python, FastAPI, Uvicorn |
 | ML Model | TensorFlow Two-Tower Neural Network (engagement/comprehension classification) |
+| AI Generation | Google Gemini + Groq fallback (quiz & assignment generation) |
+| Recommendations | YouTube Data API v3 + curated resource catalog |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth + JWT Bearer Tokens |
 | Storage | Supabase Storage (materials, avatars) |
@@ -31,33 +33,34 @@ FYP/
 │   ├── shared/                   # Shared design system & components
 │   │   ├── variables.css         # CSS design tokens (colors, spacing, typography)
 │   │   ├── reset.css             # CSS reset + base polish
-│   │   ├── typography.css        # Shared typography + utilities (badges, glass, animations)
-│   │   ├── responsive.css        # Mobile/tablet breakpoints (772px, 560px, 400px)
-│   │   ├── sidebar.css           # Shared sidebar component (all roles)
+│   │   ├── typography.css        # Shared typography + utilities
+│   │   ├── responsive.css        # Mobile/tablet breakpoints
+│   │   ├── sidebar.css + sidebar.js  # Shared sidebar component (all roles)
+│   │   ├── dropdown.css + dropdown.js # Custom dropdown/select component
+│   │   ├── pulse.css             # Real-time engagement pulse bar
 │   │   ├── spinner.css           # Loading spinners, skeletons, button loaders
-│   │   ├── toast.css             # Toast notification styles
-│   │   ├── profile-popup.css     # Profile popup overlay styles
+│   │   ├── toast.css + toast.js  # Toast notifications (success/error/warning/info)
+│   │   ├── profile-popup.css + profile-popup.js # Profile popup with avatar upload
 │   │   ├── theme.js              # Light/dark theme toggle (localStorage)
-│   │   ├── session.js            # Auth session management, token refresh, role guards
-│   │   ├── profile-popup.js      # Profile popup with avatar upload
-│   │   └── toast.js              # Toast notification system (success/error/warning/info)
-│   ├── auth/                     # Login & Register pages
-│   ├── student/                  # Student dashboard
+│   │   └── session.js            # Auth session, token refresh, role guards, nav badges
+│   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
+│   ├── student/                  # Dashboard, assignments, inbox, progress, study resources
 │   ├── courses/                  # Course catalog & enrollment
 │   ├── materials/                # Material viewer (engagement tracking + micro-questions)
-│   ├── quiz/                     # Quiz taking interface
+│   ├── quiz/                     # Quiz taking interface (incl. AI-generated quizzes)
 │   ├── results/                  # Quiz results page
 │   ├── analytics/                # Student performance analytics
 │   ├── recommendations/          # AI-powered recommendations
-│   ├── lecturer/                 # Lecturer dashboard, upload, quiz creation
-│   ├── hod/                      # HOD dashboard, department analytics, course creation
-│   ├── css/                      # Index page styles (base/, components/, pages/)
+│   ├── lecturer/                 # Dashboard, resources, my courses, assignments, quiz creation, upload
+│   ├── hod/                      # Dashboard, department analytics/courses, course & quiz creation
+│   ├── css/                      # Landing page styles
+│   ├── image/                    # Static images (logo, etc.)
 │   └── index.html                # Landing page
 ├── backend/                      # FastAPI backend
 │   ├── app/
 │   │   ├── main.py               # App entry point, CORS, routers
 │   │   ├── core/
-│   │   │   ├── config.py         # Environment settings (.env)
+│   │   │   ├── config.py         # Environment settings (backend/.env)
 │   │   │   └── security.py       # JWT auth, role-based access (get_current_user, require_role)
 │   │   ├── database.py           # Supabase client (admin + anon)
 │   │   ├── routes/
@@ -65,19 +68,32 @@ FYP/
 │   │   │   ├── courses.py        # Course CRUD, enrollment
 │   │   │   ├── materials.py      # Material upload, listing, proxy (SSRF-protected)
 │   │   │   ├── engagement.py     # Telemetry logging, Two-Tower classification
-│   │   │   ├── analytics.py      # Lecturer & HOD analytics endpoints
+│   │   │   ├── analytics.py      # Lecturer, HOD & study analytics
+│   │   │   ├── study.py          # Per-student study summary
 │   │   │   ├── quiz.py           # Quiz creation, submission, results
-│   │   │   ├── recommendations.py # AI resource recommendations
+│   │   │   ├── assignments.py    # AI assignment creation, submission, pending-count
 │   │   │   ├── micro_questions.py # Auto-generated comprehension checks
+│   │   │   ├── recommendations.py # AI resource recommendations
+│   │   │   ├── resources.py      # Resource catalog (generate/publish/list)
+│   │   │   ├── messages.py       # Inbox, unread count, read receipts
+│   │   │   ├── attendance.py     # Attendance logging
 │   │   │   ├── users.py          # Profile update, avatar upload
 │   │   │   └── students.py       # Student listing for lecturers/HODs
 │   │   ├── schemas/              # Pydantic request/response models
 │   │   └── services/
 │   │       ├── engagement_analyzer.py  # Two-Tower NN inference
-│   │       └── recommendation_engine.py # Recommendation logic
+│   │       ├── recommendation_engine.py # Recommendation logic
+│   │       ├── quiz_generator.py       # Gemini/Groq quiz & assignment generation
+│   │       ├── youtube_service.py      # YouTube Data API integration
+│   │       ├── material_content.py     # Material content extraction
+│   │       └── grades.py               # Grade computation
+│   ├── .env.example              # Backend environment template
 │   └── requirements.txt
-├── ml/                           # ML training notebooks & datasets
-├── supabase/                     # Database migrations (SQL)
+├── ml/                           # ML inference code & trained model
+│   ├── src/                      # Model inspection & inference scripts
+│   └── models/                   # Trained model artifacts (e.g. student_engagement_model.keras)
+├── supabase/                     # Database migrations (SQL) & seed data
+├── .env.example                  # Root environment template
 └── start.ps1                     # Quick-start script
 ```
 
@@ -87,6 +103,7 @@ FYP/
 - Python 3.10+ and pip
 - PowerShell on Windows
 - VS Code with the Live Server extension (recommended)
+- A Supabase project (see below)
 
 ### 1. Create and activate a virtual environment
 ```powershell
@@ -103,15 +120,14 @@ pip install -r ml/requirements.txt
 
 ### 3. Configure environment variables
 ```powershell
-Copy-Item .env.example .env
+Copy-Item backend\.env.example backend\.env
 ```
-Update the values in `.env` if needed. The example file contains the default Supabase credentials for local development.
+Fill in `backend/.env` with your Supabase project URL and keys (Project Settings → API). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required; `GEMINI_API_KEY`, `GROQ_API_KEY`, and `YOUTUBE_API_KEY` enable AI quiz/assignment generation and live video recommendations (leave empty for fallbacks).
 
 ### 4. Run the backend
 ```powershell
+.\venv\Scripts\Activate.ps1
 cd backend
-c:/Users/myPC/Desktop/FYP/venv/Scripts/Activate.ps1
-
 python -m uvicorn app.main:app --reload --port 8001
 ```
 - API docs: http://localhost:8001/docs
@@ -128,6 +144,7 @@ Then visit http://127.0.0.1:5500/frontend/index.html
 ```powershell
 .\start.ps1
 ```
+Starts the backend (skips if already running on port 8001) and opens the landing page.
 
 ## Key Features
 
@@ -143,34 +160,48 @@ Then visit http://127.0.0.1:5500/frontend/index.html
 - Classifies students into At-Risk / Moderate / Highly Engaged
 - Also classifies comprehension level (Low / Moderate / Good)
 - Auto-classify endpoint bridges telemetry logs with ML inference
+- Lazy-loads the model and falls back to a heuristic analyzer when `ENGAGEMENT_ML_ENABLED=false`
 
 ### Micro-Questions
 - Auto-generated when a student is classified as At-Risk
-- 3 multiple-choice questions per session with hints
-- Difficulty adapts based on previous performance
+- Multiple-choice questions with hints; difficulty adapts to performance
 - Results update engagement classification in real-time
 
+### AI Assignments
+- Auto-generated per student from course materials (Gemini/Groq)
+- "Download a material to unlock your assignment" flow; pending-count badge on the sidebar
+- Submission tracking with on-time status and average grade
+- Assignment Performance section in the student analytics dashboard
+
+### AI Quizzes
+- Quiz creation with manual or AI-generated questions (Gemini/Groq)
+- Instant grading and per-question feedback
+- Weak-topic detection feeds the recommendation engine
+
 ### Recommendations
-- Takes weak concepts as input
-- Recommends YouTube tutorials, articles, and study materials
-- Personalized based on engagement history and course content
+- Takes weak concepts (from quiz history) as input
+- Recommends YouTube tutorials (YouTube Data API), articles, and study materials
+- Curated resource catalog that lecturers can generate and publish per course
+
+### Messaging & Attendance
+- Student ↔ lecturer inbox with unread-count badges
+- Attendance logging per student
 
 ### Design System
 - **Dark mode** (default) and **light mode** toggle
 - CSS custom properties for all tokens (colors, spacing, typography, shadows)
 - Responsive breakpoints: 772px (tablet sidebar), 560px (mobile bottom nav), 400px (compact)
-- Shared sidebar component across all roles
-- Toast notifications (success/error/warning/info)
-- Loading spinners, skeleton placeholders, button loaders
+- Shared sidebar, custom dropdown, and pulse components across all roles
+- Toast notifications, loading spinners, skeleton placeholders, button loaders
 - Profile popup with avatar upload
 
 ### Security
 - JWT bearer token authentication via Supabase
 - Role-based access control (student, lecturer, HOD)
 - Students can only access their own data
-- Quiz submission authorization (prevents submitting as another student)
-- SSRF protection on material proxy endpoint
-- SSL bypass conditional on `APP_ENV=development`
+- Quiz/assignment submission authorization (prevents submitting as another student)
+- SSRF protection on the material proxy endpoint
+- Real credentials live only in the gitignored `backend/.env`
 
 ## API Endpoints
 
@@ -190,12 +221,29 @@ Then visit http://127.0.0.1:5500/frontend/index.html
 | GET | `/api/engagement/student/{id}` | Yes | Get student engagement logs |
 | GET | `/api/analytics/course/{id}/summary` | Yes | Course engagement summary |
 | GET | `/api/analytics/department/summary` | HOD | Department-wide analytics |
+| GET | `/api/study/summary/{id}` | Yes | Per-student study & progress summary |
 | POST | `/api/quiz/create` | Lecturer | Create a quiz with questions |
 | POST | `/api/quiz/submit` | Yes | Submit quiz attempt |
 | GET | `/api/quiz/course/{id}` | Yes | Get quizzes for a course |
+| POST | `/api/assignments/create` | Lecturer | Create an assignment |
+| POST | `/api/assignments/auto-generate` | Lecturer | Auto-generate AI assignments |
+| GET | `/api/assignments/pending-count` | Student | Count of pending AI assignments |
+| GET | `/api/assignments/course/{course_id}` | Yes | Assignments for a course |
+| POST | `/api/assignments/submit` | Yes | Submit an assignment |
+| GET | `/api/assignments/{assignment_id}/submissions` | Lecturer | View submissions |
 | POST | `/api/micro-questions/generate` | Yes | Generate micro-questions |
 | POST | `/api/micro-questions/verify` | Yes | Verify micro-question answers |
 | POST | `/api/recommendations/generate` | Yes | Get AI recommendations |
+| POST | `/api/resources/generate` | Yes | Generate a study resource |
+| POST | `/api/resources/publish` | Lecturer | Publish a resource to a course |
+| GET | `/api/resources/course/{course_id}` | Yes | Resources for a course |
+| DELETE | `/api/resources/{resource_id}` | Lecturer | Delete a resource |
+| POST | `/api/messages/send` | Yes | Send a message |
+| GET | `/api/messages/inbox` | Yes | Get inbox messages |
+| GET | `/api/messages/unread-count` | Yes | Count unread messages |
+| POST | `/api/messages/read/{message_id}` | Yes | Mark a message as read |
+| POST | `/api/attendance/log` | Lecturer | Log attendance |
+| GET | `/api/attendance/student/{student_id}` | Yes | Get attendance records |
 | POST | `/api/users/profile/avatar` | Yes | Upload profile avatar |
 
 ## License
