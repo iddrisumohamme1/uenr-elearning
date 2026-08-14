@@ -115,8 +115,12 @@ python -m pip install --upgrade pip
 ### 2. Install dependencies
 ```powershell
 pip install -r backend/requirements.txt
-pip install -r ml/requirements.txt
 ```
+Optionally install the heavy ML packages (Two-Tower model, semantic search) for local use:
+```powershell
+pip install -r backend/requirements-ml.txt
+```
+The app runs without them (heuristic + TF-IDF fallbacks); the ML flags in `backend/.env` control which path is used.
 
 ### 3. Configure environment variables
 ```powershell

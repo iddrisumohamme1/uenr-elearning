@@ -1,0 +1,11 @@
+# Optional heavy ML dependencies for local development (Two-Tower model,
+# semantic search). NOT needed on constrained hosts (Render free tier) — the
+# app imports these lazily and falls back to TF-IDF + heuristic analysis when
+# they are missing or disabled via SEMANTIC_SEARCH_ENABLED / ENGAGEMENT_ML_ENABLED.
+# Install locally with:  pip install -r backend/requirements.txt -r backend/requirements-ml.txt
+tensorflow
+sentence-transformers
+xgboost
+scikit-learn
+pandas
+joblib
