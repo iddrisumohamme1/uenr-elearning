@@ -129,7 +129,10 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
         c["assignments_total"] = assignment_stats.get(c["course_id"], {}).get("total", 0)
         c["assignments_submitted"] = assignment_stats.get(c["course_id"], {}).get("submitted", 0)
         c["assignments_on_time"] = assignment_stats.get(c["course_id"], {}).get("on_time", 0)
-        c["attendance_present_rate"] = attendance.get("per_course", {}).get(c["course_id"])
+        att = attendance.get("per_course", {}).get(c["course_id"])
+        c["attendance_present_rate"] = att.get("present_rate") if att else None
+        c["attendance_sessions"] = att.get("present_sessions") if att else None
+        c["attendance_total"] = att.get("total_sessions") if att else None
         c["assignments_grade_avg"] = assignment_stats.get(c["course_id"], {}).get("grade_avg")
         predicted = _predict_percentage(
             quiz_avg=c["quiz_avg"],
@@ -162,6 +165,8 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
             "predicted_grade": overall_predicted["grade"],
             "quiz_avg": overall_quiz_avg,
             "attendance_present_rate": overall_attendance,
+            "attendance_sessions": attendance.get("present_sessions"),
+            "attendance_total": attendance.get("total_sessions"),
             "active_warnings": sum(1 for c in courses if c["warning"]),
         },
     }
@@ -277,10 +282,34 @@ def _on_time(submitted_at, due_date):
 
 
 def _attendance_stats(admin, student_id, course_ids):
+    """
+    Session-based attendance. A session is a recorded class meeting: a
+    distinct (course_id, logged_date) pair seen across *all* students'
+    attendance_logs. Each student's attendance is the count of their own
+    days logged as present, against the course's recorded meetings.
+    """
     per_course = {cid: None for cid in course_ids}
-    total_present = 0
-    total_logs = 0
+    present_count = 0
+    held_count = 0
     if course_ids:
+        # Recorded meetings per course: distinct dates anyone logged.
+        held_dates = {cid: set() for cid in course_ids}
+        try:
+            held_resp = with_retry(
+                lambda c: c.table("attendance_logs")
+                .select("course_id, logged_date")
+                .in_("course_id", course_ids)
+                .execute()
+            )
+            for l in (getattr(held_resp, "data", []) or []):
+                cid = l.get("course_id")
+                if cid in held_dates and l.get("logged_date"):
+                    held_dates[cid].add(str(l["logged_date"])[:10])
+        except Exception as exc:
+            print(f"[study] attendance held-sessions error: {exc}")
+
+        # This student's statuses per course (one row per course per day).
+        by_course = {cid: [] for cid in course_ids}
         try:
             att_resp = with_retry(
                 lambda c: c.table("attendance_logs")
@@ -289,24 +318,33 @@ def _attendance_stats(admin, student_id, course_ids):
                 .in_("course_id", course_ids)
                 .execute()
             )
-            logs = getattr(att_resp, "data", []) or []
-            by_course = {cid: [] for cid in course_ids}
-            for l in logs:
+            for l in (getattr(att_resp, "data", []) or []):
                 cid = l.get("course_id")
                 if cid in by_course:
                     by_course[cid].append(l.get("status"))
-
-            for cid, statuses in by_course.items():
-                if statuses:
-                    present = sum(1 for s in statuses if s == "present")
-                    per_course[cid] = round(present / len(statuses) * 100, 1)
-                    total_present += present
-                    total_logs += len(statuses)
         except Exception as exc:
             print(f"[study] attendance stats error: {exc}")
 
-    present_rate = round(total_present / total_logs * 100, 1) if total_logs else None
-    return {"present_rate": present_rate, "per_course": per_course}
+        for cid, statuses in by_course.items():
+            held = len(held_dates.get(cid, set())) or len(statuses)
+            if held == 0:
+                continue
+            present = sum(1 for s in statuses if s == "present")
+            per_course[cid] = {
+                "present_sessions": present,
+                "total_sessions": held,
+                "present_rate": round(present / held * 100, 1),
+            }
+            present_count += present
+            held_count += held
+
+    present_rate = round(present_count / held_count * 100, 1) if held_count else None
+    return {
+        "present_rate": present_rate,
+        "present_sessions": present_count,
+        "total_sessions": held_count,
+        "per_course": per_course,
+    }
 
 
 def _predict_percentage(quiz_avg=None, comprehension_class=None, attendance_rate=None, study_coverage=None, assignment_avg=None):

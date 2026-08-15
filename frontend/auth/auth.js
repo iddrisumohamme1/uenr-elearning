@@ -4,6 +4,10 @@
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Wake a sleeping backend (e.g. Render free tier) while the user is typing
+    // their credentials so the actual login isn't delayed by a cold start.
+    fetch(`${API_BASE}/api/health`).catch(() => {});
+
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
 
@@ -129,10 +133,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('session_start', String(Date.now()));
                     const role = data.user.role;
-                    showToast('Login successful. Redirecting...', 'success');
-                    setTimeout(() => {
-                        window.location.href = `../${role}/dashboard.html`;
-                    }, 700);
+                    showToast('Login successful.', 'success');
+                    window.location.href = `../${role}/dashboard.html`;
                 } else {
                     showToast('Login failed: ' + (data.detail || 'Invalid credentials'), 'error');
                     isSubmitting = false;
@@ -220,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.ok) {
                     // Auto-login with the fresh credentials so the user lands
                     // straight on their dashboard instead of the login page.
-                    showToast('Account created! Signing you in...', 'success');
+                    showToast('Login successful.', 'success');
                     try {
                         const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
                             method: 'POST',
@@ -233,9 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             localStorage.setItem('refresh_token', loginData.refresh_token);
                             localStorage.setItem('user', JSON.stringify(loginData.user));
                             localStorage.setItem('session_start', String(Date.now()));
-                            setTimeout(() => {
-                                window.location.href = `../${loginData.user.role}/dashboard.html`;
-                            }, 700);
+                            window.location.href = `../${loginData.user.role}/dashboard.html`;
                             return;
                         }
                     } catch (err) {

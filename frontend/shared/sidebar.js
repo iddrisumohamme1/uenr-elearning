@@ -110,7 +110,7 @@
         btn.setAttribute('aria-label', 'Open menu');
         btn.setAttribute('aria-expanded', 'false');
         btn.innerHTML = '<i class="bi bi-list"></i>';
-        (topBar.querySelector('.title-row') || topBar).prepend(btn);
+        topBar.prepend(btn);
         const backdrop = document.createElement('div');
         backdrop.className = 'sidebar-backdrop';
         document.body.appendChild(backdrop);

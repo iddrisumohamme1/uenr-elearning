@@ -370,7 +370,8 @@ def predict_grade(student_id: str, course_id: str, user=Depends(get_current_user
     attendance = _attendance_stats(admin, student_id, course_ids)
     assignment_stats = _assignment_stats(admin, student_id, course_ids)
     quiz_avg = quiz_stats.get(course_id)
-    attendance_rate = attendance.get("per_course", {}).get(course_id)
+    att_course = attendance.get("per_course", {}).get(course_id)
+    attendance_rate = att_course.get("present_rate") if att_course else None
     assignment_avg = assignment_stats.get(course_id, {}).get("grade_avg")
 
     # Weekly study coverage

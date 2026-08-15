@@ -9,6 +9,17 @@ from fastapi import Depends, Header, HTTPException
 
 from app.database import get_admin_client, with_retry
 
+# Short-lived cache of resolved users keyed by token hash. After login the
+# dashboard fires several parallel requests with the same token; without this
+# each one would make two Supabase round trips (get_user + profile query).
+# Staleness is bounded by the TTL (<= _AUTH_CACHE_TTL_S for role/avatar/
+# department changes), which is acceptable for this app.
+import hashlib
+import time
+
+_AUTH_CACHE: dict[str, tuple[float, dict]] = {}
+_AUTH_CACHE_TTL_S = 10
+
 
 def get_current_user(authorization: str = Header(default="")):
     """Validate the bearer token and return the user's profile row."""
@@ -17,6 +28,12 @@ def get_current_user(authorization: str = Header(default="")):
 
     token = authorization.split(" ", 1)[1].strip()
     admin = get_admin_client()
+
+    key = hashlib.sha256(token.encode()).hexdigest()
+    now = time.monotonic()
+    cached = _AUTH_CACHE.get(key)
+    if cached and now - cached[0] < _AUTH_CACHE_TTL_S:
+        return cached[1]
 
     # Ask Supabase who this token belongs to.
     try:
@@ -38,6 +55,7 @@ def get_current_user(authorization: str = Header(default="")):
     if not profile.data:
         raise HTTPException(status_code=404, detail="User profile not found")
 
+    _AUTH_CACHE[key] = (now, profile.data[0])
     return profile.data[0]
 
 

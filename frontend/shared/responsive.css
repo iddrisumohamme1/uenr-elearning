@@ -13,7 +13,7 @@
  * ==============================================================================
  */
 
-/* ─── Tablet (<= 772px): sidebar collapses to icon-only ~70px ─────────── */
+/* ─── Tablet (<= 772px): sidebar collapses to icon-only ~60px ─────────── */
 @media (max-width: 772px) {
   .dashboard-container,
   .courses-container,
@@ -24,8 +24,8 @@
   }
 
   .sidebar {
-    width: 70px !important;
-    min-width: 70px;
+    width: 60px !important;
+    min-width: 60px;
     padding: var(--s4) var(--s1) !important;
     align-items: center;
     overflow: visible;
@@ -53,10 +53,10 @@
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     padding: 0 !important;
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     border-radius: var(--r-lg);
     position: relative;
   }
@@ -113,13 +113,13 @@
   }
 
   .sidebar-footer button {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     padding: 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     border: none;
   }
 
@@ -229,8 +229,16 @@
   }
 
   .top-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
     flex-wrap: nowrap;
     gap: var(--s3);
+  }
+
+  .top-bar-title {
+    flex: 1;
+    min-width: 0;
   }
 
   /* Keep the header title compact so it stays on the same row as the profile */
@@ -375,15 +383,15 @@
     top: 0 !important;
     bottom: auto !important;
     left: 0;
-    width: min(260px, 82vw) !important;
+    width: min(200px, 80vw) !important;
     min-width: 0 !important;
-    max-width: 82vw;
+    max-width: 80vw;
     height: 100dvh !important;
     flex-direction: column !important;
     align-items: stretch;
     justify-content: flex-start;
     gap: 0;
-    padding: var(--s6) var(--s6) var(--s8) !important;
+    padding: var(--s6) var(--s4) var(--s6) !important;
     border-top: none !important;
     border-right: 1px solid var(--border) !important;
     background: var(--bg-surface);
@@ -402,8 +410,8 @@
   /* Re-show the logo header inside the drawer */
   .sidebar-header {
     display: flex !important;
-    margin-bottom: var(--s8) !important;
-    padding-bottom: var(--s4);
+    margin-bottom: var(--s6) !important;
+    padding-bottom: var(--s3);
     border-bottom: 1px solid var(--border);
   }
 
@@ -415,8 +423,9 @@
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch;
+    justify-content: flex-start;
     width: 100%;
-    gap: var(--s2) !important;
+    gap: var(--s1) !important;
     flex: 1;
   }
 
@@ -426,8 +435,8 @@
     height: auto !important;
     flex-direction: row;
     align-items: center;
-    gap: var(--s3);
-    padding: var(--s3) var(--s4) !important;
+    gap: var(--s2);
+    padding: var(--s2) var(--s3) !important;
     font-size: 1rem;
     text-align: left;
     border-radius: var(--r-md);
@@ -435,12 +444,16 @@
 
   .sidebar-nav .nav-link .nav-icon {
     font-size: 1.15rem;
+    flex: none;
   }
 
   .sidebar-nav .nav-link .nav-label {
     display: inline !important;
-    font-size: 0.95rem;
-    white-space: normal;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
     font-family: var(--font-display);
     font-weight: 600;
   }
@@ -459,8 +472,8 @@
   /* Re-show the logout footer inside the drawer */
   .sidebar-footer {
     display: block !important;
-    margin-top: var(--s4);
-    padding-top: var(--s4);
+    margin-top: var(--s2);
+    padding-top: var(--s3);
     border-top: 1px solid var(--border);
   }
 

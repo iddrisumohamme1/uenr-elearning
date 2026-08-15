@@ -171,6 +171,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const warnIcon = c.warning == null ? 'bi-check-circle' : 'bi-exclamation-triangle';
             const onTime = c.assignments_on_time || 0;
             const assignAvg = c.assignments_grade_avg != null ? ` · avg ${c.assignments_grade_avg}%` : '';
+            const attText = c.attendance_sessions != null
+                ? (c.attendance_total != null
+                    ? `Attended ${c.attendance_sessions} of ${c.attendance_total} sessions`
+                    : `Attended ${c.attendance_sessions} ${c.attendance_sessions === 1 ? 'session' : 'sessions'}`)
+                : 'Attendance n/a';
             const warningHtml = c.warning == null
                 ? 'You are meeting your weekly study target. Keep it up.'
                 : c.warning;
@@ -191,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span>${c.materials_count} materials</span>
                         <span>Quiz ${c.quiz_avg != null ? c.quiz_avg + '%' : 'n/a'}</span>
                         <span>Assignments ${c.assignments_submitted}/${c.assignments_total}${c.assignments_total ? ` (${onTime} on time)` : ''}${assignAvg}</span>
-                        <span>Attendance ${c.attendance_present_rate != null ? c.attendance_present_rate + '%' : 'n/a'}</span>
+                        <span>${attText}</span>
                     </div>
                     <div class="ledger-warning ${warnClass}">
                         <i class="bi ${warnIcon}"></i>
@@ -221,7 +226,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderHero() {
         const o = state.overall;
         document.getElementById('quiz-avg').textContent = o.quiz_avg != null ? `${Math.round(o.quiz_avg)}%` : '–';
-        document.getElementById('attendance-rate').textContent = o.attendance_present_rate != null ? `${Math.round(o.attendance_present_rate)}%` : '–';
+        const present = o.attendance_sessions;
+        const total = o.attendance_total;
+        const attRate = document.getElementById('attendance-rate');
+        const attNote = document.getElementById('attendance-note');
+        if (present == null) {
+            attRate.textContent = '–';
+            attNote.hidden = true;
+        } else if (total != null) {
+            attRate.textContent = `${present} / ${total}`;
+            attNote.textContent = 'sessions attended';
+            attNote.hidden = false;
+        } else {
+            attRate.textContent = `${present}`;
+            attNote.textContent = `${present === 1 ? 'session' : 'sessions'} attended`;
+            attNote.hidden = false;
+        }
         document.getElementById('warning-count').textContent = o.active_warnings || 0;
 
         const strip = document.getElementById('warning-strip');

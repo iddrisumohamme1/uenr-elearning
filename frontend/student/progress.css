@@ -239,6 +239,21 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Physical attendance is the one input a student owns outright —
+   it reads as the gold "energy" signifier, not a plain stat. */
+.readout--attendance {
+    border-color: rgba(251, 191, 36, 0.45);
+    background: var(--energy-soft);
+}
+
+.readout--attendance .readout-value { color: var(--clr-energy); }
+
+.readout-note {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
 .warning-strip {
     display: flex;
     gap: var(--s3);
@@ -317,15 +332,17 @@
     justify-content: space-between;
     gap: var(--s3);
     align-self: end;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
-.ledger-head h3 { font-size: 1.02rem; line-height: 1.3; }
+.ledger-head h3 { font-size: 1.02rem; line-height: 1.3; min-width: 0; }
 
 .ledger-code {
     color: var(--text-muted);
     font-size: 0.78rem;
     font-weight: 500;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .ledger-body { min-width: 0; }
@@ -490,5 +507,45 @@
 @media (max-width: 560px) {
     .readouts { grid-template-columns: 1fr; }
     .attendance-head { flex-direction: column; }
-    .ledger-row { grid-template-columns: 3.25rem 1fr; gap: var(--s1) var(--s3); }
+
+    /* Course channel: restack each row as a tidy card — grade chip + title
+       on the first line, everything else stacking underneath. */
+    .ledger-row {
+        grid-template-columns: 3.25rem 1fr;
+        grid-template-rows: auto auto;
+        gap: var(--s2) var(--s3);
+        align-items: start;
+        padding: var(--s4);
+    }
+
+    .ledger-grade {
+        grid-row: 1;
+        font-size: 1.15rem;
+        padding: var(--s1) var(--s2);
+        min-width: 2.5rem;
+    }
+
+    .ledger-head {
+        grid-column: 2;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--s1);
+        align-self: start;
+    }
+
+    .ledger-head h3 { font-size: 0.95rem; }
+
+    .ledger-body {
+        grid-column: 2;
+        grid-row: 2;
+        min-width: 0;
+    }
+
+    .ledger-bar-label {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .ledger-meta { gap: var(--s1); margin-top: var(--s2); }
+    .ledger-meta span { font-size: 0.7rem; }
 }

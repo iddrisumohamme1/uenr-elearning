@@ -161,8 +161,8 @@
 /* Mobile drawer toggle — injected by sidebar.js into the top bar's left
    corner. Display is toggled in responsive.css: hidden on large screens,
    shown at small widths (<= 560px) where the sidebar becomes a drawer.
-   The one signature touch: a quiet outlined card that flips to the brand
-   gradient with a white X while the drawer is open. */
+   The open state only swaps the icon (hamburger -> X); the button keeps its
+   quiet outlined card so the tap stays calm. */
 .sidebar-toggle {
     align-items: center;
     justify-content: center;
@@ -189,14 +189,6 @@
 .sidebar-toggle:focus-visible {
     outline: 2px solid var(--clr-primary);
     outline-offset: 2px;
-}
-
-/* Open state: hamburger becomes a white X on the brand gradient */
-body.sidebar-open .sidebar-toggle {
-    background: var(--grad-primary);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: var(--shadow-glow);
 }
 
 /* Scrim behind the open drawer */

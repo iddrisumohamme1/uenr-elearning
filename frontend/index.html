@@ -222,5 +222,15 @@
       <p>© 2025/2026 UENR E-Learning Platform </p>
     </div>
   </footer>
+  <script>
+    // Wake the backend (Render free tier sleeps when idle) so the first login
+    // isn't slowed by a cold start.
+    (function () {
+      const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8001'
+        : 'https://uenr-elearning-api.onrender.com';
+      fetch(base + '/api/health').catch(function () {});
+    })();
+  </script>
 </body>
 </html>

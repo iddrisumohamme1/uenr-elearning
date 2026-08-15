@@ -83,4 +83,11 @@ def upload_avatar(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to update profile: {exc}")
 
+    # Mirror the avatar into the user's metadata (merged, not replaced) so
+    # future logins can build the profile without a DB round trip.
+    try:
+        admin.auth.admin.update_user_by_id(user["id"], {"user_metadata": {"avatar_url": public_url}})
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to update profile metadata: {exc}")
+
     return {"avatar_url": public_url}

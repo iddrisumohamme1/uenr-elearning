@@ -23,6 +23,27 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def _profile_from_auth_user(auth_user) -> UserOut | None:
+    """Build the user profile from Supabase user_metadata (no DB round trip).
+
+    Returns None when metadata lacks any profile field (legacy accounts
+    created before department/avatar landed in metadata), so the caller can
+    fall back to the public.users table.
+    """
+    meta = getattr(auth_user, "user_metadata", None) or {}
+    required = ("full_name", "role", "department", "avatar_url")
+    if not all(k in meta for k in required):
+        return None
+    return UserOut(
+        id=auth_user.id,
+        full_name=meta["full_name"],
+        email=auth_user.email,
+        role=meta["role"],
+        department=meta.get("department"),
+        avatar_url=meta.get("avatar_url"),
+    )
+
+
 @router.post("/register", response_model=UserOut, status_code=201)
 def register(payload: RegisterRequest):
     if payload.role not in ALLOWED_ROLES:
@@ -44,6 +65,8 @@ def register(payload: RegisterRequest):
                 "user_metadata": {
                     "full_name": payload.full_name,
                     "role": payload.role,
+                    "department": payload.department,
+                    "avatar_url": None,
                 },
             }
         )
@@ -92,16 +115,21 @@ def login(payload: LoginRequest):
     if session is None or auth_user is None:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # 2. Load the profile (role, name) for the frontend redirect.
-    admin = get_admin_client()
-    profile = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
-    if not profile.data:
-        raise HTTPException(status_code=404, detail="User profile not found")
+    # 2. Build the profile from the signed-in user's metadata. For accounts
+    #    created before department/avatar landed in metadata (or with empty
+    #    metadata), fall back to the public.users table.
+    profile = _profile_from_auth_user(auth_user)
+    if profile is None:
+        admin = get_admin_client()
+        row = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
+        if not row.data:
+            raise HTTPException(status_code=404, detail="User profile not found")
+        profile = UserOut(**row.data[0])
 
     return AuthResponse(
         access_token=session.access_token,
         refresh_token=session.refresh_token,
-        user=UserOut(**profile.data[0]),
+        user=profile,
     )
 
 
@@ -120,13 +148,16 @@ def refresh_session(payload: RefreshRequest):
     if session is None or auth_user is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    admin = get_admin_client()
-    profile = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
-    if not profile.data:
-        raise HTTPException(status_code=404, detail="User profile not found")
+    profile = _profile_from_auth_user(auth_user)
+    if profile is None:
+        admin = get_admin_client()
+        row = with_retry(lambda c: c.table("users").select("*").eq("id", auth_user.id).execute())
+        if not row.data:
+            raise HTTPException(status_code=404, detail="User profile not found")
+        profile = UserOut(**row.data[0])
 
     return AuthResponse(
         access_token=session.access_token,
         refresh_token=session.refresh_token,
-        user=UserOut(**profile.data[0]),
+        user=profile,
     )
