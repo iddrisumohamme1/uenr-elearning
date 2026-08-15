@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
+from app.routes.recommendations import RECOMMEND_THRESHOLD, record_auto_recommendation
 from app.services.grades import letter_grade
 from app.services.material_content import material_text_from_url
 from app.services.quiz_generator import quiz_ai
@@ -148,7 +149,24 @@ def _load_material_text(admin, material_id: str) -> str:
         return ""
 
 
+_AUTO_GEN_LOCKS = set()
+
+
 def _auto_generate_for_student(admin, user):
+    """Guard against concurrent auto-generation for the same student (the
+    sidebar pending-count badge and the assignments page both trigger it).
+    Returns [] while another request is already generating."""
+    student_id = user["id"]
+    if student_id in _AUTO_GEN_LOCKS:
+        return []
+    _AUTO_GEN_LOCKS.add(student_id)
+    try:
+        return _auto_generate_impl(admin, user)
+    finally:
+        _AUTO_GEN_LOCKS.discard(student_id)
+
+
+def _auto_generate_impl(admin, user):
     """
     Creates a per-student AI assignment for every material the student has
     downloaded but does not yet have an auto-generated assignment for.
@@ -297,7 +315,7 @@ def get_course_assignments(course_id: str, user=Depends(get_current_user)):
     try:
         resp = with_retry(
             lambda c: c.table("assignments")
-            .select("*")
+            .select("id, course_id, title, instructions, due_date, week_number, created_at, auto_generated, source_material_id, student_id")
             .eq("course_id", course_id)
             .order("created_at", desc=True)
             .execute()
@@ -331,6 +349,28 @@ def get_course_assignments(course_id: str, user=Depends(get_current_user)):
 
     assignment_ids = [a["id"] for a in assignments]
     result = []
+
+    # The questions blob (with answer keys) is only needed for the student's
+    # own auto-generated assignments — fetch it separately and sanitized.
+    questions_by_id = {}
+    if is_student:
+        my_auto_ids = [
+            a["id"] for a in assignments
+            if a.get("auto_generated") and a.get("student_id") == user["id"]
+        ]
+        if my_auto_ids:
+            try:
+                qres = with_retry(
+                    lambda c: c.table("assignments")
+                    .select("id, questions")
+                    .in_("id", my_auto_ids)
+                    .execute()
+                )
+                for q in getattr(qres, "data", []) or []:
+                    questions_by_id[q["id"]] = q.get("questions")
+            except Exception:
+                pass
+
     try:
         subs_resp = with_retry(
             lambda c: c.table("assignment_submissions")
@@ -356,7 +396,7 @@ def get_course_assignments(course_id: str, user=Depends(get_current_user)):
             "source_material_title": material_titles.get(a.get("source_material_id")),
         }
         if is_student and row["auto_generated"]:
-            row["questions"] = _sanitize_questions(a.get("questions"))
+            row["questions"] = _sanitize_questions(questions_by_id.get(a["id"]))
         course_subs = [s for s in submissions if s["assignment_id"] == a["id"]]
         if is_student:
             mine = next((s for s in course_subs if s["student_id"] == user["id"]), None)
@@ -489,6 +529,45 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
             response["letter_grade"] = submission.get("letter_grade")
             response["feedback"] = submission.get("feedback")
             response["message"] = "Assignment submitted and graded."
+
+            # Auto-recommend study resources when the student underperforms.
+            # The query is built from the course + source material titles so the
+            # semantic search pulls in related material from the whole pool.
+            if percentage < RECOMMEND_THRESHOLD:
+                weak_concept = "course assignment material"
+                try:
+                    cresp = with_retry(
+                        lambda c: c.table("courses").select("title").eq("id", assignment["course_id"]).limit(1).execute()
+                    )
+                    cdata = getattr(cresp, "data", []) or []
+                    if cdata and cdata[0].get("title"):
+                        weak_concept = cdata[0]["title"]
+                except Exception:
+                    pass
+                try:
+                    mat_id = assignment.get("source_material_id")
+                    if mat_id:
+                        mresp = with_retry(
+                            lambda c: c.table("materials").select("title").eq("id", mat_id).limit(1).execute()
+                        )
+                        mrows = getattr(mresp, "data", []) or []
+                        if mrows and mrows[0].get("title"):
+                            weak_concept = f"{weak_concept}: {mrows[0]['title']}"
+                except Exception:
+                    pass
+                try:
+                    created = record_auto_recommendation(
+                        student_id=user["id"],
+                        course_id=assignment["course_id"],
+                        submission_id=submission.get("id"),
+                        score=percentage,
+                        weak_concept=weak_concept,
+                    )
+                    if created:
+                        response["recommendations"] = created
+                        response["recommended_count"] = len(created)
+                except Exception as exc:
+                    print(f"[assignments] Auto-recommendation skipped: {exc}")
         return response
     except HTTPException:
         raise

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('student').catch(() => null);
     if (!user) return;
 
+    document.getElementById('user-avatar').textContent = (user.full_name || 'U').charAt(0).toUpperCase();
     attachLogout('logout-btn');
     initProfilePopup();
 

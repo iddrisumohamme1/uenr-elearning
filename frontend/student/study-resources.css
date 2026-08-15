@@ -134,3 +134,23 @@
   .sheet { padding: var(--s4); }
   .title-row { flex-direction: column; align-items: flex-start; gap: 1rem; }
 }
+
+/* Small screens (<= 560px): the drawer toggle joins the header, so keep the
+   menu icon, title, and profile avatar on one aligned row instead of the
+   stacked layout above. The title truncates rather than shoving the avatar
+   off-screen. */
+@media (max-width: 560px) {
+  .title-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s3);
+  }
+  .title-row h1 {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .title-row .user-profile { flex-shrink: 0; }
+}

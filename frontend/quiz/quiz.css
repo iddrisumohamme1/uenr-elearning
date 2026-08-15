@@ -402,6 +402,20 @@
     .option-card { padding: var(--s3) var(--s4); }
 }
 
+/* Drawer toggle inside the quiz header (injected by sidebar.js) */
+@media (max-width: 560px) {
+    /* Keep the toggle above the drawer scrim (backdrop sits at z-index 150) */
+    .quiz-header {
+        position: relative;
+        z-index: 161;
+        align-items: center;
+    }
+    .quiz-header .sidebar-toggle {
+        flex-shrink: 0;
+        margin-right: var(--s2);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .quiz-timer-wrap.warning { animation: none; }
 }

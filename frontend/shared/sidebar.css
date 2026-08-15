@@ -65,12 +65,13 @@
     border-radius: var(--r-md);
     color: var(--text-secondary);
     font-weight: 500;
-    transition: background var(--t-fast), color var(--t-fast);
+    transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
 }
 
 .nav-link:hover {
     background: var(--bg-card);
     color: var(--text-primary);
+    transform: translateX(2px);
 }
 
 .nav-link.active {
@@ -90,6 +91,32 @@
     height: 60%;
     background: var(--clr-primary);
     border-radius: var(--r-full);
+}
+
+/* Living pulse dot at the active item's icon */
+.nav-link.active::after {
+    content: "";
+    position: absolute;
+    left: 2.45rem;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-full);
+    background: var(--clr-primary);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+    animation: nav-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes nav-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(0.7);
+    }
 }
 
 /* Unread count badge on sidebar nav items (injected by session.js) */
@@ -129,4 +156,61 @@
 
 .sidebar-footer button:hover {
     background: rgba(239,68,68,0.2);
+}
+
+/* Mobile drawer toggle — injected by sidebar.js into the top bar's left
+   corner. Display is toggled in responsive.css: hidden on large screens,
+   shown at small widths (<= 560px) where the sidebar becomes a drawer.
+   The one signature touch: a quiet outlined card that flips to the brand
+   gradient with a white X while the drawer is open. */
+.sidebar-toggle {
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--t-fast), color var(--t-fast),
+                border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.sidebar-toggle:hover {
+    background: var(--primary-soft);
+    border-color: var(--clr-primary);
+    color: var(--text-primary);
+}
+
+.sidebar-toggle:focus-visible {
+    outline: 2px solid var(--clr-primary);
+    outline-offset: 2px;
+}
+
+/* Open state: hamburger becomes a white X on the brand gradient */
+body.sidebar-open .sidebar-toggle {
+    background: var(--grad-primary);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: var(--shadow-glow);
+}
+
+/* Scrim behind the open drawer */
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background: rgba(2, 6, 23, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--t-base), visibility var(--t-base);
+}
+
+body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    visibility: visible;
 }

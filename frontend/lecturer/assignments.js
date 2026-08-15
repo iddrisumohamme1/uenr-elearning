@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     attachLogout('logout-btn');
     initProfilePopup();
+    document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
 
     const courseSelect = document.getElementById('course-select');
     const form = document.getElementById('assign-form');

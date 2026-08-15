@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
 
     // Update Profile Info
-    document.getElementById('user-name').textContent = user.full_name;
     document.getElementById('welcome-text').textContent = `Welcome, ${user.full_name.split(' ')[0]}`;
     document.querySelector('.avatar').textContent = user.full_name.charAt(0).toUpperCase();
 

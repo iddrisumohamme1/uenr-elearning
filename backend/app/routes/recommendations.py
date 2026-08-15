@@ -233,19 +233,18 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
 
     quiz_rows = getattr(quiz_resp, "data", []) or []
 
-    # Map course_id -> title for topic detection.
+    # Map course_id -> title for topic detection (single batched query).
     course_ids = list({r.get("quizzes", {}).get("course_id") for r in quiz_rows
                        if r.get("quizzes")})
     course_map = {}
     if course_ids:
-        for cid in course_ids:
-            try:
-                cresp = with_retry(lambda c, cid=cid: c.table("courses").select("id, title").eq("id", cid).limit(1).execute())
-                cdata = getattr(cresp, "data", []) or []
-                if cdata:
-                    course_map[cid] = cdata[0].get("title", "")
-            except Exception:
-                pass
+        try:
+            cresp = with_retry(
+                lambda c: c.table("courses").select("id, title").in_("id", course_ids).execute()
+            )
+            course_map = {c["id"]: c.get("title", "") for c in (getattr(cresp, "data", []) or [])}
+        except Exception:
+            pass
 
     # Aggregate normalized scores per detected topic.
     from collections import defaultdict
@@ -276,11 +275,15 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
 
     weak_topics.sort(key=lambda t: t.avg_score)
 
-    # Fetch targeted resources for each weak topic.
+    # Fetch targeted resources for each weak topic. include_web=False keeps page
+    # load fast: it only searches the local pool (no live YouTube round-trips
+    # per topic), matching the fast path used right after a quiz submission.
     all_recs = []
     for wt in weak_topics:
         try:
-            results = engine.get_recommendations(weak_concepts=wt.label, top_n=4)
+            results = engine.get_recommendations(
+                weak_concepts=wt.label, top_n=4, include_web=False
+            )
             all_recs.extend(_decorate_recommendations(results, wt.label))
         except Exception:
             pass

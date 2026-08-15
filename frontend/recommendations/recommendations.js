@@ -28,8 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
-    const nameEl = document.getElementById('user-name');
-    if (nameEl) nameEl.textContent = user.full_name || 'User';
     const avatarEl = document.querySelector('.user-profile .avatar');
     if (avatarEl) avatarEl.textContent = (user.full_name || 'U').charAt(0).toUpperCase();
 

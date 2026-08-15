@@ -16,6 +16,15 @@ services:
         value: false
       - key: CORS_ORIGINS
         sync: false
+      # AI + YouTube keys. Set these in the Render dashboard (the backend
+      # reads them from environment variables). Without them AI quiz/assignment
+      # generation, the AI tutor and live YouTube search degrade to fallbacks.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

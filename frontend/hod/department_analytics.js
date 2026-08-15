@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     attachLogout('logout-btn');
     initProfilePopup();
+    document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
 
     async function loadAnalytics() {
         try {

@@ -92,9 +92,60 @@
         `;
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', render);
-    } else {
+    /* Mobile drawer: inject a hamburger toggle into the page header's left
+       corner and a scrim behind the drawer. Visible only at <= 560px (see
+       responsive.css). Most pages use a .top-bar (with an optional nested
+       .title-row for the title/profile row); quiz pages use .quiz-header.
+       The toggle is dropped at the far left of whichever header exists. */
+    function initMobileNav() {
+        if (document.querySelector('.sidebar-toggle')) return;
+        const topBar = document.querySelector('.top-bar')
+            || document.querySelector('.page-header')
+            || document.querySelector('.quiz-header');
+        if (!topBar) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sidebar-toggle';
+        btn.setAttribute('aria-label', 'Open menu');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.innerHTML = '<i class="bi bi-list"></i>';
+        (topBar.querySelector('.title-row') || topBar).prepend(btn);
+        const backdrop = document.createElement('div');
+        backdrop.className = 'sidebar-backdrop';
+        document.body.appendChild(backdrop);
+
+        const icon = btn.querySelector('i');
+        const host = document.getElementById('app-sidebar') || document.querySelector('.sidebar');
+
+        function setOpen(open) {
+            document.body.classList.toggle('sidebar-open', open);
+            btn.setAttribute('aria-expanded', String(open));
+            btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+            if (icon) icon.className = open ? 'bi bi-x-lg' : 'bi bi-list';
+        }
+
+        btn.addEventListener('click', () => setOpen(!document.body.classList.contains('sidebar-open')));
+        backdrop.addEventListener('click', () => setOpen(false));
+        // Any button/link tapped inside the drawer closes it.
+        if (host) {
+            host.addEventListener('click', (e) => {
+                if (e.target.closest('button, a')) setOpen(false);
+            });
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) setOpen(false);
+        });
+    }
+
+    function mount() {
         render();
+        initMobileNav();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', mount);
+    } else {
+        mount();
     }
 })();

@@ -65,17 +65,42 @@
     display: none !important;
   }
 
-  /* Active accent bar */
-  .nav-link.active::before {
+  /* UENR river hairline under the page header (blue -> teal -> fade) */
+  .top-bar {
+    position: relative;
+  }
+  .top-bar::after {
     content: "";
     position: absolute;
     left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 60%;
-    background: var(--clr-primary);
+    right: 0;
+    bottom: -1px;
+    height: 2px;
     border-radius: var(--r-full);
+    background: linear-gradient(90deg, var(--clr-primary), var(--clr-accent) 45%, transparent);
+    opacity: 0.8;
+  }
+
+  /* Active: brand gradient pill + gold energy tick */
+  .sidebar-nav .nav-link.active {
+    background: var(--grad-primary);
+    color: #fff;
+    box-shadow: var(--shadow-glow);
+  }
+  .sidebar-nav .nav-link.active::before {
+    display: none !important;
+  }
+  .sidebar-nav .nav-link.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0.15rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 8px;
+    border-radius: var(--r-full);
+    background: var(--clr-energy);
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
   }
 
   .sidebar-footer {
@@ -304,4 +329,161 @@
   /* Bottom nav: even smaller icons */
   .sidebar-nav .nav-link .nav-icon { font-size: 1.1rem; }
   .sidebar-nav .nav-link .nav-label { font-size: 0.55rem; }
+}
+
+/* Drawer toggle: hidden by default (this file), shown at <= 560px below. */
+.sidebar-toggle {
+  display: none;
+}
+
+/* ─── Small screen (<= 560px): bottom nav becomes a drawer ───────────────────
+   Replaces the fixed bottom navigation bar with an off-canvas sidebar that
+   slides in from the left. A hamburger toggle in the top-left corner of the
+   header (injected by sidebar.js) opens and closes it. */
+@media (max-width: 560px) {
+  /* Show the top-bar toggle (sits in the left corner) */
+  .sidebar-toggle {
+    display: inline-flex;
+    z-index: 210;
+  }
+
+  /* Keep the header above the drawer scrim so the toggle stays clickable */
+  .top-bar {
+    z-index: 160 !important;
+  }
+
+  /* Compact aligned header: title truncates between toggle (left) and avatar (right) */
+  .top-bar > h1,
+  .title-row h1 {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top-bar .user-profile {
+    flex-shrink: 0;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  /* Off-canvas drawer (overrides the <=560px bottom-nav rules) */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: auto !important;
+    left: 0;
+    width: min(260px, 82vw) !important;
+    min-width: 0 !important;
+    max-width: 82vw;
+    height: 100dvh !important;
+    flex-direction: column !important;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding: var(--s6) var(--s6) var(--s8) !important;
+    border-top: none !important;
+    border-right: 1px solid var(--border) !important;
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform var(--t-base);
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0) !important;
+  }
+
+  /* Re-show the logo header inside the drawer */
+  .sidebar-header {
+    display: flex !important;
+    margin-bottom: var(--s8) !important;
+    padding-bottom: var(--s4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header .logo-text {
+    display: inline !important;
+  }
+
+  .sidebar-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--s2) !important;
+    flex: 1;
+  }
+
+  .nav-link {
+    display: flex !important;
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4) !important;
+    font-size: 1rem;
+    text-align: left;
+    border-radius: var(--r-md);
+  }
+
+  .sidebar-nav .nav-link .nav-icon {
+    font-size: 1.15rem;
+  }
+
+  .sidebar-nav .nav-link .nav-label {
+    display: inline !important;
+    font-size: 0.95rem;
+    white-space: normal;
+    font-family: var(--font-display);
+    font-weight: 600;
+  }
+
+  /* Active item: brand gradient pill (replaces the desktop soft-fill + accent bar) */
+  .sidebar-nav .nav-link.active {
+    background: var(--grad-primary);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: var(--shadow-glow);
+  }
+  .sidebar-nav .nav-link.active::before {
+    display: none !important;
+  }
+
+  /* Re-show the logout footer inside the drawer */
+  .sidebar-footer {
+    display: block !important;
+    margin-top: var(--s4);
+    padding-top: var(--s4);
+    border-top: 1px solid var(--border);
+  }
+
+  .sidebar-footer button {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    width: 100%;
+  }
+
+  /* No bottom bar any more — drop the extra bottom padding */
+  .main-content,
+  .courses-content,
+  .analytics-content,
+  .rec-content,
+  .quiz-content {
+    padding-bottom: var(--s6) !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-backdrop {
+      transition: none !important;
+    }
+  }
 }

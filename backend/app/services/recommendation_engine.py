@@ -12,6 +12,7 @@ import math
 import threading
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
 # ── Supabase client ───────────────────────────────────────────────────────────
 from app.database import get_admin_client
@@ -19,6 +20,14 @@ from app.core.config import settings
 
 # How long before the resource pool is refreshed from Supabase (seconds).
 RESOURCE_TTL_SECONDS = 300
+
+# Cap on how long the optional live web (YouTube) search may delay a response.
+# The web call runs in a worker thread; after this many seconds the caller gets
+# the pool results and the YouTube fetch keeps running in the background.
+WEB_SEARCH_TIMEOUT_SECONDS = 3.0
+
+# Small worker pool for the concurrent YouTube fetches.
+_WEB_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
 # ── Curated external study resources ──────────────────────────────────────────
 # Each entry maps a topic keyword to a list of verified external resources.
@@ -377,11 +386,17 @@ class RecommendationEngine:
         if not pool_results:
             pool_results = self._tfidf_search(weak_concepts, top_n * 2)
 
-        # Live web (YouTube) search is optional and network-bound; the fast path
-        # (e.g. during quiz submission) can skip it and use the curated pool only.
+        # Live web (YouTube) search is optional and network-bound. It runs in a
+        # worker thread and is bounded by WEB_SEARCH_TIMEOUT_SECONDS so a slow
+        # YouTube call never stacks on top of the pool search latency. The fast
+        # path (e.g. during quiz submission) can skip it entirely.
         results = pool_results
         if include_web:
-            youtube_results = self._youtube_recommendations(weak_concepts, top_n)
+            web_future = _WEB_EXECUTOR.submit(self._youtube_recommendations, weak_concepts, top_n)
+            try:
+                youtube_results = web_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
+            except Exception:
+                youtube_results = []
             results = pool_results + youtube_results
             results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
         return results[:top_n]

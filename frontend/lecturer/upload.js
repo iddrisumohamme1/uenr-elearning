@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     attachLogout('logout-btn');
     initProfilePopup();
+    document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
 
     function setupOrganization() {
         const radios = document.querySelectorAll('input[name="organization"]');

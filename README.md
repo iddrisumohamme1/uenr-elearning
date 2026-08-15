@@ -35,8 +35,8 @@ FYP/
 │   │   ├── variables.css         # CSS design tokens (colors, spacing, typography)
 │   │   ├── reset.css             # CSS reset + base polish
 │   │   ├── typography.css        # Shared typography + utilities
-│   │   ├── responsive.css        # Mobile/tablet breakpoints
-│   │   ├── sidebar.css + sidebar.js  # Shared sidebar component (all roles)
+│   │   ├── responsive.css        # Mobile/tablet breakpoints (incl. off-canvas drawer)
+│   │   ├── sidebar.css + sidebar.js  # Shared sidebar (all roles): injected nav, unread badges, mobile drawer
 │   │   ├── dropdown.css + dropdown.js # Custom dropdown/select component
 │   │   ├── pulse.css             # Real-time engagement pulse bar
 │   │   ├── spinner.css           # Loading spinners, skeletons, button loaders
@@ -46,12 +46,12 @@ FYP/
 │   │   └── session.js            # Auth session, token refresh, role guards, nav badges
 │   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
 │   ├── student/                  # Dashboard, assignments, inbox, progress, study aids
-│   ├── courses/                  # Course catalog & enrollment
+│   ├── courses/                  # Course catalog & enrollment (avatar + profile popup)
 │   ├── materials/                # Material viewer (engagement tracking + micro-questions)
 │   ├── quiz/                     # Quiz taking interface (incl. AI-generated quizzes)
 │   ├── results/                  # Quiz results page
-│   ├── analytics/                # Student performance analytics
-│   ├── recommendations/          # AI-powered recommendations
+│   ├── analytics/                # Student performance analytics (avatar + profile popup)
+│   ├── recommendations/          # AI-powered recommendations + AI tutor Q&A
 │   ├── lecturer/                 # Dashboard, study press, my courses, assignments, quiz creation, upload
 │   ├── hod/                      # Dashboard, department course hub, course & quiz creation
 │   ├── css/                      # Landing page styles
@@ -161,7 +161,7 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Import the repo into Render as a Web Service (or use the included `render.yaml` blueprint).
 - Build command: `pip install -r backend/requirements.txt`
 - Start command: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Set these in the Render dashboard (the blueprint marks them `sync: false`): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS`.
+- Set these in the Render dashboard (the blueprint marks them `sync: false`): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `YOUTUBE_API_KEY`. The last three are optional: without them AI quiz/assignment generation and the AI tutor degrade (mock/empty fallbacks) and live YouTube search is skipped (the curated pool still works).
 - Heavy ML packages (TensorFlow, Sentence Transformers, XGBoost) live in `backend/requirements-ml.txt` and are **not** installed on the free tier. The app auto-falls back to the heuristic engagement analyzer and hand-rolled TF-IDF search; flip `ENGAGEMENT_ML_ENABLED` / `SEMANTIC_SEARCH_ENABLED` to `true` on a larger instance.
 - Smoke check: `GET https://<your-service>.onrender.com/api/health`
 
@@ -195,6 +195,8 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 ### AI Assignments
 - Auto-generated per student from course materials (Gemini/Groq)
 - "Download a material to unlock your assignment" flow; pending-count badge on the sidebar
+- Students submit text answers; on-time status is tracked automatically against the due date
+- Lecturers review per-student submissions with on-time/overdue status
 - Submission tracking with on-time status and average grade
 - Assignment Performance section in the student analytics dashboard
 
@@ -213,6 +215,11 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Takes weak concepts (from quiz history) as input
 - Recommends YouTube tutorials (YouTube Data API), articles, and study materials
 - Curated resource catalog that lecturers can generate and publish per course
+- Auto-detected weak-topic chips surface in the search box on page load
+- Fast retrieval: weak-topic auto-detection searches only the local pool, and the
+  live YouTube search runs concurrently behind a short timeout so it never stacks
+  on top of pool latency
+- AI tutor: in-page Q&A grounded in the selected course's material content
 
 ### Messaging & Attendance
 - Student ↔ lecturer inbox with unread-count badges
@@ -221,10 +228,12 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 ### Design System
 - **Dark mode** (default) and **light mode** toggle
 - CSS custom properties for all tokens (colors, spacing, typography, shadows)
-- Responsive breakpoints: 772px (tablet sidebar), 560px (mobile bottom nav), 400px (compact)
-- Shared sidebar, custom dropdown, and pulse components across all roles
+- Responsive breakpoints: 772px (collapsed icon sidebar), 560px (off-canvas drawer), 400px (compact)
+- Shared sidebar across all roles: injected nav with icons/labels, unread-count badges,
+  hamburger toggle that slides the sidebar in as a drawer on mobile
+- Profile avatar + popup with avatar upload on every authenticated page
+- Shared custom dropdown and pulse components across all roles
 - Toast notifications, loading spinners, skeleton placeholders, button loaders
-- Profile popup with avatar upload
 
 ### Security
 - JWT bearer token authentication via Supabase
@@ -264,7 +273,11 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 | GET | `/api/assignments/{assignment_id}/submissions` | Lecturer | View submissions |
 | POST | `/api/micro-questions/generate` | Yes | Generate micro-questions |
 | POST | `/api/micro-questions/verify` | Yes | Verify micro-question answers |
-| POST | `/api/recommendations/generate` | Yes | Get AI recommendations |
+| POST | `/api/recommendations/` | Student | Get ranked resource recommendations for weak concepts |
+| GET | `/api/recommendations/auto` | Student | Auto-detect weak topics + pooled recommendations |
+| POST | `/api/recommendations/ask` | Student | AI tutor Q&A (optionally course-grounded) |
+| GET | `/api/recommendations/notifications` | Student | Unread auto-generated recommendations |
+| POST | `/api/recommendations/notifications/read` | Student | Mark recommendation notifications as read |
 | POST | `/api/resources/generate` | Yes | Generate a study resource |
 | POST | `/api/resources/publish` | Lecturer | Publish a resource to a course |
 | GET | `/api/resources/course/{course_id}` | Yes | Resources for a course |

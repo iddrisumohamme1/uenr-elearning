@@ -23,7 +23,14 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h1>Upload Lecture Material</h1>
+                <div class="top-bar-title">
+                    <div class="title-row">
+                        <h1>Upload Lecture Material</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings">H</div>
+                        </div>
+                    </div>
+                </div>
                 <!-- <p class="text-muted">Upload materials for department courses in your faculty.</p> -->
             </header>
 
@@ -100,6 +107,7 @@
 
         attachLogout('logout-btn');
         initProfilePopup();
+        document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
 
         function loadAcademicYears() {
             const now = new Date().getFullYear();
