@@ -8,6 +8,7 @@
 
 import os
 import ssl
+import traceback
 
 # Only bypass SSL in development to avoid [SSL: CERTIFICATE_VERIFY_FAILED].
 # In production this must NOT be set — it disables all certificate validation.
@@ -17,8 +18,9 @@ if os.getenv("APP_ENV", "development") == "development":
     except AttributeError:
         pass
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.routes import auth, courses, engagement, recommendations, micro_questions, users, analytics, quiz, materials, students, attendance, messages, assignments, resources, study
@@ -36,6 +38,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Global error guard -------------------------------------------------------
+# Registered AFTER CORSMiddleware so it runs INSIDE it: an unhandled exception
+# is converted to a JSON 500 here and still passes back through the CORS layer.
+# Without this, bare 500s skip CORS headers entirely (ServerErrorMiddleware sits
+# outside user middleware) and the browser reports them as
+# "blocked by CORS policy", hiding the real error.
+@app.middleware("http")
+async def unhandled_exception_guard(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
 
 # --- Routers ---
 app.include_router(auth.router)

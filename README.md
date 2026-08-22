@@ -135,8 +135,8 @@ Fill in `backend/.env` with your Supabase project URL and keys (Project Settings
 
 ### 4. Run the backend
 ```powershell
-.\venv\Scripts\Activate.ps1
 cd backend
+c:/Users/myPC/Desktop/FYP/venv/Scripts/Activate.ps1
 python -m uvicorn app.main:app --reload --port 8001
 ```
 - API docs: http://localhost:8001/docs

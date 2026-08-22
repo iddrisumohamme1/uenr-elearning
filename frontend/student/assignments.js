@@ -41,6 +41,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await authFetch(`${API_BASE}/api/assignments/auto-generate`, { method: 'POST' });
             if (!res.ok) return 0;
             const data = await res.json();
+            if (data.created) {
+                invalidateApiCache('assignments');
+                invalidateApiCache('assign');
+                invalidateApiCache('nav-pending');
+            }
             return data.created || 0;
         } catch (err) {
             console.error('Auto-generate failed:', err);
@@ -127,6 +132,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 lastAutoGraded = true;
+                invalidateApiCache('assignments');
+                invalidateApiCache('assign');
+                invalidateApiCache('stats');
+                invalidateApiCache('study-summary');
+                invalidateApiCache('nav-pending');
+                invalidateApiCache('nav-stats');
                 const recs = data.recommendations || [];
                 const recsHtml = recs.length ? `
                     <div class="auto-recs">
@@ -207,6 +218,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 showToast(data.on_time ? 'Assignment submitted on time.' : 'Assignment submitted late.', 'success');
+                invalidateApiCache('assignments');
+                invalidateApiCache('assign');
+                invalidateApiCache('stats');
+                invalidateApiCache('study-summary');
+                invalidateApiCache('nav-pending');
+                invalidateApiCache('nav-stats');
                 closeModal();
                 loadAssignments();
             } else {
@@ -220,50 +237,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     document.getElementById('submit-btn').addEventListener('click', submitActive);
 
-    async function loadAssignments() {
-        try {
-            const coursesRes = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
-            if (!coursesRes.ok) throw new Error('courses failed');
-            const courses = await coursesRes.json();
+    function renderAssignmentGroups(groups) {
+        let dueSoon = 0, done = 0, late = 0;
 
-            if (!courses.length) {
-                groupsEl.innerHTML = '<div class="empty-state">You are not enrolled in any courses yet. <a href="../courses/courses.html">Browse courses</a></div>';
-                return;
-            }
-
-            let groups = [];
-            let dueSoon = 0, done = 0, late = 0;
-
-            const loadOne = async (course) => {
-                try {
-                    const res = await authFetch(`${API_BASE}/api/assignments/course/${course.id}`);
-                    if (!res.ok) return null;
-                    const data = await res.json();
-                    return { course, assignments: data.assignments || [] };
-                } catch (err) {
-                    return null;
-                }
-            };
-
-            const results = (await Promise.all(courses.map(loadOne))).filter(Boolean);
-
-            results.forEach(({ course, assignments }) => {
-                if (assignments.length) {
-                    assignments.forEach(a => {
-                        const [cls] = statusLabel(a);
-                        if (cls === 'done') done++;
-                        else if (cls === 'late') late++;
-                        else dueSoon++;
-                    });
-                }
-
-                groups.push({ course, assignments });
+        groups.forEach(({ assignments }) => {
+            assignments.forEach(a => {
+                const [cls] = statusLabel(a);
+                if (cls === 'done') done++;
+                else if (cls === 'late') late++;
+                else dueSoon++;
             });
+        });
 
-            if (!groups.length) {
-                groupsEl.innerHTML = '<div class="empty-state">No assignments yet. Download a course material to unlock your AI-generated assignment.</div>';
-            } else {
-                groupsEl.innerHTML = groups.map(({ course, assignments }, gi) => `
+        if (!groups.length) {
+            groupsEl.innerHTML = '<div class="empty-state">No assignments yet. Download a course material to unlock your AI-generated assignment.</div>';
+        } else {
+            groupsEl.innerHTML = groups.map(({ course, assignments }, gi) => `
                     <div class="assign-group" style="animation-delay: ${gi * 80}ms">
                         <div class="group-head">
                             <h3>${course.title}</h3>
@@ -326,13 +315,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-            document.getElementById('due-count').textContent = dueSoon;
-            document.getElementById('done-count').textContent = done;
-            document.getElementById('late-count').textContent = late;
+        document.getElementById('due-count').textContent = dueSoon;
+        document.getElementById('done-count').textContent = done;
+        document.getElementById('late-count').textContent = late;
+    }
+
+    async function loadAssignments() {
+        // Paint the persisted view instantly; the network only runs after a
+        // mutation, an F5 reload, or once the cache ages past the TTL.
+        const cachedGroups = cachedRead('assignments');
+        if (cachedGroups) renderAssignmentGroups(cachedGroups);
+
+        try {
+            const courses = await swrGet('my-courses', `${API_BASE}/api/students/${user.id}/courses`);
+
+            if (!courses.length) {
+                if (!cachedGroups) {
+                    groupsEl.innerHTML = '<div class="empty-state">You are not enrolled in any courses yet. <a href="../courses/courses.html">Browse courses</a></div>';
+                }
+                return;
+            }
+
+            const loadOne = async (course) => {
+                try {
+                    const data = await swrGet(`assign:${course.id}`, `${API_BASE}/api/assignments/course/${course.id}`);
+                    return { course, assignments: data.assignments || [] };
+                } catch (err) {
+                    return null;
+                }
+            };
+
+            const results = (await Promise.all(courses.map(loadOne))).filter(Boolean);
+            cachedWrite('assignments', results);
+            renderAssignmentGroups(results);
         } catch (err) {
             console.error('Error loading assignments:', err);
-            groupsEl.innerHTML = '<div class="empty-state">Unable to load assignments. Please try again later.</div>';
-            showToast('Unable to load assignments.', 'error');
+            if (!cachedGroups) {
+                groupsEl.innerHTML = '<div class="empty-state">Unable to load assignments. Please try again later.</div>';
+                showToast('Unable to load assignments.', 'error');
+            }
         }
     }
 

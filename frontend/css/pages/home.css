@@ -391,6 +391,33 @@
   margin-top: auto;
 }
 
+/* --- LIGHT MODE READABILITY FIXES ---
+   The hero badge, gradient headline/stat values, and stat labels were
+   tuned for the dark theme; on the pale light background they dropped
+   below readable contrast. These overrides restore WCAG AA contrast
+   without touching the dark theme. */
+[data-theme="light"] .hero__badge {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--clr-primary-dark);
+}
+
+[data-theme="light"] .hero__badge-dot {
+  box-shadow: none;
+}
+
+[data-theme="light"] .hero__title-gradient,
+[data-theme="light"] .hero__stat-value {
+  /* Darker blue → deep teal so gradient text stays legible on light bg */
+  background: linear-gradient(135deg, #2563eb, #0e7490);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="light"] .hero__stat-label {
+  color: var(--text-secondary);
+}
+
 /* --- ANIMATIONS --- */
 @keyframes fadeIn {
   from { opacity: 0; }

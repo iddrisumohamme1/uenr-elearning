@@ -15,6 +15,10 @@ router = APIRouter(prefix="/api/study", tags=["study"])
 
 MINUTES_PER_MATERIAL = 20
 STUDY_WINDOW_DAYS = 7
+# Brand-new enrollments always show 0 minutes studied, which would instantly
+# fire a "you haven't studied" warning. Give students this many days after
+# enrolling before study-time warnings apply.
+ENROLLMENT_GRACE_DAYS = 7
 
 
 def _warning_for(minutes: float, recommended: float) -> Optional[str]:
@@ -40,9 +44,14 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
     admin = get_admin_client()
     try:
         enroll_resp = with_retry(
-            lambda c: c.table("enrollments").select("course_id").eq("student_id", student_id).execute()
+            lambda c: c.table("enrollments").select("course_id, enrolled_at").eq("student_id", student_id).execute()
         )
-        course_ids = [e["course_id"] for e in (getattr(enroll_resp, "data", []) or []) if e.get("course_id")]
+        enrolled_at_by_course = {
+            e["course_id"]: e.get("enrolled_at")
+            for e in (getattr(enroll_resp, "data", []) or [])
+            if e.get("course_id")
+        }
+        course_ids = list(enrolled_at_by_course.keys())
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch enrollments: {exc}")
 
@@ -104,6 +113,19 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
         recommended_minutes = round(materials_count * MINUTES_PER_MATERIAL, 1) if materials_count else 0
         study_coverage = min(100.0, round(time_spent_minutes / recommended_minutes * 100, 1)) if recommended_minutes else 0.0
 
+        warning = _warning_for(time_spent_minutes, recommended_minutes)
+        # Fresh enrollments get a grace period before warnings kick in — a
+        # student who joined this week hasn't had a fair chance to study yet.
+        enrolled_at = enrolled_at_by_course.get(cid)
+        if warning and enrolled_at:
+            try:
+                enrolled_dt = datetime.fromisoformat(str(enrolled_at).replace("Z", "+00:00"))
+                days_enrolled = (datetime.utcnow() - enrolled_dt.replace(tzinfo=None)).days
+                if days_enrolled < ENROLLMENT_GRACE_DAYS:
+                    warning = None
+            except ValueError:
+                pass
+
         courses.append({
             "course_id": cid,
             "course_title": course.get("title", "Untitled"),
@@ -114,7 +136,7 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
             "recommended_minutes": recommended_minutes,
             "study_coverage": study_coverage,
             "comprehension_class": comp_class,
-            "warning": _warning_for(time_spent_minutes, recommended_minutes),
+            "warning": warning,
         })
 
     # Quiz performance per course (AI quizzes)

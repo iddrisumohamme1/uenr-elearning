@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const queryParams = new URLSearchParams(window.location.search);
     const courseId = queryParams.get('id');
+    if (courseId && window.aiTutor) aiTutor.setCourse(courseId); // pre-ground the tutor in this course
     const topicList = document.getElementById('topic-list');
     const materialList = document.getElementById('material-list');
     const contentViewer = document.getElementById('content-viewer');
@@ -21,6 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modal = document.getElementById('micro-question-modal');
     const questionText = document.getElementById('question-text');
     const optionGrid = document.getElementById('option-grid');
+
+    // Mobile section switcher: Material | Contents (hidden on desktop via CSS)
+    const viewerContainer = document.querySelector('.viewer-container');
+    const viewTabs = document.querySelectorAll('.mobile-view-tabs .view-tab');
+    viewTabs.forEach(tab => tab.addEventListener('click', () => {
+        viewerContainer.dataset.mobileTab = tab.dataset.tab;
+        viewTabs.forEach(t => t.classList.toggle('is-active', t === tab));
+    }));
 
     let selectedMaterial = null;
     let courseTitle = '';
@@ -193,17 +202,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                     target.innerHTML = '<div class="loading-wrapper"><div class="spinner"></div><p>Rendering PDF...</p></div>';
                     renderPdf(proxyUrl, target);
                 }
-                // Office docs (ppt, doc, xlsx): use Google Docs viewer for preview, with download option
+                // Office docs (ppt, doc, xlsx): Google Docs viewer on desktop.
+                // On phones the cross-origin iframe swallows touch events and
+                // can't be scrolled, so hand off to the device viewer instead.
                 else if (lowerUrl.match(/\.(ppt|pptx|doc|docx|xls|xlsx|odp|ods|odt)$/)) {
                     const ext = lowerUrl.split('.').pop().toUpperCase();
-                    const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-                    target.innerHTML = `
-                        <div class="material-viewer-card">
-                            <div class="material-viewer-header">
+                    if (window.matchMedia('(max-width: 768px)').matches) {
+                        const fileName = decodeURIComponent(fileUrl.split('/').pop().split('?')[0]) || 'this material';
+                        target.innerHTML = `
+                            <div class="material-download-card">
                                 <span class="file-badge">${ext}</span>
-                            </div>
-                            <iframe src="${viewerUrl}" class="office-viewer-iframe"></iframe>
-                        </div>`;
+                                <h3>${fileName}</h3>
+                                <p>Inline slide preview isn't reliable on small screens. Open this material in your device's viewer, or download it.</p>
+                                <button type="button" class="office-open-btn">Open material</button>
+                                <button type="button" class="office-dl-btn"><i class="bi bi-download"></i> Download</button>
+                            </div>`;
+                        target.querySelector('.office-open-btn').addEventListener('click', () => {
+                            window.open(proxyUrl, '_blank', 'noopener');
+                        });
+                        target.querySelector('.office-dl-btn').addEventListener('click', downloadMaterial);
+                    } else {
+                        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+                        target.innerHTML = `
+                            <div class="material-viewer-card">
+                                <div class="material-viewer-header">
+                                    <span class="file-badge">${ext}</span>
+                                </div>
+                                <iframe src="${viewerUrl}" class="office-viewer-iframe"></iframe>
+                            </div>`;
+                    }
                 }
                 // Everything else: try iframe with proxy
                 else {
@@ -218,34 +245,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 document.querySelectorAll('.material-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
+
+                // On mobile, jump back to the reading surface so the freshly
+                // selected material is visible immediately.
+                if (window.matchMedia('(max-width: 768px)').matches) {
+                    viewerContainer.dataset.mobileTab = 'material';
+                    viewTabs.forEach(t => t.classList.toggle('is-active', t.dataset.tab === 'material'));
+                }
             });
         });
     }
 
     async function fetchMaterials() {
         if (!courseId) {
-            if (contentPlaceholder) contentPlaceholder.innerHTML = '<p>No course selected.</p>';
+            if (contentPlaceholder) contentPlaceholder.innerHTML = '<p class="content-empty">No course selected.</p>';
             return;
         }
 
         try {
-            const res = await authFetch(`${API_BASE}/api/materials/course/${courseId}`);
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.detail || 'Failed to load materials');
-            }
-            const data = await res.json();
-            courseTitle = data.course_title || data.course_name || '';
-            buildTopicList(['Overview', 'Materials']);
-            renderMaterials(data.materials || []);
-            if ((data.materials || []).length === 0) {
-                materialList.innerHTML = '<div class="topic-item">No materials available yet.</div>';
-                if (contentPlaceholder) contentPlaceholder.innerHTML = '<p>Materials will appear here once uploaded.</p>';
-            }
+            await swrGet(`course-materials:${courseId}`, `${API_BASE}/api/materials/course/${courseId}`, data => {
+                courseTitle = data.course_title || data.course_name || '';
+                buildTopicList(['Overview', 'Materials']);
+                renderMaterials(data.materials || []);
+                if ((data.materials || []).length === 0) {
+                    materialList.innerHTML = '<div class="topic-item">No materials available yet.</div>';
+                    if (contentPlaceholder) contentPlaceholder.innerHTML = '<p class="content-empty">Materials will appear here once uploaded.</p>';
+                }
+            });
         } catch (err) {
             console.error('Failed to load course materials:', err);
             materialList.innerHTML = '<div class="topic-item">Unable to load materials.</div>';
-            if (contentPlaceholder) contentPlaceholder.innerHTML = `<p>${err.message}</p>`;
+            if (contentPlaceholder) contentPlaceholder.innerHTML = `<p class="content-empty">${err.message}</p>`;
         }
     }
 
@@ -257,17 +287,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isIdle) { isIdle = false; updateStatus('Active'); }
     });
 
-    document.addEventListener('click', () => { metrics.clicks++; lastActivity = Date.now(); });
+    document.addEventListener('click', () => {
+        metrics.clicks++;
+        lastActivity = Date.now();
+        if (isIdle) { isIdle = false; updateStatus('Active'); }
+    });
 
-    contentViewer.addEventListener('scroll', () => {
-        const maxScroll = contentViewer.scrollHeight - contentViewer.clientHeight;
-        const scrollPercent = maxScroll > 0 ? (contentViewer.scrollTop / maxScroll) * 100 : 0;
+    // Scroll progress can come from the content pane (desktop app-frame) or
+    // from the page itself (stacked mobile layout) — track whichever moves.
+    function recordScrollProgress() {
+        const paneMax = contentViewer.scrollHeight - contentViewer.clientHeight;
+        const docMax = document.documentElement.scrollHeight - window.innerHeight;
+        const panePct = paneMax > 10 ? (contentViewer.scrollTop / paneMax) * 100 : 0;
+        const docPct = docMax > 10 ? (window.scrollY / docMax) * 100 : 0;
+        const scrollPercent = Math.max(panePct, docPct);
         metrics.scrollDepth = Math.max(metrics.scrollDepth, Math.round(scrollPercent));
         lastActivity = Date.now();
+        if (isIdle) { isIdle = false; updateStatus('Active'); }
 
         const ribbonFill = document.getElementById('reading-ribbon-fill');
         if (ribbonFill) ribbonFill.style.height = `${Math.min(100, scrollPercent)}%`;
-    });
+    }
+
+    contentViewer.addEventListener('scroll', recordScrollProgress);
+    window.addEventListener('scroll', recordScrollProgress, { passive: true });
 
     // Track tab visibility — counts as idle when tab is hidden
     document.addEventListener('visibilitychange', () => {

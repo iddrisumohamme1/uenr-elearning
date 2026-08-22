@@ -19,7 +19,7 @@ class QuizGeneratorService:
         self.api_key = settings.GEMINI_API_KEY
         self.model = settings.GEMINI_MODEL or "gemini-3.6-flash"
         self.groq_key = settings.GROQ_API_KEY
-        self.groq_model = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
+        self.groq_model = settings.GROQ_MODEL or "openai/gpt-oss-120b"
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
         else:

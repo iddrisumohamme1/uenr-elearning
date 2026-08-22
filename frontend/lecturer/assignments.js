@@ -1,6 +1,8 @@
 /* 
    LECTURER ASSIGNMENTS PAGE LOGIC
    frontend/lecturer/assignments.js
+   GETs use the persist-until-reload cache; creating an assignment drops
+   that course's cached list before the views reload.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,8 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadCourses() {
         try {
-            const res = await authFetch(`${API_BASE}/api/courses/`);
-            const courses = await res.json();
+            const courses = await swrGet('catalog', `${API_BASE}/api/courses/`);
             if (!Array.isArray(courses) || !courses.length) {
                 courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
                 return;
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToast('Assignment created.', 'success');
                 form.reset();
                 courseSelect.innerHTML = '<option value="" disabled selected>Select a course</option>';
+                invalidateApiCache(`assign:${courseId}`);
                 await loadCourses();
                 loadAssignments();
             } else {
@@ -88,9 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         subsModal.hidden = false;
         body.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading submissions…</p></div>';
         try {
-            const res = await authFetch(`${API_BASE}/api/assignments/${assignmentId}/submissions`);
-            if (!res.ok) throw new Error('submissions fetch failed');
-            const data = await res.json();
+            const data = await swrGet(`subs:${assignmentId}`, `${API_BASE}/api/assignments/${assignmentId}/submissions`);
             const subs = data.submissions || [];
             if (!subs.length) {
                 body.innerHTML = '<p class="text-muted">No submissions yet.</p>';
@@ -123,8 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAssignments() {
         try {
-            const coursesRes = await authFetch(`${API_BASE}/api/courses/`);
-            const courses = await coursesRes.json();
+            const courses = await swrGet('catalog', `${API_BASE}/api/courses/`);
             if (!Array.isArray(courses) || !courses.length) {
                 listEl.innerHTML = '<p class="text-muted">No courses assigned yet.</p>';
                 return;
@@ -132,10 +131,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let rows = [];
             for (const course of courses) {
-                const res = await authFetch(`${API_BASE}/api/assignments/course/${course.id}`);
-                if (!res.ok) continue;
-                const data = await res.json();
-                (data.assignments || []).forEach(a => {
+                let data = null;
+                try {
+                    data = await swrGet(`assign:${course.id}`, `${API_BASE}/api/assignments/course/${course.id}`);
+                } catch (err) { continue; }
+                ((data && data.assignments) || []).forEach(a => {
                     rows.push({
                         ...a,
                         course_id: course.id,

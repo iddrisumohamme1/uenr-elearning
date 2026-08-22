@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await response.json().catch(() => ({}));
             if (response.ok) {
                 showToast(`${course.code || course.title} resigned. The course is now unassigned.`, 'success');
+                invalidateApiCache('hod-catalog');
+                invalidateApiCache('lect-my-courses');
                 loadCourses();
             } else {
                 showToast('Failed to resign course: ' + (data.detail || 'Unknown error'), 'error');
@@ -86,6 +88,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await response.json().catch(() => ({}));
             if (response.ok) {
                 showToast(`${course.code || course.title} deleted.`, 'success');
+                invalidateApiCache('hod-catalog');
+                invalidateApiCache('lect-my-courses');
+                invalidateApiCache('hod-dept-summary');
+                invalidateApiCache(`lect-summary:${course.id}`);
+                invalidateApiCache(`lect-at-risk:${course.id}`);
                 closeModal(deleteModal);
                 loadCourses();
             } else {
@@ -141,6 +148,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await response.json().catch(() => ({}));
             if (response.ok) {
                 showToast(`${course.code || course.title} assigned to the selected lecturer.`, 'success');
+                invalidateApiCache('hod-catalog');
+                invalidateApiCache('lect-my-courses');
                 closeModal(assignModal);
                 loadCourses();
             } else {

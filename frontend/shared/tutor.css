@@ -1,0 +1,214 @@
+/*
+ * ==============================================================================
+ * SHARED AI TUTOR WIDGET STYLES
+ * ==============================================================================
+ * File: frontend/shared/tutor.css
+ * Purpose: Styles for the reusable "Ask the AI Tutor" chat injected by
+ *          tutor-widget.js. Moved from recommendations.css so any student
+ *          page can host the tutor.
+ * Z-index: sits below page modals (materials .modal = 1000) so engagement
+ *          popups always win.
+ * ==============================================================================
+ */
+
+/* ── AI Tutor (Q&A chat) ──────────────────────────────────── */
+.tutor-popup {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 5.5rem;
+    z-index: 950;
+    width: 380px;
+    max-width: calc(100vw - 3rem);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    max-height: min(600px, calc(100vh - 8rem));
+    overflow: hidden;
+    transform: translateY(12px);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: transform var(--t-base), opacity var(--t-base), visibility var(--t-base);
+}
+.tutor-popup.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+.tutor-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+}
+.tutor-chat-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.tutor-chat-title i { color: var(--clr-primary-light); font-size: 1.1rem; }
+.tutor-close {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: var(--r-full);
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color var(--t-fast), background var(--t-fast);
+}
+.tutor-close:hover { color: var(--clr-danger); background: var(--bg-elevated); }
+.tutor-chat-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+}
+.tutor-course-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex: none;
+}
+.tutor-course-select {
+    flex: 1;
+    min-width: 0;
+}
+.tutor-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    flex: 1;
+    min-height: 180px;
+    overflow-y: auto;
+}
+.tutor-bubble {
+    max-width: 86%;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--r-md);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    white-space: normal;
+    word-wrap: break-word;
+}
+.tutor-bubble-ai {
+    align-self: flex-start;
+    background: var(--primary-soft);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: var(--r-sm);
+    color: var(--text-primary);
+}
+.tutor-bubble-user {
+    align-self: flex-end;
+    background: var(--grad-primary);
+    color: #fff;
+    border-bottom-right-radius: var(--r-sm);
+}
+.tutor-bubble-user a { color: #fff; }
+.tutor-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.tutor-loading .spinner { width: 14px; height: 14px; }
+.tutor-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.1rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+}
+.tutor-form input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem;
+    outline: none;
+    transition: border-color var(--t-base);
+}
+.tutor-form input::placeholder { color: var(--text-muted); }
+.tutor-form input:focus { border-color: var(--clr-primary); }
+.tutor-send {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--r-full);
+    background: var(--grad-primary);
+    color: #fff;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+.tutor-send:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+.tutor-send:disabled { opacity: 0.6; cursor: default; }
+.tutor-error {
+    margin: 0 1.1rem 0.6rem;
+    padding: 0.55rem 0.8rem;
+    background: rgba(255, 82, 82, 0.08);
+    border: 1px solid rgba(255, 82, 82, 0.35);
+    border-radius: var(--r-sm);
+    color: var(--clr-danger);
+    font-size: 0.82rem;
+}
+
+/* ── Floating action button ───────────────────────────────── */
+.tutor-fab {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 940;
+    width: 58px;
+    height: 58px;
+    border: none;
+    border-radius: var(--r-full);
+    background: var(--grad-primary);
+    color: #fff;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-glow);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+.tutor-fab:hover { transform: translateY(-3px) scale(1.05); box-shadow: var(--shadow-glow); }
+
+@media (max-width: 768px) {
+    .tutor-popup { right: 1rem; bottom: 4.75rem; }
+    .tutor-fab { right: 1rem; bottom: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tutor-popup { transition: none; transform: none; }
+    .tutor-fab, .tutor-send { transition: none; }
+}

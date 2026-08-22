@@ -5,7 +5,9 @@
    Renders the Department Pulse, stat tiles, dept-wide charts and the
    Attention Queue (HODs also act as lecturers), course-wise metrics,
    and the HOD's own classes. The department course ledger lives on
-   department_courses.html (department_courses.js).
+   department_courses.html (department_courses.js). All GETs go through
+   the persist-until-reload cache: revisits within the session paint
+   instantly without hitting the server; F5 or a stale cache refreshes.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -346,8 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         (Array.isArray(courses) ? courses : []).forEach(c => { courseMap[c.id] = c; });
 
         return Promise.all(courses.map(c =>
-            authFetch(`${API_BASE}/api/analytics/course/${c.id}/at-risk`)
-                .then(r => r.json().catch(() => null))
+            swrGet(`lect-at-risk:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/at-risk`)
                 .then(data => ({ course: c, students: data && data.students || [] }))
                 .catch(() => ({ course: c, students: [] }))
         )).then(atRiskResults => {
@@ -429,8 +430,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadDashboard() {
         try {
             const [deptSummary, courses] = await Promise.all([
-                authFetch(`${API_BASE}/api/analytics/department/summary`).then(r => r.ok ? r.json() : null).catch(() => null),
-                authFetch(`${API_BASE}/api/courses/`).then(r => r.ok ? r.json() : []).catch(() => []),
+                swrGet('hod-dept-summary', `${API_BASE}/api/analytics/department/summary`).catch(() => null),
+                swrGet('hod-catalog', `${API_BASE}/api/courses/`).catch(() => []),
             ]);
 
             statCourses.textContent = Array.isArray(courses) ? courses.length : 0;
@@ -486,8 +487,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 myClassesSub.textContent = `You teach ${myCourses.length} course${myCourses.length === 1 ? '' : 's'}`;
                 const rows = await Promise.all(myCourses.map(async c => {
                     try {
-                        const s = await authFetch(`${API_BASE}/api/analytics/course/${c.id}/summary`)
-                            .then(r => r.ok ? r.json() : null);
+                        const s = await swrGet(`lect-summary:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/summary`)
+                            .catch(() => null);
                         if (!s || !s.total_logs) return { course: c, empty: true };
                         const e = s.engagement || {};
                         const total = s.total_logs;

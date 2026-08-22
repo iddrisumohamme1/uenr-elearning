@@ -69,8 +69,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        const res = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
-        const courses = await res.json();
+        const courses = await swrGet('my-courses', `${API_BASE}/api/students/${user.id}/courses`, freshCourses => {
+            if (!Array.isArray(freshCourses) || !freshCourses.length) return;
+            courseSelect.innerHTML = `
+                <option value="" disabled selected>Select a course</option>
+                ${freshCourses.map(c => `<option value="${c.id}">${c.code ? c.code + ' · ' : ''}${escapeHTML(c.title)}</option>`).join('')}
+            `;
+        });
         if (!Array.isArray(courses) || !courses.length) {
             courseSelect.innerHTML = '<option value="" disabled>You are not enrolled in any courses yet</option>';
             resourceList.innerHTML = `
@@ -82,10 +87,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             return;
         }
-        courseSelect.innerHTML = `
-            <option value="" disabled selected>Select a course</option>
-            ${courses.map(c => `<option value="${c.id}">${c.code ? c.code + ' · ' : ''}${escapeHTML(c.title)}</option>`).join('')}
-        `;
     } catch (err) {
         courseSelect.innerHTML = '<option value="" disabled>Unable to load your courses</option>';
         resourceList.innerHTML = `
@@ -102,11 +103,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     courseSelect.addEventListener('change', async () => {
         const courseId = courseSelect.value;
         if (!courseId) return;
-        setLoading('Loading study resources…');
+        // Cached copy paints instantly; uncached courses load from the server.
+        const cachedData = cachedRead(`resources:${courseId}`);
+        if (!cachedData) setLoading('Loading study resources…');
         try {
-            const res = await authFetch(`${API_BASE}/api/resources/course/${courseId}`);
-            if (!res.ok) throw new Error('resources failed');
-            const data = await res.json();
+            const data = await swrGet(`resources:${courseId}`, `${API_BASE}/api/resources/course/${courseId}`);
             renderResources((data && data.resources) || []);
         } catch (err) {
             resourceList.innerHTML = `

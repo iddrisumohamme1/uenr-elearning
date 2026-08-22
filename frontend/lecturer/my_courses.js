@@ -3,6 +3,8 @@
    frontend/lecturer/my_courses.js
    Loads the logged-in lecturer's courses with live enrolment and
    at-risk readouts, and provides the students / messaging modals.
+   GETs use the persist-until-reload cache (shared keys with the
+   dashboard), so revisits paint instantly without refetching.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -81,9 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         studentsModal.hidden = false;
         body.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading students…</p></div>';
         try {
-            const res = await authFetch(`${API_BASE}/api/courses/${courseId}/students`);
-            if (!res.ok) throw new Error('students fetch failed');
-            const data = await res.json();
+            const data = await swrGet(`course-students:${courseId}`, `${API_BASE}/api/courses/${courseId}/students`);
             const students = data.students || [];
             if (!students.length) {
                 body.innerHTML = '<p class="text-muted">No students are enrolled in this course yet.</p>';
@@ -134,8 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        const res = await authFetch(`${API_BASE}/api/courses/mine`);
-        const courses = await res.json().catch(() => []);
+        const courses = await swrGet('lect-my-courses', `${API_BASE}/api/courses/mine`);
         if (!Array.isArray(courses) || courses.length === 0) {
             sumCourses.textContent = '0';
             sumStudents.textContent = '0';
@@ -157,18 +156,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             let enrolled = null;
             let atRisk = 0;
             try {
-                const sRes = await authFetch(`${API_BASE}/api/courses/${c.id}/students`);
-                if (sRes.ok) {
-                    const sData = await sRes.json();
-                    enrolled = sData.total_enrolled != null ? sData.total_enrolled : null;
-                }
+                const sData = await swrGet(`course-students:${c.id}`, `${API_BASE}/api/courses/${c.id}/students`);
+                enrolled = sData && sData.total_enrolled != null ? sData.total_enrolled : null;
             } catch (err) { /* keep – */ }
             try {
-                const aRes = await authFetch(`${API_BASE}/api/analytics/course/${c.id}/summary`);
-                if (aRes.ok) {
-                    const aData = await aRes.json();
-                    atRisk = aData.engagement?.at_risk?.count || 0;
-                }
+                const aData = await swrGet(`lect-summary:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/summary`);
+                atRisk = (aData && aData.engagement?.at_risk?.count) || 0;
             } catch (err) { /* keep 0 */ }
             return { ...c, enrolled, atRisk };
         }));

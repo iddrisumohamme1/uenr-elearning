@@ -2,6 +2,8 @@
    HOD DEPARTMENT ANALYTICS LOGIC
    frontend/hod/department_analytics.js
    Fetches all department analytics from Supabase via FastAPI backend.
+   Shares the persist-until-reload cache keys with the HOD dashboard,
+   so navigating between them never refetches the same payloads.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,8 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadAnalytics() {
         try {
             const [deptSummary, courses] = await Promise.all([
-                authFetch(`${API_BASE}/api/analytics/department/summary`).then(r => r.ok ? r.json() : null),
-                authFetch(`${API_BASE}/api/courses/`).then(r => r.ok ? r.json() : [])
+                swrGet('hod-dept-summary', `${API_BASE}/api/analytics/department/summary`).catch(() => null),
+                swrGet('hod-catalog', `${API_BASE}/api/courses/`).catch(() => [])
             ]);
 
             document.getElementById('stat-total-courses').textContent = Array.isArray(courses) ? courses.length : 0;
@@ -75,7 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadAtRiskStudents() {
         const atRiskList = document.getElementById('at-risk-list');
         try {
-            const courses = await authFetch(`${API_BASE}/api/courses/`).then(r => r.ok ? r.json() : []);
+            const courses = await swrGet('hod-catalog', `${API_BASE}/api/courses/`).catch(() => []);
             const allAtRisk = [];
 
             if (!Array.isArray(courses)) {
@@ -85,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             for (const course of courses) {
                 try {
-                    const atRisk = await authFetch(`${API_BASE}/api/analytics/course/${course.id}/at-risk`).then(r => r.json());
+                    const atRisk = await swrGet(`lect-at-risk:${course.id}`, `${API_BASE}/api/analytics/course/${course.id}/at-risk`);
                     if (atRisk.students && atRisk.students.length > 0) {
                         atRisk.students.forEach(s => {
                             allAtRisk.push({

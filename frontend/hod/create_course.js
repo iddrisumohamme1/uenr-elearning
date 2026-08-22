@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const data = await response.json();
             if (response.ok) {
+                // The dashboard caches the course catalog — drop it so the new
+                // course shows up when we land there.
+                invalidateApiCache('hod-catalog');
+                invalidateApiCache('lect-my-courses');
                 showToast('Course created successfully.', 'success');
                 window.location.href = 'dashboard.html';
             } else {

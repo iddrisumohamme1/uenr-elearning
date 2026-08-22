@@ -77,7 +77,10 @@
             (closable ? '<button class="toast-close" aria-label="Close">&times;</button>' : '');
 
         if (closable) {
-            toast.querySelector('.toast-close').addEventListener('click', function () {
+            // Clicking anywhere on the toast dismisses it; the close button
+            // is covered by bubbling, and dismiss() ignores repeat calls.
+            toast.style.cursor = 'pointer';
+            toast.addEventListener('click', function () {
                 dismiss(toast);
             });
         }

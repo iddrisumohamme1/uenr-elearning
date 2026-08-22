@@ -395,6 +395,38 @@ def enroll_course(payload: EnrollmentRequest, user=Depends(get_current_user)):
     return {"status": "ok", "message": "Successfully enrolled."}
 
 
+@router.delete("/{course_id}/enroll")
+def unenroll_course(course_id: str, user=Depends(get_current_user)):
+    """Remove the logged-in student's enrollment in a course."""
+    admin = get_admin_client()
+    try:
+        existing = with_retry(
+            lambda c: c.table("enrollments")
+            .select("id")
+            .eq("student_id", user["id"])
+            .eq("course_id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query enrollment: {exc}")
+
+    if not (getattr(existing, "data", []) or []):
+        raise HTTPException(status_code=404, detail="You are not enrolled in this course.")
+
+    try:
+        with_retry(
+            lambda c: c.table("enrollments")
+            .delete()
+            .eq("student_id", user["id"])
+            .eq("course_id", course_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to unenroll: {exc}")
+
+    return {"status": "ok", "message": "Successfully unenrolled."}
+
+
 @router.get("/{course_id}/students")
 def get_enrolled_students(course_id: str, user=Depends(require_role("lecturer", "hod"))):
     """

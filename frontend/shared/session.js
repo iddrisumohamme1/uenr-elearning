@@ -141,6 +141,7 @@ function clearSession() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     localStorage.removeItem(SESSION_START_KEY);
+    if (typeof clearAllApiCache === 'function') clearAllApiCache();
 }
 
 /**
@@ -190,18 +191,21 @@ async function initNavBadges() {
     const findLink = hrefPart => navLinks.find(a => (a.getAttribute('href') || '').includes(hrefPart));
     const onRecPage = window.location.pathname.includes('recommendations.html');
 
+    // "My Progress" is meaningless before the student enrols in anything —
+    // hide it until they have at least one course. Fail open on API errors.
+    const progressLink = findLink('progress.html');
+    if (progressLink) {
+        swrGet('nav-stats', `${API_BASE}/api/students/${user.id}/stats`, stats => {
+            if (!stats.enrolled_courses) progressLink.style.display = 'none';
+        }, { forceRefresh: true }).catch(err => console.error('[session] Progress link check failed:', err));
+    }
+
     // Unread messages → badge on the Inbox link.
     const inboxLink = findLink('inbox.html');
     if (inboxLink && !inboxLink.querySelector('.nav-badge')) {
-        try {
-            const res = await authFetch(`${API_BASE}/api/messages/unread-count`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.unread_count > 0) addNavBadge(inboxLink, data.unread_count);
-            }
-        } catch (err) {
-            console.error('[session] Inbox badge check failed:', err);
-        }
+        swrGet('nav-unread', `${API_BASE}/api/messages/unread-count`, data => {
+            if (data.unread_count > 0) addNavBadge(inboxLink, data.unread_count);
+        }, { forceRefresh: true }).catch(err => console.error('[session] Inbox badge check failed:', err));
     }
 
     // Pending recommendations → badge on the Recommendations link (skipped on
@@ -209,15 +213,9 @@ async function initNavBadges() {
     if (!onRecPage) {
         const recLink = findLink('recommendations.html');
         if (recLink && !recLink.querySelector('.nav-badge')) {
-            try {
-                const res = await authFetch(`${API_BASE}/api/recommendations/notifications`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.unread_count > 0) addNavBadge(recLink, data.unread_count);
-                }
-            } catch (err) {
-                console.error('[session] Recommendation badge check failed:', err);
-            }
+            swrGet('nav-rec-notifs', `${API_BASE}/api/recommendations/notifications`, data => {
+                if (data.unread_count > 0) addNavBadge(recLink, data.unread_count);
+            }, { forceRefresh: true }).catch(err => console.error('[session] Recommendation badge check failed:', err));
         }
     }
 
@@ -226,15 +224,9 @@ async function initNavBadges() {
     // to-do assignment right after login.
     const assignLink = findLink('assignments.html');
     if (assignLink && !assignLink.querySelector('.nav-badge')) {
-        try {
-            const res = await authFetch(`${API_BASE}/api/assignments/pending-count`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.pending_count > 0) addNavBadge(assignLink, data.pending_count);
-            }
-        } catch (err) {
-            console.error('[session] Assignments badge check failed:', err);
-        }
+        swrGet('nav-pending', `${API_BASE}/api/assignments/pending-count`, data => {
+            if (data.pending_count > 0) addNavBadge(assignLink, data.pending_count);
+        }, { forceRefresh: true }).catch(err => console.error('[session] Assignments badge check failed:', err));
     }
 }
 

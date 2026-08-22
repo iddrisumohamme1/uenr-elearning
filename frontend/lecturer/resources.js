@@ -1,8 +1,9 @@
-/* 
+/*
    LECTURER STUDY RESOURCES PAGE LOGIC
    frontend/lecturer/resources.js
    "The Study Press" — choose a material, compose an AI study aid, prove it,
-   then publish it for the class.
+   then publish it for the class. GETs use the persist-until-reload cache;
+   publish/delete drop the course's cached resource list before reloading.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -74,8 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadCourses(preselectId) {
         try {
-            const res = await authFetch(`${API_BASE}/api/courses/mine`);
-            const courses = await res.json();
+            const courses = await swrGet('lect-my-courses', `${API_BASE}/api/courses/mine`);
             if (!Array.isArray(courses) || !courses.length) {
                 courseSelect.innerHTML = '<option value="" disabled>No courses assigned to you yet</option>';
                 genStatus.textContent = 'You have no courses assigned yet. Ask an HOD to assign you one.';
@@ -98,10 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadMaterials(courseId) {
         materialSelect.innerHTML = '<option value="" disabled selected>Loading materials…</option>';
         try {
-            const res = await authFetch(`${API_BASE}/api/materials/course/${courseId}`);
-            if (!res.ok) throw new Error('materials failed');
-            const data = await res.json();
-            const materials = data.materials || [];
+            const data = await swrGet(`course-materials:${courseId}`, `${API_BASE}/api/materials/course/${courseId}`);
+            const materials = (data && data.materials) || [];
             if (!materials.length) {
                 materialSelect.innerHTML = '<option value="" disabled>No materials for this course</option>';
                 return;
@@ -121,9 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadPublished(courseId) {
         publishedList.innerHTML = '<div class="loading-wrapper"><div class="spinner spinner-sm"></div><p>Loading resources…</p></div>';
         try {
-            const res = await authFetch(`${API_BASE}/api/resources/course/${courseId}`);
-            if (!res.ok) throw new Error('resources failed');
-            const data = await res.json();
+            const data = await swrGet(`resources:${courseId}`, `${API_BASE}/api/resources/course/${courseId}`);
             const resources = (data && data.resources) || [];
             if (!resources.length) {
                 publishedList.innerHTML = '<p class="text-muted">No published resources for this course yet. Run the press above to publish the first one.</p>';
@@ -168,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (res.ok) {
                 showToast('Resource removed.', 'success');
                 closeModal(deleteModal);
+                invalidateApiCache(`resources:${selectedCourseId}`);
                 loadPublished(selectedCourseId);
             } else {
                 showToast('Could not remove resource.', 'error');
@@ -272,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 preview.hidden = true;
                 pendingResource = null;
                 setStage(1);
+                invalidateApiCache(`resources:${selectedCourseId}`);
                 loadPublished(selectedCourseId);
             } else {
                 genStatus.textContent = data.detail || 'Could not publish resource.';

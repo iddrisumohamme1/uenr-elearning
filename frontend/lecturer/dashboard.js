@@ -3,7 +3,9 @@
    frontend/lecturer/dashboard.js
    Fetches real data from Supabase via FastAPI backend.
    Renders the Class Pulse, stat tiles, Chart.js distribution charts,
-   and the at-risk student queue.
+   and the at-risk student queue. All GETs go through the persist-until-
+   reload cache: revisits within the session paint instantly without
+   hitting the server; F5 or a stale cache refreshes.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -271,8 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadDashboard() {
         try {
-            const coursesRes = await authFetch(`${API_BASE}/api/courses/mine`);
-            const courses = await coursesRes.json().catch(() => []);
+            const courses = await swrGet('lect-my-courses', `${API_BASE}/api/courses/mine`);
 
             if (!Array.isArray(courses) || courses.length === 0) {
                 setPulse(0, 0, 0, 'No courses assigned yet. Upload content or create a quiz to get started.');
@@ -289,8 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalCoursesEl.textContent = String(courses.length);
 
             const summaries = await Promise.all(
-                courses.map(c => authFetch(`${API_BASE}/api/analytics/course/${c.id}/summary`)
-                    .then(r => r.json().catch(() => null))
+                courses.map(c => swrGet(`lect-summary:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/summary`)
                     .catch(() => null))
             );
 
@@ -328,8 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const atRiskResults = await Promise.all(
                 courses.map(c =>
-                    authFetch(`${API_BASE}/api/analytics/course/${c.id}/at-risk`)
-                        .then(r => r.json().catch(() => null))
+                    swrGet(`lect-at-risk:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/at-risk`)
                         .then(data => ({ course: c, students: data && data.students || [] }))
                         .catch(() => ({ course: c, students: [] }))
                 )

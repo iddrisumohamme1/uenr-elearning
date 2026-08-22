@@ -224,13 +224,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // straight on their dashboard instead of the login page.
                     showToast('Login successful.', 'success');
                     try {
-                        const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email, password })
-                        });
-                        const loginData = await loginRes.json();
-                        if (loginRes.ok) {
+                        // Supabase can briefly reject sign-ins for an account
+                        // created moments ago (propagation lag), so retry a
+                        // couple of times before falling back to the login page.
+                        let loginData = null;
+                        for (let attempt = 0; attempt < 3; attempt++) {
+                            if (attempt > 0) await new Promise(r => setTimeout(r, 1200));
+                            const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email, password })
+                            });
+                            loginData = await loginRes.json().catch(() => null);
+                            if (loginRes.ok && loginData) break;
+                            loginData = null;
+                        }
+                        if (loginData) {
                             localStorage.setItem('token', loginData.access_token);
                             localStorage.setItem('refresh_token', loginData.refresh_token);
                             localStorage.setItem('user', JSON.stringify(loginData.user));

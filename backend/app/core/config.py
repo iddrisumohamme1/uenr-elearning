@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # When empty, the service falls back to Gemini.
     GROQ_API_KEY: str = ""
     # Groq model id, e.g. "llama-3.3-70b-versatile".
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # --- Heavy ML model switches ---
     # On small instances (e.g. Render 512 MB free tier) keep these False so

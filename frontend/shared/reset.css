@@ -11,6 +11,11 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-display);color:var(--text-primary);line
 p{color:var(--text-secondary);line-height:1.7}
 table{border-collapse:collapse}
 
+/* The hidden attribute must always win: author display rules (e.g.
+   .study-warning { display:flex }) otherwise defeat it and elements meant
+   to be hidden stay visible. */
+[hidden]{display:none!important}
+
 /* Accessible focus ring for keyboard users (not on mouse click) */
 :focus-visible{outline:none;box-shadow:var(--ring);border-radius:var(--r-sm)}
 

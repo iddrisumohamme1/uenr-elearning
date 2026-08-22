@@ -185,6 +185,8 @@
 }
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
+.mobile-view-tabs { display: none; } /* mobile-only section switcher */
+
 .viewer-layout {
     flex: 1;
     display: flex;
@@ -232,6 +234,17 @@
     flex-direction: column;
     height: 100%;
     width: 100%;
+}
+
+/* Empty / fallback message shown when no material is rendered.
+   The reading surface is intentionally unpadded for real material,
+   so placeholders carry their own spacing and center themselves. */
+.content-empty {
+    margin: auto;
+    padding: var(--s10) var(--s8);
+    max-width: 60ch;
+    text-align: center;
+    color: var(--text-secondary);
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────────────── */
@@ -484,6 +497,58 @@
     background: var(--bg-surface);
 }
 
+/* Mobile fallback for Office docs: hand off to the device viewer */
+.material-download-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s3);
+    padding: var(--s8) var(--s5);
+    text-align: center;
+}
+
+.material-download-card h3 {
+    font-size: 1rem;
+    word-break: break-word;
+}
+
+.material-download-card p {
+    max-width: 42ch;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.office-open-btn,
+.office-dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s6);
+    border-radius: var(--r-full);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.office-open-btn {
+    background: var(--grad-primary);
+    color: #fff;
+    box-shadow: var(--shadow-glow);
+}
+
+.office-open-btn:hover { transform: translateY(-1px); }
+
+.office-dl-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--rd-teal);
+}
+
+.office-dl-btn:hover { border-color: var(--rd-teal); }
+
 .material-viewer-header {
     display: flex;
     align-items: center;
@@ -714,9 +779,14 @@
 }
 
 @media (max-width: 768px) {
+    /* Fixed app-frame on mobile: the material scrolls inside its own pane;
+       Contents + Session live behind the Material | Contents switcher. */
     .viewer-container {
+        height: 100vh; /* fallback for browsers without dynamic viewport units */
+        max-height: 100vh;
         height: 100dvh;
         max-height: 100dvh;
+        overflow: hidden;
     }
 
     .viewer-header {
@@ -730,27 +800,71 @@
     .back-btn span { display: none; }
     .crumb-sep { display: none; }
 
+    /* Section switcher, docked under the header */
+    .mobile-view-tabs {
+        display: flex;
+        flex-shrink: 0;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .view-tab {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--s2);
+        padding: var(--s3) 0;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color var(--t-fast), border-color var(--t-fast);
+    }
+
+    .view-tab.is-active {
+        color: var(--rd-teal);
+        border-bottom-color: var(--rd-teal);
+    }
+
     .viewer-layout {
-        flex-direction: row !important;
+        flex-direction: column;
         overflow: hidden;
     }
 
-    .viewer-sidebar {
-        position: static !important;
-        width: 180px !important;
-        max-width: 180px;
-        flex: none;
-        border-left: 1px solid var(--border);
-        border-top: none;
-        transform: none;
-        box-shadow: none;
-        z-index: auto;
-        padding: var(--s3) var(--s2);
-        gap: var(--s4);
+    /* The material pane scrolls itself — swiping moves the content,
+       not the page. */
+    .content-area {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0;
     }
 
+    /* Contents pane takes over when switched to. */
+    .viewer-sidebar {
+        display: none;
+        width: 100%;
+        max-width: 100%;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        border-left: none;
+        padding: var(--s4);
+        gap: var(--s5);
+    }
+
+    .viewer-container[data-mobile-tab="contents"] .content-area { display: none; }
+    .viewer-container[data-mobile-tab="contents"] .viewer-sidebar { display: flex; }
+
+    /* Comfortable full-width sizes for the contents list */
     .viewer-sidebar .sidebar-section .sidebar-eyebrow {
-        font-size: 0.62rem;
+        font-size: 0.68rem;
         margin-bottom: var(--s2);
     }
 
@@ -761,25 +875,16 @@
 
     .viewer-sidebar .topic-item {
         padding: var(--s2);
-        font-size: 0.76rem;
+        font-size: 0.82rem;
         line-height: 1.4;
     }
 
     .viewer-sidebar .material-desc {
-        font-size: 0.68rem;
+        font-size: 0.72rem;
         margin: 0.2rem 0 0;
     }
 
-    .viewer-sidebar .file-tag { font-size: 0.55rem; padding: 0 var(--s1); }
-
-    .content-area {
-        flex: 1;
-        width: 100%;
-        min-width: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        padding: 0;
-    }
+    .viewer-sidebar .file-tag { font-size: 0.6rem; padding: 0 var(--s1); }
 
     #content-viewer img.media-embed-img {
         height: auto;
@@ -796,11 +901,6 @@
 }
 
 @media (max-width: 380px) {
-    .viewer-sidebar {
-        width: 140px !important;
-        max-width: 140px;
-    }
-
     .viewer-sidebar .topic-item {
         font-size: 0.7rem;
         padding: var(--s1) var(--s2);

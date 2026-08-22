@@ -263,36 +263,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const today = new Date().toISOString().slice(0, 10);
-        let todayLogs = {};
-        try {
-            const res = await authFetch(`${API_BASE}/api/attendance/student/${user.id}`);
-            if (res.ok) {
-                const logs = await res.json();
-                logs.forEach(l => {
-                    if (String(l.logged_date).slice(0, 10) === today && l.course_id) {
-                        todayLogs[l.course_id] = l.status;
-                    }
-                });
-            }
-        } catch (err) { /* attendance history unavailable */ }
+        const buildMap = (logs) => {
+            const map = {};
+            (logs || []).forEach(l => {
+                if (String(l.logged_date).slice(0, 10) === today && l.course_id) {
+                    map[l.course_id] = l.status;
+                }
+            });
+            return map;
+        };
 
-        list.innerHTML = state.courses.map((c, i) => {
-            const logged = todayLogs[c.course_id];
-            const actions = ['present', 'late', 'absent'].map(s => {
-                const label = s.charAt(0).toUpperCase() + s.slice(1);
-                return `<button class="attend-btn ${logged === s ? 'selected' : ''}" data-status="${s}" data-course="${c.course_id}" ${logged ? 'disabled' : ''}>${label}</button>`;
+        function renderList(todayLogs) {
+            list.innerHTML = state.courses.map((c, i) => {
+                const logged = todayLogs[c.course_id];
+                const actions = ['present', 'late', 'absent'].map(s => {
+                    const label = s.charAt(0).toUpperCase() + s.slice(1);
+                    return `<button class="attend-btn ${logged === s ? 'selected' : ''}" data-status="${s}" data-course="${c.course_id}" ${logged ? 'disabled' : ''}>${label}</button>`;
+                }).join('');
+                return `
+                <div class="attend-card" style="animation-delay: ${i * 50}ms">
+                    <h4>${c.course_title}</h4>
+                    <p class="text-muted">${c.course_code || ''}</p>
+                    ${logged
+                        ? `<div class="attend-logged"><i class="bi bi-check-circle-fill"></i> Marked ${logged} today</div>`
+                        : `<div class="attend-actions">${actions}</div>`}
+                </div>`;
             }).join('');
-            return `
-            <div class="attend-card" style="animation-delay: ${i * 50}ms">
-                <h4>${c.course_title}</h4>
-                <p class="text-muted">${c.course_code || ''}</p>
-                ${logged
-                    ? `<div class="attend-logged"><i class="bi bi-check-circle-fill"></i> Marked ${logged} today</div>`
-                    : `<div class="attend-actions">${actions}</div>`}
-            </div>`;
-        }).join('');
 
-        list.querySelectorAll('.attend-btn:not(:disabled)').forEach(btn => {
+            list.querySelectorAll('.attend-btn:not(:disabled)').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const status = btn.dataset.status;
                 const courseId = btn.dataset.course;
@@ -305,6 +303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const data = await res.json().catch(() => ({}));
                     if (res.ok) {
                         showToast(data.message || `Marked ${status}.`, 'success');
+                        invalidateApiCache('attendance');
                         loadAttendance();
                     } else {
                         showToast(data.detail || 'Could not mark attendance today.', 'error');
@@ -314,6 +313,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         });
+        }
+
+        // Cached logs paint instantly; the fetch revalidates.
+        let painted = false;
+        const paint = (logs) => { painted = true; renderList(buildMap(logs)); };
+        const cachedLogs = cachedRead('attendance');
+        if (cachedLogs) paint(cachedLogs);
+        try {
+            const res = await authFetch(`${API_BASE}/api/attendance/student/${user.id}`);
+            if (res.ok) {
+                const logs = await res.json();
+                cachedWrite('attendance', logs);
+                paint(logs);
+            }
+        } catch (err) { /* attendance history unavailable */ }
+        if (!painted) renderList({});
     }
 
     // -- Attendance toggle (lazy-load on first open) -------------------------
@@ -336,15 +351,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // -- Load data ------------------------------------------------------------
     async function load() {
         try {
-            const res = await authFetch(`${API_BASE}/api/study/summary/${user.id}`);
-            if (!res.ok) throw new Error(`Study summary failed (${res.status})`);
-            const data = await res.json();
-            state.courses = data.courses || [];
-            state.overall = data.overall || {};
-            renderDialPills();
-            renderDial();
-            renderHero();
-            renderCourseLedger();
+            await swrGet('study-summary', `${API_BASE}/api/study/summary/${user.id}`, data => {
+                state.courses = data.courses || [];
+                state.overall = data.overall || {};
+                renderDialPills();
+                renderDial();
+                renderHero();
+                renderCourseLedger();
+            });
         } catch (err) {
             console.error('Error loading progress:', err);
             document.getElementById('course-ledger').innerHTML =

@@ -34,6 +34,12 @@
             </div>
         </header>
 
+        <!-- Mobile-only section switcher -->
+        <nav class="mobile-view-tabs" aria-label="Viewer sections">
+            <button class="view-tab is-active" data-tab="material" type="button"><i class="bi bi-file-text"></i> Material</button>
+            <button class="view-tab" data-tab="contents" type="button"><i class="bi bi-list-ul"></i> Contents</button>
+        </nav>
+
         <div class="viewer-layout">
             <!-- Reading surface -->
             <main class="content-area" id="content-viewer">
@@ -105,10 +111,12 @@
         </div>
     </div>
 
+    <script src="../shared/api-cache.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
     <script src="../shared/dropdown.js"></script>
+    <script src="../shared/tutor-widget.js"></script>
     <script src="materials.js"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@
    LECTURER MATERIAL UPLOAD LOGIC
    frontend/lecturer/upload.js
    Loads courses from Supabase, handles file upload via FastAPI backend.
+   The course dropdown uses the persist-until-reload cache; a successful
+   upload drops the course's cached material list.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -47,8 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadCourses() {
         try {
-            const response = await authFetch(`${API_BASE}/api/courses/`);
-            const courses = await response.json();
+            const courses = await swrGet('catalog', `${API_BASE}/api/courses/`);
             if (!Array.isArray(courses) || courses.length === 0) {
                 courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
                 return;
@@ -111,6 +112,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await response.json();
             if (response.ok) {
                 showToast('Material uploaded successfully.', 'success');
+                // Drop the course's cached material list so the materials
+                // page shows the new file right away.
+                invalidateApiCache(`course-materials:${courseId}`);
                 window.location.href = 'dashboard.html';
             } else {
                 showToast('Upload failed: ' + (data.detail || data.message || 'Unknown error'), 'error');

@@ -1,4 +1,4 @@
-/* 
+﻿/* 
    RECOMMENDATIONS MODULE STYLES
    frontend/recommendations/recommendations.css
    Search behaves like a search engine: query up top, results as ranked rows.
@@ -7,7 +7,7 @@
 .rec-container { display: flex; min-height: 100vh; }
 .rec-content { flex: 1; padding: 2rem 3rem 4rem; }
 
-/* ── Top bar with profile avatar ─────────────────────────── */
+/* â”€â”€ Top bar with profile avatar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -50,7 +50,7 @@
     border: 2px solid var(--border-strong);
 }
 
-/* ── Search section (search-engine style) ─────────────────── */
+/* â”€â”€ Search section (search-engine style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .search-section {
     max-width: 720px;
     margin: 0 auto 2.5rem;
@@ -72,10 +72,6 @@
     border-radius: var(--r-full);
     padding: 0.35rem 0.35rem 0.35rem 1.25rem;
     box-shadow: var(--shadow-md);
-    transition: box-shadow var(--t-base), border-color var(--t-base);
-}
-.search-bar:focus-within {
-    border-color: var(--clr-primary);
 }
 .search-bar-icon {
     color: var(--text-muted);
@@ -134,11 +130,9 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform var(--t-fast), box-shadow var(--t-fast);
 }
-.search-submit:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
 
-/* ── Related searches (detected weak topics) ─────────────── */
+/* â”€â”€ Related searches (detected weak topics) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .related-searches {
     margin-top: 1rem;
     display: flex;
@@ -172,7 +166,7 @@
     margin-left: 0.35rem;
 }
 
-/* ── Pending (quiz-based) recommendations ────────────────── */
+/* â”€â”€ Pending (quiz-based) recommendations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pending-recs {
     max-width: 720px;
     margin: 0 auto 2.5rem;
@@ -187,7 +181,7 @@
 }
 .pending-recs .text-muted { margin-bottom: 1.25rem; }
 
-/* ── Results info line (search-engine style) ─────────────── */
+/* â”€â”€ Results info line (search-engine style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .results-info {
     max-width: 720px;
     margin: 0 auto 1.5rem;
@@ -195,7 +189,7 @@
     color: var(--text-muted);
 }
 
-/* ── Results (search-engine rows) ────────────────────────── */
+/* â”€â”€ Results (search-engine rows) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .search-results {
     max-width: 720px;
     margin: 0 auto;
@@ -285,200 +279,15 @@
 .error-state { padding: 2rem; text-align: center; }
 .error-state p { color: var(--clr-danger); }
 
-/* ── AI Tutor (Q&A chat) ──────────────────────────────────── */
-.tutor-popup {
-    position: fixed;
-    right: 1.5rem;
-    bottom: 5.5rem;
-    z-index: 1000;
-    width: 380px;
-    max-width: calc(100vw - 3rem);
-    background: var(--bg-surface);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-lg);
-    display: flex;
-    flex-direction: column;
-    max-height: min(600px, calc(100vh - 8rem));
-    overflow: hidden;
-    transform: translateY(12px);
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-    transition: transform var(--t-base), opacity var(--t-base), visibility var(--t-base);
+/* Desktop: let the searching spinner float mid-page instead of hugging the top */
+@media (min-width: 769px) {
+    #loading-state.loading-wrapper {
+        min-height: 45vh;
+    }
 }
-.tutor-popup.open {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-}
-.tutor-popup-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.9rem 1.1rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-}
-.tutor-chat-title {
-    font-family: var(--font-display);
-    font-size: 1.05rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.tutor-chat-title i { color: var(--clr-primary-light); font-size: 1.1rem; }
-.tutor-close {
-    flex: none;
-    width: 30px;
-    height: 30px;
-    border: none;
-    border-radius: var(--r-full);
-    background: transparent;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: color var(--t-fast), background var(--t-fast);
-}
-.tutor-close:hover { color: var(--clr-danger); background: var(--bg-elevated); }
-.tutor-chat-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid var(--border);
-}
-.tutor-course-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    flex: none;
-}
-.tutor-course-select {
-    flex: 1;
-    min-width: 0;
-}
-.tutor-thread {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem 1.1rem;
-    flex: 1;
-    min-height: 180px;
-    overflow-y: auto;
-}
-.tutor-bubble {
-    max-width: 86%;
-    padding: 0.65rem 0.9rem;
-    border-radius: var(--r-md);
-    font-size: 0.88rem;
-    line-height: 1.5;
-    white-space: normal;
-    word-wrap: break-word;
-}
-.tutor-bubble-ai {
-    align-self: flex-start;
-    background: var(--primary-soft);
-    border: 1px solid var(--border);
-    border-bottom-left-radius: var(--r-sm);
-    color: var(--text-primary);
-}
-.tutor-bubble-user {
-    align-self: flex-end;
-    background: var(--grad-primary);
-    color: #fff;
-    border-bottom-right-radius: var(--r-sm);
-}
-.tutor-bubble-user a { color: #fff; }
-.tutor-loading {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--text-muted);
-    font-style: italic;
-}
-.tutor-loading .spinner { width: 14px; height: 14px; }
-.tutor-form {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.1rem;
-    border-top: 1px solid var(--border);
-    background: var(--bg);
-}
-.tutor-form input {
-    flex: 1;
-    min-width: 0;
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-full);
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
-    padding: 0.6rem 1rem;
-    outline: none;
-    transition: border-color var(--t-base);
-}
-.tutor-form input::placeholder { color: var(--text-muted); }
-.tutor-form input:focus { border-color: var(--clr-primary); }
-.tutor-send {
-    flex: none;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: var(--r-full);
-    background: var(--grad-primary);
-    color: #fff;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform var(--t-fast), box-shadow var(--t-fast);
-}
-.tutor-send:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
-.tutor-send:disabled { opacity: 0.6; cursor: default; }
-.tutor-error {
-    margin: 0 1.1rem 0.6rem;
-    padding: 0.55rem 0.8rem;
-    background: rgba(255, 82, 82, 0.08);
-    border: 1px solid rgba(255, 82, 82, 0.35);
-    border-radius: var(--r-sm);
-    color: var(--clr-danger);
-    font-size: 0.82rem;
-}
-
-/* ── Floating action button ───────────────────────────────── */
-.tutor-fab {
-    position: fixed;
-    right: 1.5rem;
-    bottom: 1.5rem;
-    z-index: 1000;
-    width: 58px;
-    height: 58px;
-    border: none;
-    border-radius: var(--r-full);
-    background: var(--grad-primary);
-    color: #fff;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: var(--shadow-glow);
-    transition: transform var(--t-fast), box-shadow var(--t-fast);
-}
-.tutor-fab:hover { transform: translateY(-3px) scale(1.05); box-shadow: var(--shadow-glow); }
 
 @media (max-width: 768px) {
     .rec-content { padding: 1.5rem; }
-    .search-section, .search-results, .results-info, .pending-recs, .tutor-chat { max-width: 100%; }
+    .search-section, .search-results, .results-info, .pending-recs { max-width: 100%; }
     .enter-hint { display: none; }
 }

@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     function showLoading() {
-        loadingEl.style.display = 'block';
+        loadingEl.style.display = 'flex';
         errorEl.style.display = 'none';
         listEl.innerHTML = '';
         resultsInfoEl.style.display = 'none';
@@ -241,114 +241,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    /* ------------------------- AI TUTOR (Q&A) ------------------------- */
-
-    const tutorThread = document.getElementById('tutor-thread');
-    const tutorForm = document.getElementById('tutor-form');
-    const tutorInput = document.getElementById('tutor-input');
-    const tutorSend = document.getElementById('tutor-send');
-    const tutorCourse = document.getElementById('tutor-course');
-    const tutorError = document.getElementById('tutor-error');
-    const tutorFab = document.getElementById('tutor-fab');
-    const tutorPopup = document.getElementById('tutor-popup');
-    const tutorClose = document.getElementById('tutor-close');
-
-    function openTutor() {
-        tutorPopup.classList.add('open');
-        tutorPopup.setAttribute('aria-hidden', 'false');
-        tutorInput.focus();
-    }
-
-    function closeTutor() {
-        tutorPopup.classList.remove('open');
-        tutorPopup.setAttribute('aria-hidden', 'true');
-    }
-
-    tutorFab.addEventListener('click', openTutor);
-    tutorClose.addEventListener('click', closeTutor);
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeTutor();
-    });
-
-    async function loadTutorCourses() {
-        try {
-            const res = await authFetch(`${API_BASE}/api/students/${user.id}/courses`);
-            if (!res.ok) return;
-            const courses = await res.json();
-            if (!courses || !courses.length) return;
-            tutorCourse.innerHTML = '<option value="">General (any topic)</option>' +
-                courses.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.title)}</option>`).join('');
-        } catch (err) {
-            console.error('Failed to load tutor course list:', err);
-        }
-    }
-
-    function appendTutorBubble(text, isUser) {
-        const bubble = document.createElement('div');
-        bubble.className = `tutor-bubble ${isUser ? 'tutor-bubble-user' : 'tutor-bubble-ai'}`;
-        bubble.innerHTML = escapeHTML(text).replace(/\n/g, '<br>');
-        tutorThread.appendChild(bubble);
-        tutorThread.scrollTop = tutorThread.scrollHeight;
-        return bubble;
-    }
-
-    function showTutorError(msg) {
-        tutorError.textContent = msg;
-        tutorError.style.display = 'block';
-    }
-
-    function hideTutorError() {
-        tutorError.style.display = 'none';
-    }
-
-    async function sendTutorQuestion() {
-        const question = tutorInput.value.trim();
-        if (!question || tutorSend.disabled) return;
-
-        hideTutorError();
-        appendTutorBubble(question, true);
-        tutorInput.value = '';
-
-        const loading = document.createElement('div');
-        loading.className = 'tutor-bubble tutor-bubble-ai tutor-loading';
-        loading.innerHTML = '<span class="spinner"></span><span>Thinking...</span>';
-        tutorThread.appendChild(loading);
-        tutorThread.scrollTop = tutorThread.scrollHeight;
-
-        tutorSend.disabled = true;
-        tutorSend.querySelector('i').className = 'bi bi-hourglass-split';
-        try {
-            const res = await authFetch(`${API_BASE}/api/recommendations/ask`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question,
-                    course_id: tutorCourse.value || null,
-                })
-            });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.detail || 'The AI tutor could not answer right now.');
-            }
-            const data = await res.json();
-            loading.remove();
-            appendTutorBubble(data.answer || 'No answer received.', false);
-        } catch (err) {
-            loading.remove();
-            showTutorError(err.message || 'Unable to reach the AI tutor.');
-            tutorInput.value = question;
-        } finally {
-            tutorSend.disabled = false;
-            tutorSend.querySelector('i').className = 'bi bi-send';
-            tutorInput.focus();
-        }
-    }
-
-    tutorForm.addEventListener('submit', e => {
-        e.preventDefault();
-        sendTutorQuestion();
-    });
-
     searchForm.addEventListener('submit', e => {
         e.preventDefault();
         runSearch();
@@ -366,5 +258,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadPendingRecommendations();
     loadAutoDetection();
-    loadTutorCourses();
 });
