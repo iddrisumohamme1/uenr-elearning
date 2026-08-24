@@ -105,7 +105,141 @@
     font-size: 0.875rem;
 }
 
+/* ─── Stat cards: honest labels + trend chip ─────────────────────────── */
+.stat-hint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-muted, var(--border-strong));
+    margin-top: 0.45rem;
+}
+.trend-chip {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    padding: 2px 9px;
+    border-radius: var(--r-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.trend-chip.up   { color: var(--clr-success); background: color-mix(in srgb, var(--clr-success) 14%, transparent); }
+.trend-chip.down { color: var(--clr-danger);  background: color-mix(in srgb, var(--clr-danger) 14%, transparent); }
+.trend-chip.flat { color: var(--text-muted, var(--border-strong)); background: color-mix(in srgb, var(--text-muted, var(--border-strong)) 12%, transparent); }
+
+/* ─── 14-day activity chart ──────────────────────────────────────────── */
+.activity-chart-card { grid-column: 1 / -1; }
+.chart-head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s2);
+    flex-wrap: wrap;
+}
+.chart-head-row h3 { margin: 0; }
+.act-chart {
+    display: flex;
+    align-items: stretch;
+    gap: 7px;
+    height: 170px;
+    padding-top: var(--s3);
+}
+.act-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border-radius: var(--r-sm, 6px);
+    cursor: default;
+}
+.act-col:focus-visible { outline: 2px solid var(--clr-primary); outline-offset: 2px; }
+.act-track {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+}
+.act-bar {
+    position: relative;
+    width: 100%;
+    border-radius: 6px 6px 3px 3px;
+    background: linear-gradient(180deg, var(--clr-primary), var(--clr-energy));
+    transition: height 0.4s ease, filter 0.15s ease;
+}
+.act-bar:hover, .act-col:focus-visible .act-bar { filter: brightness(1.15); }
+.act-val {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: var(--clr-primary);
+    white-space: nowrap;
+}
+.act-day {
+    text-align: center;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--text-muted, var(--border-strong));
+    text-transform: uppercase;
+}
+.act-col.zero .act-track::after {
+    content: "";
+    height: 3px;
+    width: 100%;
+    border-radius: 3px;
+    background: var(--border);
+}
+.act-col.is-today .act-day { color: var(--clr-primary); }
+.act-col.is-today .act-track { border-bottom: 2px solid var(--clr-primary); }
+
+.dist-subtext { font-size: 0.78rem; margin-bottom: var(--s3); }
+
+/* ─── Recent sessions list ───────────────────────────────────────────── */
+.sess-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+}
+.lvl-badge {
+    flex: none;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: var(--r-full);
+    margin-top: 2px;
+}
+.lvl-badge.lvl-high   { color: var(--clr-success); background: color-mix(in srgb, var(--clr-success) 14%, transparent); }
+.lvl-badge.lvl-medium { color: #b8860b; background: color-mix(in srgb, var(--clr-warning) 18%, transparent); }
+.lvl-badge.lvl-low    { color: var(--clr-danger); background: color-mix(in srgb, var(--clr-danger) 14%, transparent); }
+.sess-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sess-main strong { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; }
+.sess-main small { font-size: 0.72rem; color: var(--text-muted, var(--border-strong)); }
+
+.insight-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.insight-list li { font-size: 0.9rem; line-height: 1.5; padding-left: 1.1rem; position: relative; }
+.insight-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-full);
+    background: var(--clr-energy);
+}
+
 .behavioral-insights { margin-bottom: 3rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .act-bar { transition: none; }
+    .bar-fill { transition: none; }
+}
 
 /* ─── Quiz Performance ─────────────────────────────────────────────────── */
 .quiz-performance {

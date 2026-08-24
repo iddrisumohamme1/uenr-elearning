@@ -43,16 +43,20 @@
             <div id="analytics-body" style="display:none">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <h3>Average Engagement</h3>
-                        <p class="stat-value" id="avg-engagement">--%</p>
+                        <h3>This Week's Engagement</h3>
+                        <p class="stat-value"><span id="wk-engagement">--</span>
+                            <span class="trend-chip" id="trend-chip" style="display:none"></span></p>
+                        <p class="stat-hint">Score out of 100, built from reading time, scrolling, highlights and video watching</p>
                     </div>
                     <div class="stat-card">
-                        <h3>Total Materials Viewed</h3>
+                        <h3>Materials Explored</h3>
                         <p class="stat-value" id="materials-count">0</p>
+                        <p class="stat-hint">Distinct materials you have opened</p>
                     </div>
                     <div class="stat-card">
-                        <h3>Total Time Spent</h3>
+                        <h3>Total Study Time</h3>
                         <p class="stat-value" id="time-spent">0m</p>
+                        <p class="stat-hint">All tracked sessions combined</p>
                     </div>
                 </div>
 
@@ -80,9 +84,19 @@
                     </div>
                 </div>
 
+                <div class="chart-card activity-chart-card">
+                    <div class="chart-head-row">
+                        <h3>Last 14 Days</h3>
+                        <span class="text-muted" id="chart-caption"></span>
+                    </div>
+                    <div class="act-chart" id="act-chart" role="img"
+                         aria-label="Bar chart of your study minutes for each of the last 14 days"></div>
+                </div>
+
                 <div class="charts-grid">
                     <div class="chart-card">
-                        <h3>Engagement Distribution</h3>
+                        <h3>Study Session Quality</h3>
+                        <p class="text-muted dist-subtext" id="dist-subtext">How your study sessions rank, from first login to now.</p>
                         <div class="engagement-bars" id="engagement-bars">
                             <div class="bar-row">
                                 <span class="bar-label">High</span>
@@ -103,9 +117,9 @@
                     </div>
 
                     <div class="chart-card">
-                        <h3>Recent Activity</h3>
+                        <h3>Recent Sessions</h3>
                         <div id="activity-list" class="activity-list">
-                            <p class="text-muted">No activity recorded yet.</p>
+                            <p class="text-muted">No study sessions recorded yet.</p>
                         </div>
                     </div>
                 </div>
@@ -163,7 +177,9 @@
                     <h3>Behavioral Insights</h3>
                     <div class="insight-card">
                         <span class="insight-icon"><i class="bi bi-lightbulb-fill"></i></span>
-                        <p id="insight-text">Loading insights...</p>
+                        <ul id="insight-list" class="insight-list">
+                            <li>Loading insights...</li>
+                        </ul>
                     </div>
                 </section>
             </div>

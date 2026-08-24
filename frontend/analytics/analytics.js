@@ -37,85 +37,216 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // ── Engagement analytics ────────────────────────────────────────────────
-    if (engagementRes && engagementRes.ok) {
-        const data = await engagementRes.json();
-        const logs = data.logs || [];
+    // ── Engagement analytics ─────────────────────────────────────────────
+    // Primary source: /summary aggregates the FULL history server-side.
+    // The plain /student/{id} endpoint only returns the 10 most recent
+    // telemetry ticks (~5 minutes), which made every page-level average
+    // misleading - it stays wired in purely as a graceful fallback.
+    const engagementData = (engagementRes && engagementRes.ok)
+        ? await engagementRes.json().catch(() => null)
+        : null;
+    const logs = engagementData?.logs || [];
 
-        if (logs.length > 0) {
-            const totalLogs = logs.length;
-            const avgScore = Math.round(logs.reduce((sum, l) => sum + (l.engagement_score || 0), 0) / totalLogs);
-            const totalTime = logs.reduce((sum, l) => sum + (l.time_spent || 0), 0);
-            const materialsViewed = new Set(logs.map(l => l.material_id).filter(Boolean)).size;
+    function escapeHtml(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
 
-            document.getElementById('avg-engagement').textContent = `${avgScore}%`;
-            document.getElementById('materials-count').textContent = materialsViewed;
-            document.getElementById('time-spent').textContent = totalTime > 3600
-                ? `${Math.round(totalTime / 3600)}h` : `${Math.round(totalTime / 60)}m`;
+    function fmtMinutes(total) {
+        const m = Math.max(0, Math.round(total || 0));
+        if (m >= 60) return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+        return `${m}m`;
+    }
 
-            const high = logs.filter(l => (l.engagement_score || 0) >= 75).length;
-            const med = logs.filter(l => { const s = l.engagement_score || 0; return s >= 40 && s < 75; }).length;
-            const low = logs.filter(l => (l.engagement_score || 0) < 40).length;
+    function relDay(iso) {
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        const today = new Date();
+        const yesterday = new Date(Date.now() - 864e5);
+        if (d.toDateString() === today.toDateString()) return 'Today';
+        if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+        return d.toLocaleDateString();
+    }
 
-            document.getElementById('bar-high').style.width = `${(high / totalLogs) * 100}%`;
-            document.getElementById('bar-med').style.width = `${(med / totalLogs) * 100}%`;
-            document.getElementById('bar-low').style.width = `${(low / totalLogs) * 100}%`;
-            document.getElementById('pct-high').textContent = `${Math.round((high / totalLogs) * 100)}%`;
-            document.getElementById('pct-med').textContent = `${Math.round((med / totalLogs) * 100)}%`;
-            document.getElementById('pct-low').textContent = `${Math.round((low / totalLogs) * 100)}%`;
+    function setDistBars(highPct, medPct, lowPct) {
+        document.getElementById('bar-high').style.width = `${highPct}%`;
+        document.getElementById('bar-med').style.width = `${medPct}%`;
+        document.getElementById('bar-low').style.width = `${lowPct}%`;
+        document.getElementById('pct-high').textContent = `${Math.round(highPct)}%`;
+        document.getElementById('pct-med').textContent = `${Math.round(medPct)}%`;
+        document.getElementById('pct-low').textContent = `${Math.round(lowPct)}%`;
+    }
 
-            const activityList = document.getElementById('activity-list');
-            activityList.innerHTML = logs.slice(0, 5).map(l => `
-                <div class="activity-item">
-                    <span>${l.engagement_level || 'N/A'}</span>
-                    <span class="text-muted">${l.logged_at ? new Date(l.logged_at).toLocaleDateString() : 'Recent'}</span>
-                </div>
-            `).join('');
+    function buildActivityChart(daily) {
+        const chartEl = document.getElementById('act-chart');
+        if (!chartEl || !Array.isArray(daily)) return;
+        const maxMin = Math.max(...daily.map(d => d.minutes || 0), 1);
+        const activeDays = daily.filter(d => (d.minutes || 0) > 0).length;
+        const cap = document.getElementById('chart-caption');
+        if (cap) cap.textContent = activeDays
+            ? `${activeDays} active day${activeDays === 1 ? '' : 's'} · focus a bar for detail`
+            : 'No study time recorded yet';
+        const todayKey = new Date().toISOString().slice(0, 10);
+        chartEl.innerHTML = daily.map(d => {
+            const mins = d.minutes || 0;
+            const h = mins > 0 ? Math.max(8, Math.round((mins / maxMin) * 100)) : 3;
+            const dt = new Date(`${d.date}T00:00:00`);
+            const label = isNaN(dt) ? d.date : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const scoreTxt = d.score ? `, engagement score ${d.score}` : '';
+            const dayLetter = isNaN(dt) ? '' : dt.toLocaleDateString(undefined, { weekday: 'narrow' });
+            return `
+                <div class="act-col${mins === 0 ? ' zero' : ''}${d.date === todayKey ? ' is-today' : ''}"
+                     tabindex="0"
+                     aria-label="${label}: ${mins} minute${mins === 1 ? '' : 's'} studied${scoreTxt}">
+                    <div class="act-track">
+                        <div class="act-bar" style="height:${h}%">
+                            ${mins ? `<span class="act-val">${mins}</span>` : ''}
+                        </div>
+                    </div>
+                    <span class="act-day">${dayLetter}</span>
+                </div>`;
+        }).join('');
+    }
 
-            const insightEl = document.getElementById('insight-text');
-            if (avgScore >= 75) {
-                insightEl.textContent = 'Great job! You\'re maintaining high engagement.';
-            } else if (avgScore >= 40) {
-                insightEl.textContent = 'Your engagement is moderate. Try setting dedicated study times.';
-            } else {
-                insightEl.textContent = 'Your engagement is low. Consider breaking study sessions into smaller chunks.';
-            }
+    function renderRecentSessions(rows) {
+        const list = document.getElementById('activity-list');
+        if (!rows.length) {
+            list.innerHTML = '<p class="text-muted">No study sessions recorded yet.</p>';
+            return;
+        }
+        list.innerHTML = rows.map(r => `
+            <div class="sess-item">
+                <span class="lvl-badge lvl-${escapeHtml((r.level || 'Low')).toLowerCase()}">${escapeHtml(r.level || 'Low')}</span>
+                <span class="sess-main">
+                    <strong>${escapeHtml(r.material_title)}</strong>
+                    ${r.course_title ? `<small>${escapeHtml(r.course_title)}</small>` : ''}
+                    <small>${fmtMinutes(r.minutes)} · ${relDay(r.when)}${r.highlights ? ` · ${r.highlights} highlight${r.highlights === 1 ? '' : 's'}` : ''}</small>
+                </span>
+            </div>`).join('');
+    }
 
-            // ── Two-Tower ML classification ──────────────────────────────
-            try {
-                const clsRes = await authFetch(`${API_BASE}/api/engagement/student/${user.id}/classification`);
-                if (clsRes.ok) {
-                    const clsData = await clsRes.json();
-                    const latest = clsData.latest;
-                    if (latest) {
-                        document.getElementById('classification-card').style.display = 'block';
-                        document.getElementById('ml-engagement').textContent = latest.engagement_label || 'N/A';
-                        document.getElementById('ml-comprehension').textContent = latest.comprehension_label || 'N/A';
-                        document.getElementById('ml-model-type').textContent = latest.fallback ? 'Rule-Based Heuristic' : 'Two-Tower NN';
+    function renderInsights(s) {
+        const list = document.getElementById('insight-list');
+        const t = s.trend || {};
+        const tips = [];
 
-                        const dateEl = document.getElementById('ml-last-analyzed');
-                        dateEl.textContent = latest.created_at
-                            ? `${new Date(latest.created_at).toLocaleDateString()} ${new Date(latest.created_at).toLocaleTimeString()}`
-                            : 'Unknown';
+        if ((t.this_week_avg || 0) >= 75) {
+            tips.push("Strong week - you're consistently engaged. Carry the momentum into next week.");
+        } else if ((t.delta || 0) > 0) {
+            tips.push(`Your engagement improved by ${t.delta} point${t.delta === 1 ? '' : 's'} versus last week. Whatever you changed, keep doing it.`);
+        } else if ((t.last_week_avg || 0) > 0 && (t.delta || 0) < 0) {
+            tips.push(`Engagement dipped ${Math.abs(t.delta)} point${Math.abs(t.delta) === 1 ? '' : 's'} this week. One short focused session today resets the rhythm.`);
+        }
 
-                        const engEl = document.getElementById('ml-engagement');
-                        engEl.classList.add(latest.engagement_class === 0 ? 'class-at-risk' : latest.engagement_class === 1 ? 'class-moderate' : 'class-high');
-
-                        const compEl = document.getElementById('ml-comprehension');
-                        compEl.classList.add(latest.comprehension_class === 0 ? 'class-at-risk' : latest.comprehension_class === 1 ? 'class-moderate' : 'class-high');
-                    }
-                }
-            } catch (e) {
-                // ML classification is optional - don't break the page
-                console.log('ML classification not available:', e.message);
-            }
+        if ((t.active_days || 0) >= 5) {
+            tips.push(`${t.active_days} study days this week - excellent consistency.`);
+        } else if ((t.active_days || 0) > 0) {
+            tips.push(`You studied on ${t.active_days} day${t.active_days === 1 ? '' : 's'} this week. One more short session turns effort into habit.`);
         } else {
-            document.getElementById('activity-list').innerHTML = '<p class="text-muted">No engagement recorded yet. Start learning to build your analytics!</p>';
-            document.getElementById('insight-text').textContent = 'No engagement data yet.';
+            tips.push('No study time yet this week - even ten focused minutes gets things moving again.');
+        }
+
+        if ((s.totals.highlights || 0) === 0) {
+            tips.push('Try highlighting key passages while reading PDFs - actively marking text boosts recall.');
+        } else {
+            tips.push(`${s.totals.highlights} highlight${s.totals.highlights === 1 ? '' : 's'} saved - great active-reading work.`);
+        }
+
+        if ((s.totals.video_minutes || 0) >= 1) {
+            tips.push(`${s.totals.video_minutes} minute${s.totals.video_minutes === 1 ? '' : 's'} of lecture video watched - pairing it with the matching notes strengthens understanding.`);
+        }
+
+        list.innerHTML = tips.slice(0, 3).map(tip => `<li>${tip}</li>`).join('');
+    }
+
+    function renderLegacyRows() {
+        if (!logs.length) {
+            document.getElementById('activity-list').innerHTML =
+                '<p class="text-muted">No engagement recorded yet. Start learning to build your analytics!</p>';
+            document.getElementById('insight-list').innerHTML = '<li>No engagement data yet.</li>';
+            return;
+        }
+        const totalLogs = logs.length;
+        const avgScore = Math.round(logs.reduce((sum, l) => sum + (l.engagement_score || 0), 0) / totalLogs);
+        const totalTime = logs.reduce((sum, l) => sum + (l.time_spent || 0), 0);
+        const materialsViewed = new Set(logs.map(l => l.material_id).filter(Boolean)).size;
+
+        document.getElementById('wk-engagement').textContent = avgScore;
+        document.getElementById('materials-count').textContent = materialsViewed;
+        document.getElementById('time-spent').textContent = totalTime > 3600
+            ? `${Math.round(totalTime / 3600)}h` : `${Math.round(totalTime / 60)}m`;
+
+        const high = logs.filter(l => (l.engagement_score || 0) >= 75).length;
+        const med = logs.filter(l => { const sc = l.engagement_score || 0; return sc >= 40 && sc < 75; }).length;
+        const low = totalLogs - high - med;
+        setDistBars((high / totalLogs) * 100, (med / totalLogs) * 100, (low / totalLogs) * 100);
+        document.getElementById('dist-subtext').textContent =
+            'Based on recent check-ins (limited history available).';
+
+        document.getElementById('activity-list').innerHTML = logs.slice(0, 5).map(l => `
+            <div class="activity-item">
+                <span>${escapeHtml(l.engagement_level || 'N/A')}</span>
+                <span class="text-muted">${l.logged_at ? new Date(l.logged_at).toLocaleDateString() : 'Recent'}</span>
+            </div>`).join('');
+
+        const tip = avgScore >= 75
+            ? "Great job! You're maintaining high engagement."
+            : avgScore >= 40
+                ? 'Your engagement is moderate. Try setting dedicated study times.'
+                : 'Your engagement is low. Consider breaking study sessions into smaller chunks.';
+        document.getElementById('insight-list').innerHTML = `<li>${tip}</li>`;
+    }
+
+    async function loadClassification() {
+        try {
+            const clsRes = await authFetch(`${API_BASE}/api/engagement/student/${user.id}/classification`);
+            if (!clsRes.ok) return;
+            const clsData = await clsRes.json();
+            const latest = clsData.latest;
+            if (!latest) return;
+
+            document.getElementById('classification-card').style.display = 'block';
+            document.getElementById('ml-engagement').textContent = latest.engagement_label || 'N/A';
+            document.getElementById('ml-comprehension').textContent = latest.comprehension_label || 'N/A';
+            document.getElementById('ml-model-type').textContent = latest.fallback ? 'Rule-Based Heuristic' : 'Two-Tower NN';
+
+            document.getElementById('ml-last-analyzed').textContent = latest.created_at
+                ? `${new Date(latest.created_at).toLocaleDateString()} ${new Date(latest.created_at).toLocaleTimeString()}`
+                : 'Unknown';
+
+            const engClass = latest.engagement_class === 0 ? 'class-at-risk'
+                : latest.engagement_class === 1 ? 'class-moderate' : 'class-high';
+            const compClass = latest.comprehension_class === 0 ? 'class-at-risk'
+                : latest.comprehension_class === 1 ? 'class-moderate' : 'class-high';
+            document.getElementById('ml-engagement').classList.add(engClass);
+            document.getElementById('ml-comprehension').classList.add(compClass);
+        } catch (e) {
+            console.log('ML classification not available:', e.message);
         }
     }
 
-    // ── Quiz performance ────────────────────────────────────────────────────
+    if (engagementData) {
+        let rendered = false;
+        try {
+            const summaryRes = await authFetch(`${API_BASE}/api/engagement/student/${user.id}/summary`).catch(() => null);
+            const summary = (summaryRes && summaryRes.ok)
+                ? await summaryRes.json().catch(() => null)
+                : null;
+
+            if (summary && (summary.session_count || 0) > 0) {
+                renderSummary(summary);
+                rendered = true;
+            }
+        } catch (err) {
+            console.error('Summary load failed, using fallback:', err);
+        }
+
+        if (!rendered) renderLegacyRows();
+        if (rendered || logs.length > 0) loadClassification();
+    }
+
+    // ── Quiz performance ─────────────────────────────────────────────────
     if (quizRes && quizRes.ok) {
         const qdata = await quizRes.json();
         const results = qdata.results || [];
@@ -201,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ── Assignment performance ──────────────────────────────────────────────
+    // ── Assignment performance ───────────────────────────────────────────
     try {
         const studyRes = await authFetch(`${API_BASE}/api/study/summary/${user.id}`);
         if (studyRes.ok) {
@@ -238,6 +369,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (err) {
         console.error('Assignment performance failed:', err);
+    }
+
+    function renderSummary(s) {
+        const t = s.trend || {};
+        const wkEl = document.getElementById('wk-engagement');
+        wkEl.textContent = t.this_week_avg ?? '--';
+
+        const chip = document.getElementById('trend-chip');
+        const delta = t.delta ?? 0;
+        if (!t.this_week_avg && !t.last_week_avg) {
+            chip.style.display = 'none';
+        } else {
+            chip.style.display = 'inline-flex';
+            if (delta > 0) { chip.className = 'trend-chip up'; chip.textContent = `▲ +${delta} vs last week`; }
+            else if (delta < 0) { chip.className = 'trend-chip down'; chip.textContent = `▼ ${delta} vs last week`; }
+            else { chip.className = 'trend-chip flat'; chip.textContent = 'steady vs last week'; }
+        }
+
+        document.getElementById('materials-count').textContent = s.totals?.materials_viewed ?? 0;
+        document.getElementById('time-spent').textContent = fmtMinutes(s.totals?.minutes || 0);
+
+        buildActivityChart(s.daily || []);
+
+        const nSess = s.session_count || 0;
+        const dist = s.distribution || {};
+        document.getElementById('dist-subtext').textContent = nSess
+            ? `Ranked across your ${nSess} study session${nSess === 1 ? '' : 's'} so far.`
+            : 'No study sessions recorded yet.';
+        setDistBars(dist.High || 0, dist.Medium || 0, dist.Low || 0);
+
+        renderRecentSessions(s.recent_sessions || []);
+        renderInsights(s);
     }
 
     showBody();

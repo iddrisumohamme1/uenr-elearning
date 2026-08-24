@@ -9,6 +9,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 from app.database import get_admin_client, with_retry
 from app.core.security import get_current_user, require_role
 from app.services.engagement_analyzer import get_analyzer
@@ -246,6 +247,189 @@ def get_student_engagement(student_id: str, user=Depends(get_current_user)):
         return {"student_id": student_id, "logs": resp.data}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+
+
+@router.get("/student/{student_id}/summary")
+def get_student_engagement_summary(student_id: str, user=Depends(get_current_user)):
+    """
+    Full-history engagement summary for the student performance page.
+
+    The plain /student/{id} endpoint only returns the 10 most recent rows,
+    which makes page-level averages misleading. This aggregates ALL logs:
+      - real totals (sessions, materials, study minutes, highlights, video)
+      - High/Medium/Low distribution over STUDY SESSIONS (ticks <30min apart
+        group into one session; a session's score is duration-weighted), so
+        one long sitting no longer counts a dozen times
+      - a 14-day daily series (minutes + avg score) for the activity chart
+      - this-week vs last-week average with trend delta
+      - the 5 most recent sessions enriched with material/course titles
+    """
+    if user.get("role") == "student" and user["id"] != student_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    try:
+        admin = get_admin_client()
+        resp = with_retry(
+            lambda c: c.table("engagement_logs")
+            .select("material_id,course_id,engagement_score,engagement_level,"
+                    "time_spent,highlights,video_watch_seconds,logged_at")
+            .eq("student_id", student_id)
+            .order("logged_at", desc=False)
+            .limit(5000)
+            .execute()
+        )
+        logs = resp.data or []
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+    now = datetime.now(timezone.utc)
+
+    def parse_ts(v):
+        if not v:
+            return None
+        try:
+            return datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    def level_of(score):
+        return "High" if score >= 75 else ("Medium" if score >= 40 else "Low")
+
+    # ── Group ticks into study sessions: a gap > 30 min starts a new one ────
+    sessions = []
+    for l in logs:
+        ts = parse_ts(l.get("logged_at"))
+        if ts is None:
+            continue
+        score = float(l.get("engagement_score") or 0)
+        secs = float(l.get("time_spent") or 0)
+        weight = max(secs, 1.0)
+        if sessions and (ts - sessions[-1]["end"]).total_seconds() <= 1800:
+            s = sessions[-1]
+            s["end"] = max(s["end"], ts)
+            s["secs"] += secs
+            s["wsum"] += score * weight
+            s["wgt"] += weight
+            s["highlights"] += int(l.get("highlights") or 0)
+            s["video_secs"] += float(l.get("video_watch_seconds") or 0)
+            if l.get("material_id"):
+                s["materials"].add(l["material_id"])
+        else:
+            sessions.append({
+                "start": ts, "end": ts, "secs": secs,
+                "wsum": score * weight, "wgt": weight,
+                "highlights": int(l.get("highlights") or 0),
+                "video_secs": float(l.get("video_watch_seconds") or 0),
+                "materials": {l["material_id"]} if l.get("material_id") else set(),
+            })
+
+    sess_scores = [round(s["wsum"] / s["wgt"]) for s in sessions]
+
+    totals = {
+        "sessions": len(sessions),
+        "materials_viewed": len({l.get("material_id") for l in logs if l.get("material_id")}),
+        "minutes": round(sum(s["secs"] for s in sessions) / 60),
+        "highlights": sum(s["highlights"] for s in sessions),
+        "video_minutes": round(sum(s["video_secs"] for s in sessions) / 60, 1),
+    }
+
+    dist_counts = {"High": 0, "Medium": 0, "Low": 0}
+    for sc in sess_scores:
+        dist_counts[level_of(sc)] += 1
+    n_sess = max(len(sessions), 1)
+    distribution = {k: round(v * 100 / n_sess) for k, v in dist_counts.items()}
+
+    # ── Daily series, last 14 days ──────────────────────────────────────────
+    days = {}
+    for l in logs:
+        ts = parse_ts(l.get("logged_at"))
+        if ts is None or (now - ts).days > 13:
+            continue
+        key = ts.date().isoformat()
+        d = days.setdefault(key, {"secs": 0.0, "wsum": 0.0, "wgt": 0.0})
+        secs = float(l.get("time_spent") or 0)
+        w = max(secs, 1.0)
+        d["secs"] += secs
+        d["wsum"] += float(l.get("engagement_score") or 0) * w
+        d["wgt"] += w
+    daily = []
+    for i in range(13, -1, -1):
+        key = (now - timedelta(days=i)).date().isoformat()
+        d = days.get(key)
+        daily.append({
+            "date": key,
+            "minutes": round(d["secs"] / 60) if d else 0,
+            "score": round(d["wsum"] / d["wgt"]) if d and d["wgt"] else 0,
+        })
+
+    # ── Week-over-week trend (duration-weighted averages) ───────────────────
+    week_logs, prev_week_logs = [], []
+    active_days = set()
+    for l in logs:
+        ts = parse_ts(l.get("logged_at"))
+        if ts is None:
+            continue
+        age = now - ts
+        if age <= timedelta(days=7):
+            week_logs.append(l)
+            active_days.add(ts.date().isoformat())
+        elif timedelta(days=7) < age <= timedelta(days=14):
+            prev_week_logs.append(l)
+
+    def weighted_avg(rows):
+        tw = sum(max(float(r.get("time_spent") or 0), 1.0) for r in rows)
+        if not tw:
+            return 0
+        return round(sum(float(r.get("engagement_score") or 0) * max(float(r.get("time_spent") or 0), 1.0) for r in rows) / tw)
+
+    this_week = weighted_avg(week_logs)
+    last_week = weighted_avg(prev_week_logs)
+
+    # ── Recent sessions with material/course titles ─────────────────────────
+    recent_sessions = []
+    if sessions:
+        m2c = {l.get("material_id"): l.get("course_id") for l in logs if l.get("material_id")}
+        last5 = list(reversed(sessions[-5:]))
+        mat_ids = sorted({m for s in last5 for m in s["materials"]})
+        course_ids = sorted({m2c[m] for m in mat_ids if m2c.get(m)})
+        mat_titles, course_titles = {}, {}
+        try:
+            if mat_ids:
+                r1 = with_retry(lambda c: c.table("materials").select("id,title").in_("id", mat_ids).execute())
+                mat_titles = {r["id"]: r.get("title") or "" for r in (r1.data or [])}
+            if course_ids:
+                r2 = with_retry(lambda c: c.table("courses").select("id,title,code").in_("id", course_ids).execute())
+                course_titles = {
+                    r["id"]: f'{r.get("title") or ""} ({r.get("code") or ""})'.replace(" ()", "")
+                    for r in (r2.data or [])
+                }
+        except Exception as e:
+            print(f"[engagement] summary title lookup failed: {e}")
+
+        for s in last5:
+            mid = next(iter(s["materials"]), None)
+            recent_sessions.append({
+                "when": s["start"].isoformat(),
+                "minutes": round(s["secs"] / 60),
+                "level": level_of(round(s["wsum"] / s["wgt"])),
+                "highlights": s["highlights"],
+                "material_title": mat_titles.get(mid) or "Study session",
+                "course_title": course_titles.get(m2c.get(mid, ""), ""),
+            })
+
+    return {
+        "totals": totals,
+        "distribution": distribution,
+        "session_count": len(sessions),
+        "daily": daily,
+        "trend": {
+            "this_week_avg": this_week,
+            "last_week_avg": last_week,
+            "delta": this_week - last_week,
+            "active_days": len(active_days),
+        },
+        "recent_sessions": recent_sessions,
+    }
 
 
 @router.get("/course/{course_id}")
