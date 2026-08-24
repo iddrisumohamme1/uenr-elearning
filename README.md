@@ -4,7 +4,7 @@
 ---
 
 ## Project Overview
-An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, auto-generates AI assignments from course materials, and recommends external learning resources. Students read actively — highlighting PDF passages that persist across sessions and taking fully untimed comprehension checks — and every interaction feeds back into their engagement profile.
+An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, auto-generates AI assignments from course materials, and recommends external learning resources. Students learn actively — studying PDFs in a built-in reader with zoom and page navigation, highlighting passages that persist across sessions, watching lecture videos whose real watch-time is measured, and taking fully untimed comprehension checks — and every interaction feeds back into their engagement profile.
 
 ## User Roles
 | Role | Description |
@@ -47,7 +47,7 @@ FYP/
 │   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
 │   ├── student/                  # Dashboard, assignments, inbox, progress, study aids
 │   ├── courses/                  # Course catalog & enrollment (avatar + profile popup)
-│   ├── materials/                # Material viewer (engagement tracking, PDF highlighting, micro-questions)
+│   ├── materials/                # Material viewer (PDF reader w/ zoom + lazy rendering, engagement tracking, video watch analytics, highlighting, micro-questions)
 │   ├── quiz/                     # Quiz taking interface (incl. AI-generated quizzes)
 │   ├── results/                  # Quiz results page
 │   ├── analytics/                # Student performance analytics (avatar + profile popup)
@@ -67,7 +67,7 @@ FYP/
 │   │   ├── routes/
 │   │   │   ├── auth.py           # Register, login, token refresh
 │   │   │   ├── courses.py        # Course CRUD, enrollment
-│   │   │   ├── materials.py      # Material upload, listing, proxy (SSRF-protected)
+│   │   │   ├── materials.py      # Material upload, listing, proxy (SSRF-protected, Range-aware for video seeking)
 │   │   │   ├── engagement.py     # Telemetry logging, Two-Tower classification
 │   │   │   ├── highlights.py     # Persistent PDF text highlights (create/list/delete)
 │   │   │   ├── analytics.py      # Lecturer, HOD & study analytics
@@ -180,13 +180,24 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Detects tab visibility changes and window focus/blur; idles after 60s without material interaction
 - Embedded viewers (Office docs) are exempt from inactivity idling — a visible tab counts as on-task — and reactivate when the student returns
 - Dual scoring formula: regular content vs embedded content (PDFs, Office docs); highlights score +2.5 each (capped at 10)
+- Video watch analytics (xAPI-inspired): `timeupdate` samples merge into watched intervals, so only **unique footage coverage** earns credit — scrubbing to the end never counts as watching. Real playback seconds and seek count are logged alongside coverage %
+- Playback events keep the session status Active just like scrolling a PDF; video scores add up to +30 for watch seconds (capped at 600s) and +15 for unique coverage in the engagement formula (`video_watch_seconds` / `video_coverage_pct` persisted per log row)
 - Engagement pulse bar shows real-time activity level
 
+### Material Viewer (PDFs & Video)
+- **PDF reader**: sticky toolbar with page indicator synced to scroll position, prev/next jumps, and zoom controls that re-render pages crisply at device pixel ratio; keyboard shortcuts (`+` / `−` / `f` fit / arrow keys)
+- **Lazy page rendering**: only pages near the viewport rasterize via IntersectionObserver, so 300-slide decks open instantly; highlights repaint per page on render and survive zoom changes
+- **Highlights panel**: the sidebar lists every saved mark (color dot, snippet, page tag) — click to jump-and-flash, per-row delete; fully keyboard/screen-reader accessible
+- **Responsive**: tablet (769–1100px) gets an off-canvas contents drawer; phones switch Contents/Material tabs and get ≥44px touch targets
+- **Touch-friendly highlighting**: tapping a saved highlight raises a Remove bubble (hover-only badges stay desktop-only), so every pointer path has an equivalent non-hover path
+- **Video player**: native HTML5 controls (accessible out of the box), starts paused with `preload="metadata"` and `playsinline`, 16:9 shell, inline download fallback for unsupported browsers
+- **Range-aware proxy**: the material proxy forwards HTTP `Range` requests upstream, so video seeking works through the SSRF-protected endpoint instead of re-downloading the whole file
+
 ### PDF Highlighting (Active Reading)
-- Select any passage in an uploaded PDF → instant amber highlight saved to Supabase
+- Select any passage in an uploaded PDF → pick amber/green/blue from the floating swatches → saved to Supabase
 - Highlights are stored as percentage boxes per page, so they repaint correctly at any zoom level or device
-- Saved highlights reload automatically when the material is reopened; hovering shows a delete badge
-- Highlights live under the PDF text layer, so selecting never gets blocked by existing marks
+- Saved highlights reload automatically when the material is reopened; hover shows a delete badge, touch shows a tap bubble, and the sidebar panel offers per-row removal
+- Ghost-glyph selection fix: transparent ink is forced inside `::selection`, so dragging never reveals stray letters over the page
 - Each highlight counts as engagement activity and feeds the scoring formula
 - The AI quiz start screen lists your saved highlights for that material as a pre-quiz refresher
 
