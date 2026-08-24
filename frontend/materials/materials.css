@@ -860,6 +860,7 @@
 /* Required contract with PDF.js renderTextLayer: spans are placed inline. */
 .pdf-text-layer span {
     color: transparent;
+    -webkit-text-fill-color: transparent;
     position: absolute;
     white-space: pre;
     cursor: text;
@@ -870,8 +871,13 @@
     padding-bottom: 2px;
 }
 
+/* Browsers no longer inherit color:transparent into ::selection, so selected
+   glyphs would repaint as ghost letters over the canvas unless forced here. */
 .pdf-text-layer ::selection {
     background: rgba(246, 183, 58, 0.4);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
 }
 
 .pdf-highlight-layer {
