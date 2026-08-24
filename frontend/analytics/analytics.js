@@ -164,7 +164,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!logs.length) {
             document.getElementById('activity-list').innerHTML =
                 '<p class="text-muted">Open a course material to start building your analytics.</p>';
-            document.getElementById('insight-list').innerHTML = '<li>No engagement data yet.</li>';
+            document.getElementById('insight-list').innerHTML =
+                '<li>Open a course material and study for a few minutes - your insights will appear here.</li>';
             return;
         }
         const totalLogs = logs.length;
@@ -190,12 +191,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span class="text-muted">${l.logged_at ? new Date(l.logged_at).toLocaleDateString() : 'Recent'}</span>
             </div>`).join('');
 
-        const tip = avgScore >= 75
-            ? "Great job! You're maintaining high engagement."
-            : avgScore >= 40
-                ? 'Your engagement is moderate. Try setting dedicated study times.'
-                : 'Your engagement is low. Consider breaking study sessions into smaller chunks.';
-        document.getElementById('insight-list').innerHTML = `<li>${tip}</li>`;
+        // Fallback tips: same multi-tip structure as the summary path, built
+        // from whatever the recent rows show. Skip tips with no signal.
+        const tips = [];
+
+        if (avgScore >= 75) {
+            tips.push("Strong engagement in your recent sessions - keep the momentum going.");
+        } else if (avgScore >= 40) {
+            tips.push('Your engagement is moderate lately. Setting a dedicated study time helps it climb.');
+        } else {
+            tips.push('Engagement has been low recently - shorter, focused sessions are an easy win.');
+        }
+
+        const recentHighlights = logs.reduce((sum, l) => sum + (l.highlights || 0), 0);
+        if (recentHighlights === 0) {
+            tips.push('Try highlighting key passages while reading - actively marking text boosts recall.');
+        } else {
+            tips.push(`${recentHighlights} highlight${recentHighlights === 1 ? '' : 's'} made recently - great active-reading work.`);
+        }
+
+        const videoSecs = logs.reduce((sum, l) => sum + (l.video_watch_seconds || 0), 0);
+        if (videoSecs >= 60) {
+            tips.push(`${fmtMinutes(videoSecs / 60)} of lecture video watched recently - pairing it with the notes strengthens understanding.`);
+        } else if (materialsViewed > 0 && totalTime > 0) {
+            const last = logs.find(l => l.logged_at);
+            if (last) {
+                tips.push(`Last activity was ${relDay(last.logged_at).toLowerCase()} - a short session today keeps the rhythm.`);
+            }
+        }
+
+        document.getElementById('insight-list').innerHTML =
+            tips.slice(0, 3).map(tip => `<li>${tip}</li>`).join('');
     }
 
     function renderDailyFallback(rows) {
