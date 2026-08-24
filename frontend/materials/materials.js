@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedMaterial = null;
     let courseTitle = '';
     let isEmbeddedContent = false;
-    let metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0 };
+    let metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0, videoWatchSeconds: 0, videoCoveragePct: 0, videoSeeks: 0 };
     let lastActivity = Date.now();
     let isIdle = false;
     let classificationSent = false;
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function resetMetrics() {
-        metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0 };
+        metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0, videoWatchSeconds: 0, videoCoveragePct: 0, videoSeeks: 0 };
         lastActivity = Date.now();
         isIdle = false;
         classificationSent = false;
@@ -251,9 +251,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     setSessionHint('Highlighting is available on PDF materials.');
                 }
 
-                // Video files: use <video> tag
+                // Video files: native <video> player. Starts paused (browsers
+                // block unmuted autoplay and WCAG 1.4.2 forbids it) with a
+                // 16:9 shell and an inline download fallback.
                 if (isVideo) {
-                    target.innerHTML = `<video controls autoplay class="media-embed"><source src="${proxyUrl}" type="${contentType}"></video>`;
+                    const srcTag = contentType
+                        ? `<source src="${proxyUrl}" type="${contentType}">`
+                        : `<source src="${proxyUrl}">`;
+                    target.innerHTML = `
+                        <div class="video-shell">
+                            <video controls preload="metadata" playsinline class="media-embed">
+                                ${srcTag}
+                                Your browser cannot play this video. <a href="${fileUrl}" download>Download it instead</a>.
+                            </video>
+                        </div>`;
+                    setupVideoTracking(target.querySelector('video'));
                 }
                 // Image files: use <img> tag
                 else if (isImage) {
@@ -434,6 +446,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!classificationSent && activeSeconds >= 60) classifyEngagement();
     }, 5000);
 
+    // ── Video watch analytics ─────────────────────────────────────────────────
+    // Follows the xAPI Video Profile's core idea: what counts is UNIQUE
+    // coverage of the footage, not how far the playhead got. `timeupdate`
+    // samples are merged into watched intervals; skipping ahead never earns
+    // credit for footage that was never actually played.
+    let activeVideoEl = null;
+    let watchedIntervals = [];   // merged [startSec, endSec] pairs
+    let lastSampleT = -1;
+
+    function mergeIntervals(list) {
+        const sorted = [...list].sort((a, b) => a[0] - b[0]);
+        const out = [];
+        for (const iv of sorted) {
+            const last = out[out.length - 1];
+            if (last && iv[0] <= last[1] + 0.5) {
+                last[1] = Math.max(last[1], iv[1]);
+            } else {
+                out.push([...iv]);
+            }
+        }
+        return out;
+    }
+
+    function computeVideoCoverage() {
+        if (!activeVideoEl || !activeVideoEl.duration || !isFinite(activeVideoEl.duration)) return 0;
+        const watched = watchedIntervals.reduce((s, iv) => s + (iv[1] - iv[0]), 0);
+        return Math.min(100, Math.round((watched / activeVideoEl.duration) * 100));
+    }
+
+    function setupVideoTracking(video) {
+        activeVideoEl = video;
+        watchedIntervals = [];
+        lastSampleT = -1;
+
+        // Fires ~4x/second while playing only — deltas between consecutive
+        // samples are real viewing seconds; a jump >1.5s means a seek, so the
+        // skipped stretch is deliberately not counted as watched.
+        video.addEventListener('timeupdate', () => {
+            const t = video.currentTime;
+            if (lastSampleT >= 0 && t > lastSampleT && t - lastSampleT < 1.5) {
+                metrics.videoWatchSeconds += t - lastSampleT;
+                watchedIntervals.push([lastSampleT, t]);
+                watchedIntervals = mergeIntervals(watchedIntervals);
+                metrics.videoCoveragePct = computeVideoCoverage();
+            }
+            lastSampleT = t;
+        });
+
+        // Watching a lecture clip IS studying: playback events keep the
+        // session status Active just like scrolling a PDF does.
+        video.addEventListener('play', markActivity);
+        video.addEventListener('play', () => { lastSampleT = video.currentTime; });
+        video.addEventListener('pause', () => {
+            markActivity();
+            metrics.videoCoveragePct = computeVideoCoverage();
+        });
+        video.addEventListener('seeked', () => {
+            metrics.videoSeeks++;
+            lastSampleT = video.currentTime;   // don't bridge across the jump
+        });
+        video.addEventListener('ended', () => {
+            metrics.videoCoveragePct = computeVideoCoverage();
+        });
+    }
+
     // Send engagement log every 30 seconds
     setInterval(async () => {
         if (!user || !selectedMaterial) return;
@@ -451,6 +528,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     time_spent: metrics.timeSpent,
                     idle_time: metrics.idleTime,
                     highlights: metrics.highlights,
+                    video_watch_seconds: +(metrics.videoWatchSeconds || 0).toFixed(1),
+                    video_coverage_pct: metrics.videoCoveragePct || 0,
                     is_embedded: isEmbeddedContent,
                 })
             });

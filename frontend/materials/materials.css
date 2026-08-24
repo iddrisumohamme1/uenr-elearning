@@ -829,6 +829,24 @@
     object-fit: contain;
 }
 
+/* Video materials sit in a fixed-aspect shell so lecture clips never blow
+   out the reading pane on any breakpoint; the player fills it edge to edge. */
+.video-shell {
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto var(--s3);
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--r-md, 10px);
+    overflow: hidden;
+}
+
+.video-shell video {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
 .pdf-page-canvas {
     display: block;
     width: 100%;

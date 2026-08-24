@@ -59,6 +59,8 @@ class MaterialEngagementLog(BaseModel):
     time_spent: int = Field(0, ge=0)
     idle_time: int = Field(0, ge=0)
     highlights: int = Field(0, ge=0, description="Text highlights made on PDF materials")
+    video_watch_seconds: float = Field(0.0, ge=0, description="Seconds of actual playback consumed")
+    video_coverage_pct: float = Field(0.0, ge=0, le=100, description="Unique footage covered (%)")
     is_embedded: bool = Field(False, description="True for PDFs, Office docs loaded in iframe")
 
 
@@ -111,6 +113,8 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
     else:
         # Regular content: full telemetry available. Highlighting a passage is
         # one of the strongest active-reading signals, so it carries real weight.
+        # Video materials earn credit for real playback seconds and unique
+        # footage coverage — scrubbing to the end never counts as watching.
         score = min(
             100,
             max(
@@ -121,6 +125,8 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
                     + 0.25 * payload.clicks
                     + 0.2 * min(payload.time_spent, 300)
                     + 2.5 * min(payload.highlights, 10)
+                    + 0.05 * min(payload.video_watch_seconds, 600)
+                    + 0.15 * payload.video_coverage_pct
                     - 0.1 * payload.idle_time,
                 ),
             ),
@@ -148,6 +154,8 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
                     "time_spent": payload.time_spent,
                     "idle_time": payload.idle_time,
                     "highlights": payload.highlights,
+                    "video_watch_seconds": payload.video_watch_seconds,
+                    "video_coverage_pct": payload.video_coverage_pct,
                     "engagement_score": score,
                     "engagement_level": level,
                     "engagement_class": 1,

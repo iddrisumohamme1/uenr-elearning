@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.core.security import get_current_user, require_role
@@ -266,23 +266,37 @@ def _validate_supabase_url(url: str) -> str:
 
 
 @router.get("/proxy")
-def proxy_material(url: str):
+def proxy_material(url: str, request: Request):
     """
     Proxies a Supabase storage file so iframes can load it without
     being blocked by X-Frame-Options / CORS headers from Supabase.
     Only allows proxying URLs from Supabase storage hosts (SSRF protection).
+    Range requests are forwarded so <video> seeking works through the proxy.
     """
     _validate_supabase_url(url)
 
+    upstream_headers = {}
+    range_header = request.headers.get("range")
+    if range_header:
+        upstream_headers["Range"] = range_header
+
     try:
-        r = httpx.get(url, follow_redirects=True, timeout=30, verify=False)
+        r = httpx.get(url, headers=upstream_headers, follow_redirects=True, timeout=30, verify=False)
         r.raise_for_status()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch file: {exc}")
 
     content_type = r.headers.get("content-type", "application/octet-stream")
+    passthrough = {}
+    for h in ("Content-Range", "Content-Length", "Accept-Ranges"):
+        if r.headers.get(h):
+            passthrough[h] = r.headers[h]
+    if range_header and "Accept-Ranges" not in passthrough:
+        passthrough["Accept-Ranges"] = "bytes"
+
     return StreamingResponse(
         iter([r.content]),
+        status_code=r.status_code,
         media_type=content_type,
         headers={
             "Content-Disposition": "inline",
@@ -290,5 +304,6 @@ def proxy_material(url: str):
             # cross-origin from the frontend origin.
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
+            **passthrough,
         },
     )
