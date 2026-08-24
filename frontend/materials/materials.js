@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const queryParams = new URLSearchParams(window.location.search);
     const courseId = queryParams.get('id');
     if (courseId && window.aiTutor) aiTutor.setCourse(courseId); // pre-ground the tutor in this course
-    const topicList = document.getElementById('topic-list');
     const materialList = document.getElementById('material-list');
     const contentViewer = document.getElementById('content-viewer');
     const contentPlaceholder = document.getElementById('content-placeholder');
@@ -34,10 +33,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedMaterial = null;
     let courseTitle = '';
     let isEmbeddedContent = false;
-    let metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0 };
+    let metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0 };
     let lastActivity = Date.now();
     let isIdle = false;
     let classificationSent = false;
+    let activeSeconds = 0;
 
     function detectTopic(title) {
         const t = (title || '').toLowerCase();
@@ -61,24 +61,57 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateStatus(status) {
         document.getElementById('engagement-label').textContent = `Status: ${status}`;
+        const statusWrap = document.querySelector('.engagement-status');
+        if (statusWrap) statusWrap.classList.remove('is-waiting');
         const dot = document.querySelector('.status-dot');
         if (dot) dot.style.background = status === 'Active' ? 'var(--clr-success)' : 'var(--clr-warning)';
     }
 
     function resetMetrics() {
-        metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0 };
+        metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0 };
         lastActivity = Date.now();
         isIdle = false;
         classificationSent = false;
+        activeSeconds = 0;
         updateStatus('Active');
-        startQuizReadyTimer();
+        hideAiInsight();
+        setSessionHint('');
+        showQuizBeacon();
     }
 
-    function buildTopicList(topics) {
-        if (!topicList) return;
-        topicList.innerHTML = topics.map((t, i) => `
-            <div class="topic-item ${i === 0 ? 'active' : ''}">${t}</div>
-        `).join('');
+    // Small guidance line under the highlights count in the Session panel.
+    function setSessionHint(text) {
+        const el = document.getElementById('session-hint');
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.display = text ? 'block' : 'none';
+    }
+
+    // ── AI insight chip ───────────────────────────────────────────────────────
+    // The Two-Tower prediction renders as a quiet, non-alarming chip beside
+    // the status beacon. It never touches Active/Idle state or the dot color;
+    // the full model label stays available on hover for the curious.
+    const INSIGHT_COPY = {
+        0: { text: 'Needs support', tone: 'low' },
+        1: { text: 'Steady progress', tone: 'mid' },
+        2: { text: 'On track', tone: 'high' },
+    };
+    const COMPREHENSION_COPY = ['Low comprehension', 'Moderate comprehension', 'Good comprehension'];
+
+    function showAiInsight(result) {
+        const chip = document.getElementById('ai-insight-chip');
+        if (!chip) return;
+        const eng = INSIGHT_COPY[result.engagement_class] || INSIGHT_COPY[1];
+        const comp = COMPREHENSION_COPY[result.comprehension_class] ?? '';
+        chip.textContent = `✦ ${eng.text}${comp ? ' · ' + comp : ''}`;
+        chip.dataset.tone = eng.tone;
+        chip.title = `${result.engagement_label}${result.comprehension_label ? ' — ' + result.comprehension_label : ''} (AI prediction)`;
+        chip.style.display = 'inline-flex';
+    }
+
+    function hideAiInsight() {
+        const chip = document.getElementById('ai-insight-chip');
+        if (chip) chip.style.display = 'none';
     }
 
     function renderMaterials(materials) {
@@ -133,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="week-group">
                     <div class="week-label">${groupLabel(key)}</div>
                     ${groups.get(key).map(material => `
-                        <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
+                        <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-render-url="${material.render_url || ''}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
                             <strong><span class="file-tag">${fileTag(material)}</span>${material.title}</strong>
                             <p class="material-desc">${material.description || material.content_type || 'Material'}</p>
                         </div>
@@ -175,9 +208,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 target.innerHTML = '<div class="loading-wrapper"><div class="spinner"></div><p>Loading material...</p></div>';
 
                 const contentType = item.dataset.type || '';
+                // Office docs may carry a server-generated PDF twin
+                // (materials.render_url): it becomes the rendering surface,
+                // while downloads keep using the original file.
+                const renderUrl = item.dataset.renderUrl || '';
                 const fileUrl = item.dataset.url;
-                const proxyUrl = `${API_BASE}/api/materials/proxy?url=${encodeURIComponent(fileUrl)}`;
-                const lowerUrl = fileUrl.toLowerCase();
+                const proxyUrl = `${API_BASE}/api/materials/proxy?url=${encodeURIComponent(renderUrl || fileUrl)}`;
+                const lowerUrl = (renderUrl || fileUrl).toLowerCase();
 
                 // Content rendered directly in the document (video, image, PDF.js
                 // canvases) can have its scroll tracked. Anything inside an iframe
@@ -185,8 +222,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // relies on time + tab visibility instead.
                 const isVideo = contentType.startsWith('video/') || !!lowerUrl.match(/\.(mp4|webm|ogg)$/);
                 const isImage = contentType.startsWith('image/') || !!lowerUrl.match(/\.(jpg|jpeg|png|gif|svg|webp)$/);
-                const isPdf = contentType === 'application/pdf' || lowerUrl.endsWith('.pdf');
+                const isPdf = !!renderUrl || contentType === 'application/pdf' || lowerUrl.endsWith('.pdf');
                 isEmbeddedContent = !isVideo && !isImage && !isPdf;
+
+                // Session-panel hint teaches the highlighting flow where it applies.
+                if (isPdf) {
+                    setSessionHint('Tip — select any passage to highlight it.');
+                } else {
+                    setSessionHint('Highlighting is available on PDF materials.');
+                }
 
                 // Video files: use <video> tag
                 if (isVideo) {
@@ -200,7 +244,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Native iframe PDF viewers don't touch-scroll reliably on mobile.
                 else if (isPdf) {
                     target.innerHTML = '<div class="loading-wrapper"><div class="spinner"></div><p>Rendering PDF...</p></div>';
-                    renderPdf(proxyUrl, target);
+                    const renderToken = ++pdfRenderToken;
+                    renderPdf(proxyUrl, target, renderToken).then(() => {
+                        if (renderToken === pdfRenderToken) fetchSavedHighlights();
+                    });
                 }
                 // Office docs (ppt, doc, xlsx): Google Docs viewer on desktop.
                 // On phones the cross-origin iframe swallows touch events and
@@ -265,7 +312,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             await swrGet(`course-materials:${courseId}`, `${API_BASE}/api/materials/course/${courseId}`, data => {
                 courseTitle = data.course_title || data.course_name || '';
-                buildTopicList(['Overview', 'Materials']);
                 renderMaterials(data.materials || []);
                 if ((data.materials || []).length === 0) {
                     materialList.innerHTML = '<div class="topic-item">No materials available yet.</div>';
@@ -279,22 +325,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ── Engagement tracking ──────────────────────────────────────────────────
-    // Track mouse, clicks, scroll on parent document
-    document.addEventListener('mousemove', () => {
-        metrics.mouseMovements++;
+    // ── Engagement tracking (material-area driven) ───────────────────────────
+    // Engagement is earned by interacting with the reading surface itself:
+    // clicking or scrolling the material flips the session Active. Activity
+    // elsewhere on the page (sidebar, header, other tabs) never activates it.
+    function markActivity() {
         lastActivity = Date.now();
         if (isIdle) { isIdle = false; updateStatus('Active'); }
+    }
+
+    contentViewer.addEventListener('mousemove', () => {
+        metrics.mouseMovements++;
+        markActivity();
     });
 
-    document.addEventListener('click', () => {
+    contentViewer.addEventListener('click', () => {
         metrics.clicks++;
-        lastActivity = Date.now();
-        if (isIdle) { isIdle = false; updateStatus('Active'); }
+        markActivity();
     });
 
     // Scroll progress can come from the content pane (desktop app-frame) or
-    // from the page itself (stacked mobile layout) — track whichever moves.
+    // from the page itself — track whichever moves.
     function recordScrollProgress() {
         const paneMax = contentViewer.scrollHeight - contentViewer.clientHeight;
         const docMax = document.documentElement.scrollHeight - window.innerHeight;
@@ -302,8 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const docPct = docMax > 10 ? (window.scrollY / docMax) * 100 : 0;
         const scrollPercent = Math.max(panePct, docPct);
         metrics.scrollDepth = Math.max(metrics.scrollDepth, Math.round(scrollPercent));
-        lastActivity = Date.now();
-        if (isIdle) { isIdle = false; updateStatus('Active'); }
+        markActivity();
 
         const ribbonFill = document.getElementById('reading-ribbon-fill');
         if (ribbonFill) ribbonFill.style.height = `${Math.min(100, scrollPercent)}%`;
@@ -312,41 +362,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     contentViewer.addEventListener('scroll', recordScrollProgress);
     window.addEventListener('scroll', recordScrollProgress, { passive: true });
 
-    // Track tab visibility — counts as idle when tab is hidden
+    // Hidden tab always counts as idle. Coming back does NOT auto-activate —
+    // the student re-engages by touching the material again.
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            if (!isIdle) { isIdle = true; metrics.idleTime++; updateStatus('Idle'); }
-        } else {
-            lastActivity = Date.now();
-            if (isIdle) { isIdle = false; updateStatus('Active'); }
-        }
-    });
-
-    // Track window focus/blur
-    window.addEventListener('blur', () => {
-        if (!isIdle) { isIdle = true; metrics.idleTime++; updateStatus('Idle'); }
-    });
-    window.addEventListener('focus', () => {
-        lastActivity = Date.now();
-        if (isIdle) { isIdle = false; updateStatus('Active'); }
-    });
-
-    // Track keyboard activity (works even when iframe has focus)
-    document.addEventListener('keydown', () => {
-        lastActivity = Date.now();
-        if (isIdle) { isIdle = false; updateStatus('Active'); }
-    });
-
-    setInterval(() => {
-        metrics.timeSpent++;
-        if (Date.now() - lastActivity > 60000 && !isIdle) {
+        if (document.hidden && !isIdle) {
             isIdle = true;
             metrics.idleTime++;
             updateStatus('Idle');
         }
+    });
+
+    // Embedded viewers (Office docs) swallow all pointer events inside their
+    // iframe, so focus moving INTO the iframe is engagement, not idling.
+    // For regular content, leaving the window counts as idle.
+    window.addEventListener('blur', () => {
+        if (!isEmbeddedContent && !isIdle) {
+            isIdle = true;
+            metrics.idleTime++;
+            updateStatus('Idle');
+        }
+    });
+
+    // Watchdog tick: accrues active time and flips to Idle after a minute
+    // without material-area interaction. No countdowns live here.
+    setInterval(() => {
+        if (!isIdle) metrics.timeSpent++;
+
+        if (document.hidden) return; // visibilitychange already handled it
+
+        // Office-doc iframes swallow every pointer event, so once embedded
+        // content idles there is no interaction that can wake it. A visible
+        // tab is the only reactivation signal we can observe.
+        if (isEmbeddedContent && isIdle) {
+            isIdle = false;
+            updateStatus('Active');
+        }
+
+        if (!isEmbeddedContent && Date.now() - lastActivity > 60000 && !isIdle) {
+            // Regular content: no material interaction for a minute -> idle.
+            // (Embedded viewers are exempt: focus inside their iframe looks
+            // identical to an app switch, so visible tab = on-task.)
+            isIdle = true;
+            metrics.idleTime++;
+            updateStatus('Idle');
+        }
+
+        if (!isIdle && selectedMaterial) activeSeconds = metrics.timeSpent;
+
+        // Two-Tower classification fires once 60s of real engagement accrued.
+        if (!classificationSent && activeSeconds >= 60) classifyEngagement();
     }, 5000);
 
-    // Send engagement log every 10 seconds
+    // Send engagement log every 30 seconds
     setInterval(async () => {
         if (!user || !selectedMaterial) return;
         try {
@@ -362,6 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     clicks: metrics.clicks,
                     time_spent: metrics.timeSpent,
                     idle_time: metrics.idleTime,
+                    highlights: metrics.highlights,
                     is_embedded: isEmbeddedContent,
                 })
             });
@@ -398,15 +466,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (res.ok) {
                 const result = await res.json();
-                updateStatus(result.engagement_label);
+                showAiInsight(result);
             }
         } catch (err) {
             console.error('Classification error:', err);
         }
     }
-
-    // Trigger classification after 60 seconds of viewing
-    setTimeout(classifyEngagement, 60000);
 
     // ── Micro-Question Popup ──────────────────────────────────────────────────
     let microRetryCount = 0;
@@ -559,53 +624,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target === modal) modal.style.display = 'none';
     });
 
-    // ── AI Quiz Ready Timer ──────────────────────────────────────────────────
-    // After the student has had time to read the material, show a "ready"
-    // prompt that links to the AI comprehension quiz for this material.
-    const QUIZ_READY_MINUTES = 20;
-    let quizReadyTimer = null;
-    let quizReadyInterval = null;
-    let quizReadyAt = 0;
-
-    function startQuizReadyTimer() {
-        stopQuizReadyTimer();
-        const hint = document.getElementById('quiz-ready-hint');
+    // ── Comprehension Check Beacon ────────────────────────────────────────────
+    // Always available while a material is open — the student decides when
+    // they're ready. No countdown, no pop-ups.
+    function showQuizBeacon() {
+        const banner = document.getElementById('quiz-ready-hint');
         const btn = document.getElementById('quiz-ready-btn');
-        if (hint) hint.style.display = 'flex';
-        if (btn) btn.style.display = 'none';
-        quizReadyAt = Date.now() + QUIZ_READY_MINUTES * 60 * 1000;
-        updateQuizCountdown();
-        quizReadyTimer = setTimeout(showQuizReadyPrompt, QUIZ_READY_MINUTES * 60 * 1000);
-        quizReadyInterval = setInterval(updateQuizCountdown, 1000);
-    }
-
-    function stopQuizReadyTimer() {
-        if (quizReadyTimer) { clearTimeout(quizReadyTimer); quizReadyTimer = null; }
-        if (quizReadyInterval) { clearInterval(quizReadyInterval); quizReadyInterval = null; }
-    }
-
-    function updateQuizCountdown() {
-        const el = document.getElementById('quiz-countdown');
-        if (!el) return;
-        const remain = Math.max(0, quizReadyAt - Date.now());
-        const min = Math.floor(remain / 60000);
-        const sec = Math.floor((remain % 60000) / 1000);
-        el.textContent = `Questions ready in ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')} · fresh each attempt`;
-    }
-
-    function showQuizReadyPrompt() {
-        if (quizReadyInterval) clearInterval(quizReadyInterval);
-        const btn = document.getElementById('quiz-ready-btn');
-        const countdown = document.getElementById('quiz-countdown');
-        if (countdown) countdown.textContent = 'Your comprehension questions are ready!';
+        if (banner) banner.style.display = 'flex';
         if (btn) btn.style.display = 'inline-block';
-        const readyModal = document.getElementById('quiz-ready-modal');
-        if (readyModal) readyModal.style.display = 'flex';
-    }
-
-    function hideQuizReadyPrompt() {
-        const readyModal = document.getElementById('quiz-ready-modal');
-        if (readyModal) readyModal.style.display = 'none';
     }
 
     function startAiQuiz() {
@@ -660,16 +686,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('download-btn')?.addEventListener('click', downloadMaterial);
 
     document.getElementById('quiz-ready-btn')?.addEventListener('click', startAiQuiz);
-    document.getElementById('quiz-ready-yes')?.addEventListener('click', () => { hideQuizReadyPrompt(); startAiQuiz(); });
-    document.getElementById('quiz-ready-no')?.addEventListener('click', hideQuizReadyPrompt);
-    document.getElementById('quiz-ready-modal')?.addEventListener('click', (e) => {
-        if (e.target === document.getElementById('quiz-ready-modal')) hideQuizReadyPrompt();
-    });
 
     // ─── PDF.js rendering ────────────────────────────────────────────────────
-    // Renders PDF pages as canvases that stack naturally inside the scrollable
-    // .content-area, so PDFs scroll with touch on mobile like images do.
+    // Renders PDF pages as canvas + transparent selectable text layer, so PDFs
+    // scroll naturally AND support text highlighting. Highlights are stored as
+    // percentages of the rendered page, so they repaint correctly at any zoom
+    // level, screen size, or device pixel ratio.
     let pdfjsPromise = null;
+    let pdfPageRegistry = {};        // page number -> { wrap, hlLayer }
+    let activeHighlightGroups = [];  // [{ id, pageNumber, rects, els }]
+    let savedHighlights = [];        // rows fetched from the API
+    let pdfRenderToken = 0;          // bumped on every selection so a slow render
+                                     // of an old material can't clobber the new one
+
+    const HL_COLORS = ['amber', 'green', 'blue'];
+
+    function clearPdfHighlightState() {
+        pdfPageRegistry = {};
+        activeHighlightGroups = [];
+        savedHighlights = [];
+        updateHlCount();
+    }
 
     function loadPdfJs() {
         if (!pdfjsPromise) {
@@ -690,27 +727,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         return pdfjsPromise;
     }
 
-    async function renderPdf(url, container) {
+    async function renderPdf(url, container, token) {
         try {
             const lib = await loadPdfJs();
             const pdf = await lib.getDocument({ url }).promise;
+            if (token !== pdfRenderToken) return; // another material was selected
             container.innerHTML = '';
+            clearPdfHighlightState();
+
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
+                if (token !== pdfRenderToken) return;
                 const baseViewport = page.getViewport({ scale: 1 });
                 const scale = Math.min(1.5, container.clientWidth / baseViewport.width);
                 const dpr = window.devicePixelRatio || 1;
                 const viewport = page.getViewport({ scale: scale * dpr });
+
+                const wrap = document.createElement('div');
+                wrap.className = 'pdf-page-wrap';
+                wrap.dataset.page = i;
+                wrap.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
+
                 const canvas = document.createElement('canvas');
                 canvas.className = 'pdf-page-canvas';
                 canvas.width = Math.floor(viewport.width);
                 canvas.height = Math.floor(viewport.height);
-                canvas.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
+
+                // Highlight boxes sit under the text layer: selections always
+                // land on text spans, never on the highlight itself.
+                const hlLayer = document.createElement('div');
+                hlLayer.className = 'pdf-highlight-layer';
+
+                const textLayerDiv = document.createElement('div');
+                textLayerDiv.className = 'pdf-text-layer';
+
+                wrap.appendChild(canvas);
+                wrap.appendChild(hlLayer);
+                wrap.appendChild(textLayerDiv);
+                container.appendChild(wrap);
+
                 await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-                container.appendChild(canvas);
+                if (token !== pdfRenderToken) return;
+
+                // Text layer uses CSS-pixel scale (no DPR) so its spans line up
+                // with the displayed canvas, not its internal resolution.
+                const cssViewport = page.getViewport({ scale });
+                const textContent = await page.getTextContent();
+                const textTask = lib.renderTextLayer({
+                    textContentSource: textContent,
+                    container: textLayerDiv,
+                    viewport: cssViewport,
+                });
+                await textTask.promise;
+                if (token !== pdfRenderToken) return;
+
+                pdfPageRegistry[i] = { wrap, hlLayer };
             }
+
+            paintSavedHighlights();
         } catch (err) {
             console.error('PDF render failed:', err);
+            if (token !== pdfRenderToken) return; // superseded — don't clobber
             container.innerHTML = `
                 <div class="pdf-error-card">
                     <p>This PDF could not be rendered in the browser.</p>
@@ -719,6 +796,334 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    buildTopicList(['Overview']);
+    // ── Highlight helpers ─────────────────────────────────────────────────────
+
+    // Merge per-span client rects into one box per visual line.
+    function mergeLineRects(rects) {
+        const sorted = [...rects].sort((a, b) => a.t - b.t || a.l - b.l);
+        const lines = [];
+        for (const r of sorted) {
+            const line = lines.find(L => Math.abs(L.t - r.t) < Math.max(L.h, r.h) * 0.5);
+            if (line) {
+                const right = Math.max(line.l + line.w, r.l + r.w);
+                const bottom = Math.max(line.t + line.h, r.t + r.h);
+                line.l = Math.min(line.l, r.l);
+                line.t = Math.min(line.t, r.t);
+                line.w = right - line.l;
+                line.h = bottom - line.t;
+            } else {
+                lines.push({ l: r.l, t: r.t, w: r.w, h: r.h });
+            }
+        }
+        return lines
+            .filter(r => r.w > 0.3 && r.h > 0.2)
+            .map(r => ({
+                l: +r.l.toFixed(2), t: +r.t.toFixed(2),
+                w: +r.w.toFixed(2), h: +r.h.toFixed(2),
+            }));
+    }
+
+    function paintHighlightGroup(hlLayer, rects, hid, color) {
+        const els = [];
+        for (const r of rects) {
+            const div = document.createElement('div');
+            div.className = 'pdf-highlight';
+            if (hid) div.dataset.hid = hid;
+            if (color && color !== 'amber') div.dataset.color = color;
+            div.style.left = `${r.l}%`;
+            div.style.top = `${r.t}%`;
+            div.style.width = `${r.w}%`;
+            div.style.height = `${r.h}%`;
+            hlLayer.appendChild(div);
+            els.push(div);
+        }
+        return els;
+    }
+
+    function registerHighlightGroup(id, pageNumber, rects, els) {
+        activeHighlightGroups.push({ id, pageNumber, rects, els });
+    }
+
+    function paintSavedHighlights() {
+        for (const h of savedHighlights) {
+            const pageInfo = pdfPageRegistry[h.page_number];
+            if (!pageInfo) continue;
+            const rects = (h.rects || []).map(r => ({ l: r.l, t: r.t, w: r.w, h: r.h }));
+            const els = paintHighlightGroup(pageInfo.hlLayer, rects, h.id, h.color);
+            registerHighlightGroup(h.id, h.page_number, rects, els);
+        }
+    }
+
+    async function fetchSavedHighlights() {
+        if (!selectedMaterial || !courseId) return;
+        try {
+            const res = await authFetch(`${API_BASE}/api/highlights/material/${encodeURIComponent(selectedMaterial.id)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            savedHighlights = data.highlights || [];
+            paintSavedHighlights();
+            updateHlCount();
+        } catch (err) {
+            console.error('Failed to load highlights:', err);
+        }
+    }
+
+    function updateHlCount() {
+        const el = document.getElementById('hl-count');
+        if (el) el.textContent = `${savedHighlights.length} highlight${savedHighlights.length === 1 ? '' : 's'}`;
+        const clearBtn = document.getElementById('hl-clear-btn');
+        if (clearBtn) clearBtn.style.display = savedHighlights.length ? 'inline-flex' : 'none';
+    }
+
+    // Turn the current text selection into a persisted highlight.
+    function commitPdfHighlight(color = 'amber') {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+        if (!selectedMaterial) return;
+
+        const range = selection.getRangeAt(0);
+        const anchorEl = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+        const layerEl = anchorEl ? anchorEl.closest('.pdf-text-layer') : null;
+        if (!layerEl) return; // selection wasn't on a PDF page
+
+        const wrap = layerEl.closest('.pdf-page-wrap');
+        if (!wrap || !pdfPageRegistry[Number(wrap.dataset.page)]) return;
+        const pageNumber = Number(wrap.dataset.page);
+        const wrapRect = wrap.getBoundingClientRect();
+
+        const raw = [];
+        for (const r of range.getClientRects()) {
+            if (r.width < 2 || r.height < 2) continue;
+            raw.push({
+                l: ((r.left - wrapRect.left) / wrapRect.width) * 100,
+                t: ((r.top - wrapRect.top) / wrapRect.height) * 100,
+                w: (r.width / wrapRect.width) * 100,
+                h: (r.height / wrapRect.height) * 100,
+            });
+        }
+        const rects = mergeLineRects(raw);
+        if (!rects.length) return;
+
+        const text = selection.toString().trim().slice(0, 2000);
+        selection.removeAllRanges();
+
+        // Optimistic paint while the record saves.
+        const els = paintHighlightGroup(pdfPageRegistry[pageNumber].hlLayer, rects, null, color);
+
+        authFetch(`${API_BASE}/api/highlights/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                material_id: selectedMaterial.id,
+                course_id: courseId,
+                page_number: pageNumber,
+                rects,
+                text,
+                color,
+            }),
+        }).then(async res => {
+            if (!res.ok) throw new Error('Save failed');
+            const data = await res.json();
+            const hid = data.highlight.id;
+            els.forEach(el => { el.dataset.hid = hid; });
+            savedHighlights.push(data.highlight);
+            registerHighlightGroup(hid, pageNumber, rects, els);
+            metrics.highlights++;
+            updateHlCount();
+            markActivity();
+        }).catch(err => {
+            console.error('Highlight save failed:', err);
+            els.forEach(el => el.remove());
+            if (typeof showToast === 'function') showToast('Could not save that highlight.', 'error');
+        });
+    }
+
+    // ── Floating highlight toolbar ────────────────────────────────────────────
+    // Selecting PDF text raises a small popup with three color swatches; the
+    // highlight is only applied when a swatch is clicked (deliberate action,
+    // no accidental marks). Driven by `selectionchange` so it also works on
+    // touch devices, where `mouseup` never fires.
+    const hlPop = document.createElement('div');
+    hlPop.className = 'hl-pop';
+    hlPop.innerHTML = `
+        <span class="hl-pop-label"><i class="bi bi-highlighter"></i> Highlight</span>
+        <div class="hl-pop-swatches">
+            ${HL_COLORS.map(c => `<button type="button" class="hl-swatch hl-swatch-${c}" data-color="${c}" aria-label="Highlight in ${c}"></button>`).join('')}
+        </div>`;
+    document.body.appendChild(hlPop);
+
+    function hideHlPop() {
+        hlPop.classList.remove('is-visible');
+    }
+
+    function maybeShowHlPop() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { hideHlPop(); return; }
+        const range = sel.getRangeAt(0);
+        const anchorEl = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+        if (!anchorEl) { hideHlPop(); return; }
+        if (!anchorEl.closest('.pdf-text-layer')) {
+            hideHlPop();
+            return;
+        }
+
+        let rect = range.getBoundingClientRect();
+        if (!rect || (!rect.width && !rect.height)) {
+            for (const r of range.getClientRects()) {
+                if (r.width || r.height) { rect = r; break; }
+            }
+        }
+        if (!rect || (!rect.width && !rect.height)) { hideHlPop(); return; }
+
+        hlPop.classList.add('is-visible'); // visible before measuring
+        const popRect = hlPop.getBoundingClientRect();
+        const left = Math.min(
+            Math.max(8, rect.left + rect.width / 2 - popRect.width / 2),
+            window.innerWidth - popRect.width - 8
+        );
+        const above = rect.top - popRect.height - 8;
+        hlPop.style.left = `${left}px`;
+        hlPop.style.top = `${above > 8 ? above : rect.bottom + 8}px`;
+    }
+
+    let hlSelTimer = null;
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(hlSelTimer);
+        hlSelTimer = setTimeout(maybeShowHlPop, 120);
+    });
+    contentViewer.addEventListener('scroll', hideHlPop, { passive: true });
+    window.addEventListener('resize', hideHlPop);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideHlPop(); });
+    document.addEventListener('pointerdown', (e) => {
+        if (!hlPop.contains(e.target)) hideHlPop();
+    });
+    // Clicking a swatch must not collapse the selection it applies to.
+    hlPop.addEventListener('mousedown', (e) => e.preventDefault());
+
+    hlPop.querySelectorAll('.hl-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            commitPdfHighlight(btn.dataset.color);
+            hideHlPop();
+        });
+    });
+
+    // ── Highlight removal: hover a highlighted line → × badge appears ────────
+    const hlDelBtn = document.createElement('button');
+    hlDelBtn.type = 'button';
+    hlDelBtn.className = 'pdf-highlight-del';
+    hlDelBtn.setAttribute('aria-label', 'Remove highlight');
+    hlDelBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+
+    let hlDelTarget = null;
+
+    function findHighlightGroupAt(wrap, xPct, yPct) {
+        const pageNumber = Number(wrap.dataset.page);
+        for (const group of activeHighlightGroups) {
+            if (group.pageNumber !== pageNumber) continue;
+            for (const r of group.rects) {
+                if (xPct >= r.l - 0.4 && xPct <= r.l + r.w + 0.4 &&
+                    yPct >= r.t - 0.6 && yPct <= r.t + r.h + 0.6) {
+                    return group;
+                }
+            }
+        }
+        return null;
+    }
+
+    function hideHighlightDelete() {
+        hlDelTarget = null;
+        hlDelBtn.remove();
+    }
+
+    function repositionHighlightDelete(group, wrap) {
+        const topRect = [...group.rects].sort((a, b) => a.t - b.t)[0];
+        hlDelBtn.style.left = `calc(${Math.min(100, topRect.l + topRect.w)}% + 6px)`;
+        hlDelBtn.style.top = `${topRect.t}%`;
+    }
+
+    contentViewer.addEventListener('mousemove', (e) => {
+        const layerEl = e.target.closest ? e.target.closest('.pdf-text-layer') : null;
+        const wrap = layerEl ? layerEl.closest('.pdf-page-wrap') : null;
+        if (!wrap) { hideHighlightDelete(); return; }
+
+        const rect = wrap.getBoundingClientRect();
+        const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+        const group = findHighlightGroupAt(wrap, xPct, yPct);
+
+        if (!group) {
+            if (hlDelTarget) hideHighlightDelete();
+            return;
+        }
+        if (hlDelTarget !== group || !hlDelBtn.isConnected) {
+            hlDelTarget = group;
+            wrap.appendChild(hlDelBtn);
+            hlDelBtn.style.display = 'inline-flex';
+        }
+        repositionHighlightDelete(group, wrap);
+    });
+
+    contentViewer.addEventListener('mouseleave', hideHighlightDelete);
+
+    hlDelBtn.addEventListener('click', async () => {
+        const group = hlDelTarget;
+        if (!group || !group.id) return;
+        try {
+            const res = await authFetch(`${API_BASE}/api/highlights/${encodeURIComponent(group.id)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Delete failed');
+            group.els.forEach(el => el.remove());
+            activeHighlightGroups = activeHighlightGroups.filter(g => g !== group);
+            savedHighlights = savedHighlights.filter(h => h.id !== group.id);
+            updateHlCount();
+            hideHighlightDelete();
+        } catch (err) {
+            console.error('Highlight delete failed:', err);
+            if (typeof showToast === 'function') showToast('Could not remove that highlight.', 'error');
+        }
+    });
+
+    // ── Clear-all highlights (Session panel) ──────────────────────────────────
+    const hlClearModal = document.getElementById('hl-clear-modal');
+    const hlConfirmBtn = document.getElementById('hl-confirm-btn');
+
+    document.getElementById('hl-clear-btn').addEventListener('click', () => {
+        if (!savedHighlights.length) return;
+        hlClearModal.style.display = 'flex';
+    });
+    document.getElementById('hl-cancel-btn').addEventListener('click', () => {
+        hlClearModal.style.display = 'none';
+    });
+    hlClearModal.addEventListener('click', (e) => {
+        if (e.target === hlClearModal) hlClearModal.style.display = 'none';
+    });
+
+    hlConfirmBtn.addEventListener('click', async () => {
+        if (!selectedMaterial) return;
+        hlConfirmBtn.disabled = true;
+        hlConfirmBtn.textContent = 'Deleting…';
+        try {
+            const res = await authFetch(`${API_BASE}/api/highlights/material/${encodeURIComponent(selectedMaterial.id)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Clear failed');
+            activeHighlightGroups.forEach(g => g.els.forEach(el => el.remove()));
+            activeHighlightGroups = [];
+            savedHighlights = [];
+            metrics.highlights = 0;
+            updateHlCount();
+            hideHighlightDelete();
+            hlClearModal.style.display = 'none';
+            if (typeof showToast === 'function') showToast('All highlights removed.', 'success');
+        } catch (err) {
+            console.error('Highlight clear failed:', err);
+            if (typeof showToast === 'function') showToast('Could not clear highlights.', 'error');
+        } finally {
+            hlConfirmBtn.disabled = false;
+            hlConfirmBtn.textContent = 'Delete all';
+        }
+    });
+
     await fetchMaterials();
 });

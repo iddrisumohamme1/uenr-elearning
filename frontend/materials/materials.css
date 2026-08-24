@@ -154,6 +154,123 @@
     animation: pulse 2s infinite;
 }
 
+/* Before the first material interaction tracking hasn't started yet */
+.engagement-status.is-waiting .status-dot {
+    background: var(--clr-warning);
+    box-shadow: 0 0 10px var(--clr-warning);
+}
+
+/* Session panel: highlights count + clear-all */
+.session-hl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s2);
+    margin-top: var(--s3);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+#hl-clear-btn {
+    padding: 2px var(--s3);
+    font-size: 0.68rem;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+
+#hl-clear-btn:hover {
+    color: var(--clr-danger, #ef4444);
+    border-color: currentColor;
+    background: transparent;
+}
+
+.session-hint {
+    margin-top: var(--s2);
+    font-size: 0.7rem;
+    font-style: italic;
+    line-height: 1.45;
+}
+
+/* Quiet AI-insight pill — never alarming, full label lives in the tooltip */
+.ai-insight-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1, 4px);
+    padding: 3px var(--s3);
+    font-size: 0.68rem;
+    font-family: var(--rd-mono);
+    color: var(--text-muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-full);
+    white-space: nowrap;
+    cursor: default;
+}
+
+.ai-insight-chip[data-tone="high"] {
+    color: var(--clr-success);
+    border-color: color-mix(in srgb, var(--clr-success) 40%, transparent);
+}
+
+.ai-insight-chip[data-tone="mid"] {
+    color: var(--text-secondary);
+}
+
+.ai-insight-chip[data-tone="low"] {
+    color: var(--clr-warning);
+    border-color: color-mix(in srgb, var(--clr-warning) 45%, transparent);
+}
+
+/* Clear-all highlights confirmation dialog */
+.hl-clear-card {
+    max-width: 360px;
+    text-align: left;
+}
+
+.hl-clear-card h3 {
+    margin-bottom: var(--s2);
+}
+
+.hl-clear-note {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin-bottom: var(--s5);
+}
+
+.hl-clear-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s3);
+}
+
+.hl-clear-actions button {
+    padding: var(--s2) var(--s5);
+    font-size: 0.8rem;
+    border-radius: var(--r-full);
+    cursor: pointer;
+    transition: filter var(--t-fast), background var(--t-fast);
+}
+
+.hl-clear-actions button:not(.is-danger) {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+}
+
+.hl-clear-actions button.is-danger {
+    background: var(--clr-danger, #ef4444);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+}
+
+.hl-clear-actions button:hover {
+    filter: brightness(1.1);
+}
+
 .download-btn {
     display: inline-flex;
     align-items: center;
@@ -451,7 +568,7 @@
     font-size: 1.05rem;
 }
 
-#quiz-countdown {
+.quiz-ready-label {
     font-family: var(--rd-mono);
     font-size: 0.76rem;
     color: var(--text-secondary);
@@ -607,7 +724,150 @@
 .pdf-page-canvas {
     display: block;
     width: 100%;
+    height: 100%;
     flex: none;
+}
+
+/* ── PDF text layer + highlights ─────────────────────────────────────────── */
+/* Each page is a positioned wrapper: canvas at the bottom, highlight boxes
+   above it, transparent selectable text on top. */
+.pdf-page-wrap {
+    position: relative;
+    width: 100%;
+    flex: none;
+    margin-bottom: var(--s3);
+}
+
+.pdf-text-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    opacity: 1;
+    z-index: 2;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+}
+
+/* Required contract with PDF.js renderTextLayer: spans are placed inline. */
+.pdf-text-layer span {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+}
+
+.pdf-text-layer ::selection {
+    background: rgba(246, 183, 58, 0.4);
+}
+
+.pdf-highlight-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.pdf-highlight {
+    position: absolute;
+    background: rgba(255, 213, 79, 0.45);
+    border-radius: 2px;
+    mix-blend-mode: multiply;
+}
+
+.pdf-highlight[data-color="green"] {
+    background: rgba(134, 239, 172, 0.45);
+}
+
+.pdf-highlight[data-color="blue"] {
+    background: rgba(147, 197, 253, 0.45);
+}
+
+/* Floating highlight toolbar — appears near a text selection */
+.hl-pop {
+    position: fixed;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: 6px var(--s3) 6px var(--s4);
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity var(--t-fast), transform var(--t-fast), visibility var(--t-fast);
+    pointer-events: none;
+}
+
+.hl-pop.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+}
+
+.hl-pop-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hl-pop-swatches {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.hl-swatch {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--r-full);
+    cursor: pointer;
+    transition: transform var(--t-fast), border-color var(--t-fast);
+}
+
+.hl-swatch:hover {
+    transform: scale(1.18);
+    border-color: var(--text-muted);
+}
+
+.hl-swatch-amber { background: #ffd54f; }
+.hl-swatch-green { background: #86efac; }
+.hl-swatch-blue  { background: #93c5fd; }
+
+.pdf-highlight-del {
+    position: absolute;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.6rem;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-110%);
+    box-shadow: var(--shadow-card, 0 2px 8px rgba(0, 0, 0, 0.25));
+    z-index: 3;
+}
+
+.pdf-highlight-del:hover {
+    color: #261400;
+    background: linear-gradient(135deg, #f6b73a, #f59e0b);
+    border-color: transparent;
 }
 
 .pdf-error-card {
@@ -896,7 +1156,7 @@
         font-size: 0.72rem;
     }
 
-    #quiz-countdown { font-size: 0.68rem; }
+    .quiz-ready-label { font-size: 0.68rem; }
     .quiz-ready-btn { font-size: 0.7rem; padding: var(--s1) var(--s4); }
 }
 

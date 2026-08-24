@@ -10,6 +10,7 @@ class MaterialOut(BaseModel):
     title: str
     description: str | None = None
     content_url: str
+    render_url: str | None = None
     content_type: str | None = None
     week_number: int | None = None
     unit_label: str | None = None

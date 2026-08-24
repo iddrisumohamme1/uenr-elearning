@@ -26,10 +26,11 @@
                 <h1 id="material-title">Course Material</h1>
             </div>
             <div class="header-actions">
-                <div class="engagement-status">
+                <div class="engagement-status is-waiting">
                     <span class="status-dot"></span>
-                    <span id="engagement-label">Tracking engagement…</span>
+                    <span id="engagement-label">Click or scroll the material to start tracking</span>
                 </div>
+                <span id="ai-insight-chip" class="ai-insight-chip" style="display:none"></span>
                 <button id="download-btn" class="download-btn" style="display:none"><i class="bi bi-download"></i> Download</button>
             </div>
         </header>
@@ -75,16 +76,21 @@
                         <span id="reading-time">00:00</span>
                         <span class="text-muted">reading</span>
                     </p>
+                    <div class="session-hl-row">
+                        <span id="hl-count">0 highlights</span>
+                        <button id="hl-clear-btn" type="button" title="Remove all highlights on this material" style="display:none">Clear all</button>
+                    </div>
+                    <p class="session-hint" id="session-hint" style="display:none"></p>
                     <p class="text-muted" style="font-size: 0.75rem">We're monitoring your activity to help you stay focused.</p>
                 </div>
             </aside>
         </div>
 
-        <!-- Quiz-ready beacon dock -->
+        <!-- Comprehension check beacon dock (appears once a material is open) -->
         <div class="quiz-ready-banner" id="quiz-ready-hint" style="display:none">
             <i class="bi bi-lightbulb"></i>
-            <span id="quiz-countdown"></span>
-            <button id="quiz-ready-btn" class="quiz-ready-btn" style="display:none">Take the comprehension check</button>
+            <span class="quiz-ready-label">Ready to check your understanding?</span>
+            <button id="quiz-ready-btn" class="quiz-ready-btn">Take the comprehension check</button>
         </div>
     </div>
 
@@ -98,15 +104,14 @@
         </div>
     </div>
 
-    <!-- Ready Prompt Modal (shown when the reading timer finishes) -->
-    <div id="quiz-ready-modal" class="modal">
-        <div class="modal-content">
-            <span class="mq-badge">Comprehension Check Ready</span>
-            <h3>Ready to answer questions about this material?</h3>
-            <p class="mq-meta">You've spent some time reading. Test what you've learned .</p>
-            <div class="mq-actions">
-                <button id="quiz-ready-yes" class="option-btn">Start Questions</button>
-                <button id="quiz-ready-no" class="option-btn">Not yet</button>
+    <!-- Clear-all highlights confirmation -->
+    <div id="hl-clear-modal" class="modal">
+        <div class="modal-content hl-clear-card">
+            <h3>Remove all highlights?</h3>
+            <p class="text-muted hl-clear-note">Every highlight you saved on this material will be deleted. This cannot be undone.</p>
+            <div class="hl-clear-actions">
+                <button id="hl-cancel-btn" type="button">Keep them</button>
+                <button id="hl-confirm-btn" type="button" class="is-danger">Delete all</button>
             </div>
         </div>
     </div>

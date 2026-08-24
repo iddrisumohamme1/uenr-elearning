@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     SEMANTIC_SEARCH_ENABLED: bool = True
     ENGAGEMENT_ML_ENABLED: bool = True
 
+    # Office→PDF conversion at upload time (LibreOffice headless). Hosts
+    # without soffice degrade gracefully to the embedded viewer fallback.
+    DOC_CONVERSION_ENABLED: bool = True
+
     # --- App ---
     APP_NAME: str = "UENR E-Learning Platform"
     APP_ENV: str = "development"

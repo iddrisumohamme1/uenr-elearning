@@ -39,15 +39,29 @@
                         <p class="quiz-eyebrow">Comprehension Check</p>
                         <h1 id="quiz-title">AI Comprehension Quiz</h1>
                     </div>
-                    <div class="quiz-timer-wrap">
-                        <i class="bi bi-stopwatch"></i>
-                        <span id="quiz-timer">--:--</span>
-                    </div>
                 </header>
 
-                <div id="question-map" class="question-map" aria-label="Question progress"></div>
+                <!-- Start screen: questions appear only after the student begins -->
+                <div id="quiz-intro" class="quiz-intro" style="display:none">
+                    <p class="quiz-eyebrow">Ready to begin</p>
+                    <h2>Your comprehension check is ready</h2>
+                    <div class="quiz-intro-meta">
+                        <span class="meta-chip" id="intro-count"></span>
+                        <span class="meta-chip meta-chip-accent"><i class="bi bi-infinity"></i> Untimed</span>
+                    </div>
+                    <p class="text-muted quiz-intro-note">Answer at your own pace — you get instant feedback when you submit.</p>
+                    <button id="start-quiz-btn" class="btn-primary btn-start"><i class="bi bi-play-fill"></i> Start Quiz</button>
 
-                <main class="quiz-body">
+                    <div id="intro-highlights" class="intro-highlights" style="display:none">
+                        <p class="quiz-eyebrow">From your reading</p>
+                        <ul id="intro-highlights-list" class="hl-review-list"></ul>
+                        <p class="hl-review-hint text-muted">The highlights you saved while reading this material.</p>
+                    </div>
+                </div>
+
+                <div id="question-map" class="question-map" aria-label="Question progress" style="display:none"></div>
+
+                <main class="quiz-body" id="quiz-body" style="display:none">
                     <div class="question-card">
                         <p class="question-num" id="question-num">Question 1 of 10</p>
                         <h2 id="question-text">Loading question...</h2>

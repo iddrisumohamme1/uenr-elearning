@@ -32,8 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentQ = 0;
     let selectedOption = null;
     let answers = [];
-    let timerInterval = null;
-    let timeRemaining = 0;
     const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
     function buildQuestionMap() {
@@ -71,12 +69,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             quizAreaEl.style.display = 'block';
 
             buildQuestionMap();
-            startTimer(15);
-            if (objective.length) {
-                loadQuestion();
-            } else {
-                showTheory();
-            }
+
+            // Show the start screen — questions appear only after the student
+            // clicks Start, and the check is untimed.
+            const parts = [`${objective.length} objective question${objective.length === 1 ? '' : 's'}`];
+            if (theory.length) parts.push(`${theory.length} theory question${theory.length === 1 ? '' : 's'}`);
+            document.getElementById('intro-count').textContent = parts.join(' · ');
+            document.getElementById('quiz-intro').style.display = 'block';
+            loadHighlightReview();
         } catch (err) {
             console.error('AI quiz load error:', err);
             loadingEl.style.display = 'none';
@@ -87,21 +87,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function startTimer(minutes) {
-        timeRemaining = minutes * 60;
-        updateTimerDisplay();
-        timerInterval = setInterval(() => {
-            timeRemaining--;
-            updateTimerDisplay();
-            if (timeRemaining <= 60) document.getElementById('quiz-timer').classList.add('warning');
-            if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(); }
-        }, 1000);
+    // Warn before leaving with an attempt in progress.
+    function warnOnLeave(e) {
+        e.preventDefault();
+        e.returnValue = '';
     }
+    function armLeaveGuard() { window.addEventListener('beforeunload', warnOnLeave); }
+    function disarmLeaveGuard() { window.removeEventListener('beforeunload', warnOnLeave); }
 
-    function updateTimerDisplay() {
-        const min = Math.floor(timeRemaining / 60);
-        const sec = timeRemaining % 60;
-        document.getElementById('quiz-timer').textContent = `Time Left: ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    function startQuiz() {
+        document.getElementById('quiz-intro').style.display = 'none';
+        document.getElementById('question-map').style.display = 'flex';
+        document.getElementById('quiz-body').style.display = 'block';
+        armLeaveGuard();
+        if (objective.length) {
+            loadQuestion();
+        } else {
+            showTheory();
+        }
     }
 
     function loadQuestion() {
@@ -180,7 +183,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function submitQuiz() {
-        if (timerInterval) clearInterval(timerInterval);
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
@@ -200,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await res.json();
             const title = titleParam || 'AI Comprehension Quiz';
             const unanswered = result.unanswered_theory ?? 0;
+            disarmLeaveGuard();
             window.location.href = `../results/results.html?score=${Math.round(result.score)}&quiz=${encodeURIComponent(title)}&correct=${result.correct}&total=${result.total}&theory=${result.theory_avg ?? ''}&unanswered=${unanswered}`;
         } catch (err) {
             console.error('Submit error:', err);
@@ -209,7 +212,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // Show the student's saved highlights from this material as a pre-quiz
+    // refresher. Fails silently — the review is a bonus, never a blocker.
+    async function loadHighlightReview() {
+        if (!materialId) return;
+        const wrap = document.getElementById('intro-highlights');
+        const list = document.getElementById('intro-highlights-list');
+        if (!wrap || !list) return;
+        try {
+            const res = await authFetch(`${API_BASE}/api/highlights/material/${encodeURIComponent(materialId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const highlights = (data.highlights || []).filter(h => (h.text || '').trim());
+            if (!highlights.length) return;
+
+            list.innerHTML = highlights.map(h => `
+                <li class="hl-review-item">
+                    <span class="hl-review-page">p.${h.page_number}</span>
+                    <span class="hl-review-text">${(h.text || '').replace(/</g, '&lt;')}</span>
+                </li>
+            `).join('');
+            wrap.style.display = 'block';
+        } catch (err) {
+            console.error('Highlight review load failed:', err);
+        }
+    }
+
     submitBtn.addEventListener('click', submitQuiz);
+    document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
 
     loadQuiz();
 });

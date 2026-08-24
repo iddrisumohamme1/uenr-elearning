@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.routes import auth, courses, engagement, recommendations, micro_questions, users, analytics, quiz, materials, students, attendance, messages, assignments, resources, study
+from app.routes import highlights
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -73,6 +74,7 @@ app.include_router(messages.router)
 app.include_router(assignments.router)
 app.include_router(resources.router)
 app.include_router(study.router)
+app.include_router(highlights.router)
 
 
 @app.get("/")

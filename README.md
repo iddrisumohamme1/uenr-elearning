@@ -4,12 +4,12 @@
 ---
 
 ## Project Overview
-An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, auto-generates AI assignments from course materials, and recommends external learning resources.
+An intelligent web-based e-learning platform that monitors student engagement and comprehension in real-time using a Two-Tower Neural Network, generates micro-questions for at-risk students, auto-generates AI assignments from course materials, and recommends external learning resources. Students read actively — highlighting PDF passages that persist across sessions and taking fully untimed comprehension checks — and every interaction feeds back into their engagement profile.
 
 ## User Roles
 | Role | Description |
 |------|-------------|
-| **Student** | Access materials, answer quizzes/micro-questions, complete AI-generated assignments, receive personalized recommendations, message lecturers, track engagement and progress |
+| **Student** | Access materials, highlight key passages, answer quizzes/micro-questions, complete AI-generated assignments, receive personalized recommendations, message lecturers, track engagement and progress |
 | **Lecturer** | Upload materials, monitor students in real-time, publish resources, create quizzes and assignments, message students, view analytics dashboards |
 | **HOD** | Monitor departmental analytics and courses, identify at-risk students early, create courses and quizzes |
 
@@ -47,7 +47,7 @@ FYP/
 │   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
 │   ├── student/                  # Dashboard, assignments, inbox, progress, study aids
 │   ├── courses/                  # Course catalog & enrollment (avatar + profile popup)
-│   ├── materials/                # Material viewer (engagement tracking + micro-questions)
+│   ├── materials/                # Material viewer (engagement tracking, PDF highlighting, micro-questions)
 │   ├── quiz/                     # Quiz taking interface (incl. AI-generated quizzes)
 │   ├── results/                  # Quiz results page
 │   ├── analytics/                # Student performance analytics (avatar + profile popup)
@@ -69,6 +69,7 @@ FYP/
 │   │   │   ├── courses.py        # Course CRUD, enrollment
 │   │   │   ├── materials.py      # Material upload, listing, proxy (SSRF-protected)
 │   │   │   ├── engagement.py     # Telemetry logging, Two-Tower classification
+│   │   │   ├── highlights.py     # Persistent PDF text highlights (create/list/delete)
 │   │   │   ├── analytics.py      # Lecturer, HOD & study analytics
 │   │   │   ├── study.py          # Per-student study summary
 │   │   │   ├── quiz.py           # Quiz creation, submission, results
@@ -174,17 +175,30 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 ## Key Features
 
 ### Engagement Tracking
-- Tracks mouse movements, scroll depth, clicks, time-spent, and idle time
-- Detects tab visibility changes and window focus/blur
-- Dual scoring formula: regular content vs embedded content (PDFs, Office docs)
+- **Action-driven**: tracking activates on click/scroll/mouse movement inside the material itself — no timers gating content
+- Tracks mouse movements, scroll depth, clicks, time-spent, idle time, and saved highlights
+- Detects tab visibility changes and window focus/blur; idles after 60s without material interaction
+- Embedded viewers (Office docs) are exempt from inactivity idling — a visible tab counts as on-task — and reactivate when the student returns
+- Dual scoring formula: regular content vs embedded content (PDFs, Office docs); highlights score +2.5 each (capped at 10)
 - Engagement pulse bar shows real-time activity level
 
+### PDF Highlighting (Active Reading)
+- Select any passage in an uploaded PDF → instant amber highlight saved to Supabase
+- Highlights are stored as percentage boxes per page, so they repaint correctly at any zoom level or device
+- Saved highlights reload automatically when the material is reopened; hovering shows a delete badge
+- Highlights live under the PDF text layer, so selecting never gets blocked by existing marks
+- Each highlight counts as engagement activity and feeds the scoring formula
+- The AI quiz start screen lists your saved highlights for that material as a pre-quiz refresher
+
 ### Two-Tower Neural Network
-- **Student Tower**: 9 demographic features (age, sex, education, etc.)
-- **Interaction Tower**: 6 behavioral features (grades, absences, failures)
-- Classifies students into At-Risk / Moderate / Highly Engaged
-- Also classifies comprehension level (Low / Moderate / Good)
-- Auto-classify endpoint bridges telemetry logs with ML inference
+- **Student Tower**: 9 demographic features (age, sex, education, etc.) — shared platform defaults since demographics aren't collected; discrimination comes from the interaction tower
+- **Interaction Tower**: 6 behavioral features (grades, absences, failures, free time)
+- Quiz scores are rescaled from percentages (0–100) to UCI grades (0–20) before inference
+- Both quiz systems feed classification: legacy quizzes *and* AI comprehension checks (`quiz_submissions`)
+- `failures` = distinct course quizzes whose latest attempt scored <40% (cap 4); `absences` come from real attendance logs
+- Classifies students into At-Risk / Moderate / Highly Engaged + comprehension level (Low / Moderate / Good)
+- Auto-classify endpoint bridges telemetry logs with ML inference after 60s of engaged reading
+- Results render as a quiet "AI insight" chip beside the status beacon (full label in the tooltip) — the Active/Idle status stays untouched
 - Lazy-loads the model and falls back to a heuristic analyzer when `ENGAGEMENT_ML_ENABLED=false`
 
 ### Micro-Questions
@@ -202,6 +216,8 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 
 ### AI Quizzes
 - Quiz creation with manual or AI-generated questions (Gemini/Groq)
+- Fully untimed: quizzes open with a start screen; the student begins when ready
+- Closing or navigating away mid-attempt triggers a browser leave-warning; the guard disarms only on successful submission
 - Instant grading and per-question feedback
 - Weak-topic detection feeds the recommendation engine
 
@@ -259,6 +275,9 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 | POST | `/api/engagement/classify` | Yes | Run Two-Tower classification |
 | POST | `/api/engagement/auto-classify` | Yes | Auto-classify from telemetry |
 | GET | `/api/engagement/student/{id}` | Yes | Get student engagement logs |
+| GET | `/api/highlights/material/{material_id}` | Yes | List the student's saved highlights for a material |
+| POST | `/api/highlights/` | Yes | Save a text highlight (page + percentage rects) |
+| DELETE | `/api/highlights/{highlight_id}` | Yes | Delete one of the student's own highlights |
 | GET | `/api/analytics/course/{id}/summary` | Yes | Course engagement summary |
 | GET | `/api/analytics/department/summary` | HOD | Department-wide analytics |
 | GET | `/api/study/summary/{id}` | Yes | Per-student study & progress summary |

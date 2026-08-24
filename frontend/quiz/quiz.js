@@ -18,8 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedOption = null;
     let score = 0;
     let answers = [];
-    let timerInterval = null;
-    let timeRemaining = 0;
     let quizStartTime = 0;
 
     async function loadCourses() {
@@ -71,30 +69,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             quizAreaEl.style.display = 'block';
             document.getElementById('quiz-title').textContent = currentQuiz.title || `Quiz: ${courseTitle}`;
 
-            quizStartTime = Date.now();
-            startTimer(currentQuiz.time_limit || 15);
-            loadQuestion();
+            // Show the start screen — the quiz runs only after the student
+            // clicks Start, and it is untimed.
+            document.getElementById('intro-count').textContent =
+                `${currentQuiz.questions.length} question${currentQuiz.questions.length === 1 ? '' : 's'}`;
+            document.getElementById('quiz-intro').style.display = 'block';
         } catch (err) {
             console.error('Error loading quizzes:', err);
             showToast('Unable to load quizzes. Please try again.', 'error');
         }
     }
 
-    function startTimer(minutes) {
-        timeRemaining = minutes * 60;
-        updateTimerDisplay();
-        timerInterval = setInterval(() => {
-            timeRemaining--;
-            updateTimerDisplay();
-            if (timeRemaining <= 60) document.getElementById('quiz-timer').classList.add('warning');
-            if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(); }
-        }, 1000);
+    // Warn before leaving with an attempt in progress.
+    function warnOnLeave(e) {
+        e.preventDefault();
+        e.returnValue = '';
     }
+    function armLeaveGuard() { window.addEventListener('beforeunload', warnOnLeave); }
+    function disarmLeaveGuard() { window.removeEventListener('beforeunload', warnOnLeave); }
 
-    function updateTimerDisplay() {
-        const min = Math.floor(timeRemaining / 60);
-        const sec = timeRemaining % 60;
-        document.getElementById('quiz-timer').textContent = `Time Left: ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    function startQuiz() {
+        quizStartTime = Date.now();
+        document.getElementById('quiz-intro').style.display = 'none';
+        document.getElementById('quiz-body').style.display = 'block';
+        armLeaveGuard();
+        loadQuestion();
     }
 
     function loadQuestion() {
@@ -122,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('next-btn').textContent = currentQuestionIndex === currentQuiz.questions.length - 1 ? 'Submit Quiz' : 'Next';
     }
 
+    document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
     document.getElementById('prev-btn').addEventListener('click', () => {
         if (currentQuestionIndex > 0) {
             answers[currentQuestionIndex] = selectedOption;
@@ -138,7 +138,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function submitQuiz() {
-        if (timerInterval) clearInterval(timerInterval);
         score = 0;
         currentQuiz.questions.forEach((q, i) => { if (answers[i] === q.correct_option) score++; });
         const finalScore = Math.round((score / currentQuiz.questions.length) * 100);
@@ -156,6 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         } catch (err) { console.error('Submission error:', err); }
 
+        disarmLeaveGuard();
         window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${score}&total=${currentQuiz.questions.length}`;
     }
 

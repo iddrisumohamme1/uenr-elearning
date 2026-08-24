@@ -58,6 +58,7 @@ class MaterialEngagementLog(BaseModel):
     clicks: int = Field(0, ge=0)
     time_spent: int = Field(0, ge=0)
     idle_time: int = Field(0, ge=0)
+    highlights: int = Field(0, ge=0, description="Text highlights made on PDF materials")
     is_embedded: bool = Field(False, description="True for PDFs, Office docs loaded in iframe")
 
 
@@ -108,7 +109,8 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
             ),
         )
     else:
-        # Regular content: full telemetry available
+        # Regular content: full telemetry available. Highlighting a passage is
+        # one of the strongest active-reading signals, so it carries real weight.
         score = min(
             100,
             max(
@@ -118,6 +120,7 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
                     + 0.2 * min(payload.mouse_movements, 200)
                     + 0.25 * payload.clicks
                     + 0.2 * min(payload.time_spent, 300)
+                    + 2.5 * min(payload.highlights, 10)
                     - 0.1 * payload.idle_time,
                 ),
             ),
@@ -144,6 +147,7 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
                     "clicks": payload.clicks,
                     "time_spent": payload.time_spent,
                     "idle_time": payload.idle_time,
+                    "highlights": payload.highlights,
                     "engagement_score": score,
                     "engagement_level": level,
                     "engagement_class": 1,
@@ -311,58 +315,95 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
     admin = get_admin_client()
 
     # ── Fetch latest quiz results for this course as interaction proxy ────────
+    # NOTE: the Two-Tower model was trained on UCI grades (0-20 scale), while
+    # the platform stores quiz scores as percentages (0-100). Raw percentages
+    # would saturate the interaction tower, so they are rescaled by /5 below.
+    # Both quiz systems feed the pool: legacy quizzes (quiz_results) and
+    # AI-generated material quizzes (quiz_submissions).
     interaction_defaults = {"failures": 0, "absences": 0, "G1": 10, "G2": 10, "G3": 10, "freetime": 3}
+    latest_by_quiz: dict = {}
+    course_scores = []
 
     try:
         quiz_resp = with_retry(
             lambda c: c.table("quiz_results")
-            .select("score, quizzes!inner(course_id)")
+            .select("quiz_id, score, quizzes!inner(course_id)")
             .eq("student_id", payload.student_id)
             .order("submitted_at", desc=True)
-            .limit(10)
+            .limit(30)
             .execute()
         )
         quiz_data = getattr(quiz_resp, "data", []) or []
 
-        # Filter to this course's quizzes and extract scores as G1/G2/G3 proxy
-        course_scores = []
+        # Rows arrive newest-first: keep each quiz's most recent attempt.
         for qr in quiz_data:
             course_info = qr.get("quizzes")
-            if isinstance(course_info, dict) and course_info.get("course_id") == payload.course_id:
-                course_scores.append(float(qr.get("score", 10)))
-
-        if course_scores:
-            # Map to G1 (first quiz), G2 (middle), G3 (latest)
-            interaction_defaults["G1"] = course_scores[-1] if len(course_scores) >= 1 else 10
-            interaction_defaults["G2"] = course_scores[len(course_scores) // 2] if len(course_scores) >= 2 else course_scores[0]
-            interaction_defaults["G3"] = course_scores[0]  # Latest score
+            if not (isinstance(course_info, dict) and course_info.get("course_id") == payload.course_id):
+                continue
+            score = float(qr.get("score", 10))
+            course_scores.append(score)
+            qid = qr.get("quiz_id")
+            if qid and qid not in latest_by_quiz:
+                latest_by_quiz[qid] = score
     except Exception as e:
         print(f"[auto-classify] Could not fetch quiz results: {e}")
 
-    # ── Fetch engagement log metrics if available ─────────────────────────────
+    # AI-generated quiz attempts join the same percentage pool. The two pools
+    # are merged newest-per-table rather than globally re-sorted — close enough
+    # for a G1/G2/G3 proxy.
     try:
-        eng_resp = with_retry(
-            lambda c: c.table("engagement_logs")
-            .select("failures, absences, freetime")
+        ai_resp = with_retry(
+            lambda c: c.table("quiz_submissions")
+            .select("quiz_id, score, generated_quizzes!inner(course_id)")
             .eq("student_id", payload.student_id)
-            .eq("course_id", payload.course_id)
-            .order("created_at", desc=True)
-            .limit(1)
+            .order("submitted_at", desc=True)
+            .limit(30)
             .execute()
         )
-        eng_data = getattr(eng_resp, "data", []) or []
-        if eng_data:
-            latest = eng_data[0]
-            if latest.get("failures") is not None:
-                interaction_defaults["failures"] = float(latest["failures"])
-            if latest.get("absences") is not None:
-                interaction_defaults["absences"] = float(latest["absences"])
-            if latest.get("freetime") is not None:
-                interaction_defaults["freetime"] = float(latest["freetime"])
-    except Exception:
-        pass
+        for qr in (getattr(ai_resp, "data", []) or []):
+            gq = qr.get("generated_quizzes")
+            if not (isinstance(gq, dict) and gq.get("course_id") == payload.course_id):
+                continue
+            score = float(qr.get("score", 10))
+            course_scores.append(score)
+            qid = qr.get("quiz_id")
+            if qid and qid not in latest_by_quiz:
+                latest_by_quiz[qid] = score
+    except Exception as e:
+        print(f"[auto-classify] Could not fetch AI quiz results: {e}")
+
+    if latest_by_quiz:
+        # UCI-style "failures" proxy: distinct course quizzes whose latest
+        # attempt scored under 40% (model expects a 0-4 feature).
+        interaction_defaults["failures"] = min(
+            sum(1 for s in latest_by_quiz.values() if s < 40), 4)
+
+    if course_scores:
+        # Percentage -> UCI grade conversion.
+        interaction_defaults["G1"] = round(course_scores[-1] / 5.0, 2)
+        interaction_defaults["G2"] = round((course_scores[len(course_scores) // 2] if len(course_scores) >= 2 else course_scores[0]) / 5.0, 2)
+        interaction_defaults["G3"] = round(course_scores[0] / 5.0, 2)  # Latest score
+
+    # ── Absences come from self-reported attendance logs ──────────────────────
+    try:
+        att_resp = with_retry(
+            lambda c: c.table("attendance_logs")
+            .select("status")
+            .eq("student_id", payload.student_id)
+            .eq("course_id", payload.course_id)
+            .execute()
+        )
+        att_rows = getattr(att_resp, "data", []) or []
+        if att_rows:
+            absent_days = sum(1 for r in att_rows if r.get("status") == "absent")
+            interaction_defaults["absences"] = float(min(absent_days, 93))
+    except Exception as e:
+        print(f"[auto-classify] Could not fetch attendance: {e}")
 
     # ── Student tower: use sensible defaults (UCI dataset midpoints) ──────────
+    # Documented limitation: the platform collects no demographic fields
+    # (age/sex/address/parent education etc.), so every student shares this
+    # tower profile; discrimination comes from the interaction tower.
     student_defaults = {
         "age": 17, "sex": 1, "address": 1, "famsize": 1,
         "Pstatus": 1, "Medu": 2, "Fedu": 2, "traveltime": 1, "studytime": 2,

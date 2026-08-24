@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
 from app.schemas.materials import CourseMaterialsResponse, MaterialOut
+from app.services.doc_converter import convert_to_pdf, is_office_file
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
@@ -117,6 +118,20 @@ def upload_material(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {exc}")
 
+    # Office documents get a PDF twin so the app can render them natively
+    # (full engagement tracking + highlighting). Best-effort: any failure
+    # leaves render_url NULL and the embedded-viewer fallback stays in place.
+    render_url: str | None = None
+    if is_office_file(file_name):
+        pdf_bytes = convert_to_pdf(file_bytes, file_name)
+        if pdf_bytes:
+            try:
+                pdf_path = f"{Path(storage_path).stem}.pdf"
+                bucket.upload(pdf_path, pdf_bytes, {"content-type": "application/pdf"})
+                render_url = bucket.get_public_url(pdf_path)
+            except Exception as exc:
+                print(f"[materials] Converted-PDF upload failed for '{file_name}': {exc}")
+
     try:
         insert_resp = (
             admin.table("materials")
@@ -130,6 +145,7 @@ def upload_material(
                     "week_number": week_number,
                     "unit_label": unit_label,
                     "semester": semester,
+                    "render_url": render_url,
                 }
             )
             .execute()
@@ -156,7 +172,7 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
     try:
         materials_resp = with_retry(
             lambda c: c.table("materials")
-            .select("id, title, description, content_url, content_type, week_number, unit_label, semester, created_at")
+            .select("id, title, description, content_url, render_url, content_type, week_number, unit_label, semester, created_at")
             .eq("course_id", course_id)
             .order("semester", desc=False)
             .order("week_number", desc=False)

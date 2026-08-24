@@ -34,11 +34,25 @@
 
             <div id="quiz-area" style="display:none">
                 <header class="quiz-header">
-                    <h1 id="quiz-title">Assessment</h1>
-                    <div id="quiz-timer">Time Left: --:--</div>
+                    <div>
+                        <p class="quiz-eyebrow">Assessment</p>
+                        <h1 id="quiz-title">Assessment</h1>
+                    </div>
                 </header>
 
-                <main class="quiz-body">
+                <!-- Start screen: the quiz begins only when the student says so -->
+                <div id="quiz-intro" class="quiz-intro" style="display:none">
+                    <p class="quiz-eyebrow">Ready to begin</p>
+                    <h2>Your quiz is ready</h2>
+                    <div class="quiz-intro-meta">
+                        <span class="meta-chip" id="intro-count"></span>
+                        <span class="meta-chip meta-chip-accent"><i class="bi bi-infinity"></i> Untimed</span>
+                    </div>
+                    <p class="text-muted quiz-intro-note">Take it at your own pace — your score is calculated when you submit.</p>
+                    <button id="start-quiz-btn" class="btn-primary btn-start"><i class="bi bi-play-fill"></i> Start Quiz</button>
+                </div>
+
+                <main class="quiz-body" id="quiz-body" style="display:none">
                     <div id="question-container" class="question-card">
                         <p class="question-num">Question 1 of 1</p>
                         <h2 id="question-text">Loading question...</h2>
