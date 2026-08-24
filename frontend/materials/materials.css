@@ -864,6 +864,10 @@
     white-space: pre;
     cursor: text;
     transform-origin: 0% 0%;
+    /* Rounding guard keeps mid-line drags from dropping the selection. */
+    outline: 1px solid transparent;
+    /* Small downward lip bridges the hit gap to the next line while dragging. */
+    padding-bottom: 2px;
 }
 
 .pdf-text-layer ::selection {

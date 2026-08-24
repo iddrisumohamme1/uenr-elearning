@@ -903,6 +903,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 info.textLayerDiv = tl;
             }
             tl.innerHTML = '';
+            // PDF.js v3 sizes its text spans from this variable; without it,
+            // selection strips render misaligned with the printed page.
+            tl.style.setProperty('--scale-factor', String(cssScale));
             await lib.renderTextLayer({
                 textContentSource: textContent,
                 container: tl,
