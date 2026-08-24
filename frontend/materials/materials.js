@@ -30,6 +30,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         viewTabs.forEach(t => t.classList.toggle('is-active', t === tab));
     }));
 
+    // Tablet drawer: on mid-size screens Contents slides over the reading
+    // surface instead of squeezing it (769–1100px only, CSS-gated).
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const viewerScrim = document.getElementById('viewer-scrim');
+    function setDrawer(open) {
+        viewerContainer.classList.toggle('drawer-open', open);
+        if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', String(open));
+    }
+    sidebarToggle?.addEventListener('click', () => {
+        setDrawer(!viewerContainer.classList.contains('drawer-open'));
+    });
+    viewerScrim?.addEventListener('click', () => setDrawer(false));
+
     let selectedMaterial = null;
     let courseTitle = '';
     let isEmbeddedContent = false;
@@ -199,6 +212,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     weekNumber: item.dataset.week !== '' ? Number(item.dataset.week) : null,
                     semester: item.dataset.semester || '',
                 };
+
+                // Mark the active material and keep it visible in the list.
+                document.querySelectorAll('.material-item.active').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                item.scrollIntoView({ block: 'nearest' });
+
                 const downloadBtn = document.getElementById('download-btn');
                 if (downloadBtn) downloadBtn.style.display = 'inline-flex';
                 resetMetrics();
@@ -357,6 +376,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const ribbonFill = document.getElementById('reading-ribbon-fill');
         if (ribbonFill) ribbonFill.style.height = `${Math.min(100, scrollPercent)}%`;
+
+        syncCurrentPageFromScroll();
     }
 
     contentViewer.addEventListener('scroll', recordScrollProgress);
@@ -692,20 +713,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     // scroll naturally AND support text highlighting. Highlights are stored as
     // percentages of the rendered page, so they repaint correctly at any zoom
     // level, screen size, or device pixel ratio.
+    //
+    // Rendering is LAZY: the layout pass only creates aspect-ratio placeholder
+    // boxes (cheap even for 300-page decks), and an IntersectionObserver
+    // rasterizes canvas + text layer for pages as they approach the viewport.
+    // Zoom multiplies every page's width (horizontal overflow past fit-width)
+    // and re-rasterizes what is visible; a ResizeObserver keeps pages crisp
+    // when the pane itself resizes.
     let pdfjsPromise = null;
-    let pdfPageRegistry = {};        // page number -> { wrap, hlLayer }
+    let pdfDoc = null;               // loaded PDFDocumentProxy
+    let pdfPageRegistry = {};        // page number -> { wrap, hlLayer, textLayerDiv, rendered }
     let activeHighlightGroups = [];  // [{ id, pageNumber, rects, els }]
     let savedHighlights = [];        // rows fetched from the API
     let pdfRenderToken = 0;          // bumped on every selection so a slow render
                                      // of an old material can't clobber the new one
+    let pdfZoom = 1;                 // 1 = fit width
+    let pdfNumPages = 0;
+    let currentPdfPage = 1;
+    let pdfPageQueue = [];           // page numbers waiting to rasterize
+    let pdfRenderingBusy = false;
+    let pdfObserver = null;          // IntersectionObserver driving lazy renders
+    let pdfResizeTimer = null;
 
     const HL_COLORS = ['amber', 'green', 'blue'];
+    const PDF_ZOOM_STEP = 0.25;
+    const PDF_ZOOM_MIN = 0.5;
+    const PDF_ZOOM_MAX = 3;
+    const PDF_LAZY_MARGIN = '700px 0px';   // start rasterizing just off-screen
+    const PDF_TOOLBAR_OFFSET = 56;         // sticky toolbar height + breathing room
 
     function clearPdfHighlightState() {
+        if (pdfObserver) { pdfObserver.disconnect(); pdfObserver = null; }
+        pdfDoc = null;
         pdfPageRegistry = {};
+        pdfPageQueue = [];
+        pdfRenderingBusy = false;
+        pdfZoom = 1;
+        pdfNumPages = 0;
+        currentPdfPage = 1;
         activeHighlightGroups = [];
         savedHighlights = [];
         updateHlCount();
+        renderHlPanel();
     }
 
     function loadPdfJs() {
@@ -727,64 +776,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         return pdfjsPromise;
     }
 
+    // Layout pass: placeholders for every page + toolbar + lazy observer.
+    // Cheap per page (~one div), so even huge lecture decks mount instantly.
     async function renderPdf(url, container, token) {
         try {
             const lib = await loadPdfJs();
-            const pdf = await lib.getDocument({ url }).promise;
+            const doc = await lib.getDocument({ url }).promise;
             if (token !== pdfRenderToken) return; // another material was selected
+            container.classList.remove('is-zoomed');
             container.innerHTML = '';
             clearPdfHighlightState();
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
+            const firstPage = await doc.getPage(1);
+            if (token !== pdfRenderToken) return;
+            const baseViewport = firstPage.getViewport({ scale: 1 });
+
+            // State reset done — adopt this document for the lazy renderer.
+            pdfDoc = doc;
+            pdfNumPages = doc.numPages;
+
+            buildPdfToolbar(container);
+
+            for (let i = 1; i <= pdfNumPages; i++) {
                 if (token !== pdfRenderToken) return;
-                const baseViewport = page.getViewport({ scale: 1 });
-                const scale = Math.min(1.5, container.clientWidth / baseViewport.width);
-                const dpr = window.devicePixelRatio || 1;
-                const viewport = page.getViewport({ scale: scale * dpr });
 
                 const wrap = document.createElement('div');
-                wrap.className = 'pdf-page-wrap';
+                wrap.className = 'pdf-page-wrap is-placeholder';
                 wrap.dataset.page = i;
                 wrap.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
-
-                const canvas = document.createElement('canvas');
-                canvas.className = 'pdf-page-canvas';
-                canvas.width = Math.floor(viewport.width);
-                canvas.height = Math.floor(viewport.height);
 
                 // Highlight boxes sit under the text layer: selections always
                 // land on text spans, never on the highlight itself.
                 const hlLayer = document.createElement('div');
                 hlLayer.className = 'pdf-highlight-layer';
-
-                const textLayerDiv = document.createElement('div');
-                textLayerDiv.className = 'pdf-text-layer';
-
-                wrap.appendChild(canvas);
                 wrap.appendChild(hlLayer);
-                wrap.appendChild(textLayerDiv);
+
                 container.appendChild(wrap);
-
-                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-                if (token !== pdfRenderToken) return;
-
-                // Text layer uses CSS-pixel scale (no DPR) so its spans line up
-                // with the displayed canvas, not its internal resolution.
-                const cssViewport = page.getViewport({ scale });
-                const textContent = await page.getTextContent();
-                const textTask = lib.renderTextLayer({
-                    textContentSource: textContent,
-                    container: textLayerDiv,
-                    viewport: cssViewport,
-                });
-                await textTask.promise;
-                if (token !== pdfRenderToken) return;
-
-                pdfPageRegistry[i] = { wrap, hlLayer };
+                pdfPageRegistry[i] = { wrap, hlLayer, textLayerDiv: null, rendered: false };
             }
 
-            paintSavedHighlights();
+            setupLazyRendering(container);
+            currentPdfPage = 1;
+            updatePageIndicator();
         } catch (err) {
             console.error('PDF render failed:', err);
             if (token !== pdfRenderToken) return; // superseded — don't clobber
@@ -794,6 +827,248 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <a class="btn" href="${url}" download>Download PDF</a>
                 </div>`;
         }
+    }
+
+    function setupLazyRendering(container) {
+        pdfObserver = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                const n = Number(entry.target.dataset.page);
+                if (!pdfPageQueue.includes(n)) pdfPageQueue.push(n);
+            }
+            pumpPdfQueue();
+        }, { root: container, rootMargin: PDF_LAZY_MARGIN });
+
+        for (const info of Object.values(pdfPageRegistry)) {
+            pdfObserver.observe(info.wrap);
+        }
+    }
+
+    // Serial rasterizer so approaching pages paint in order without jank.
+    async function pumpPdfQueue() {
+        if (pdfRenderingBusy || !pdfDoc) return;
+        pdfRenderingBusy = true;
+        try {
+            while (pdfPageQueue.length) {
+                pdfPageQueue.sort((a, b) => a - b);
+                const pageNumber = pdfPageQueue.shift();
+                const info = pdfPageRegistry[pageNumber];
+                if (!info || info.rendered) continue;
+                await renderPageContent(pageNumber);
+            }
+        } finally {
+            pdfRenderingBusy = false;
+        }
+    }
+
+    // Rasterize one page at the current zoom × device pixel ratio and rebuild
+    // its selectable text layer. Safe to call again later (idempotent).
+    async function renderPageContent(pageNumber) {
+        const info = pdfPageRegistry[pageNumber];
+        if (!info || !pdfDoc) return;
+        const token = pdfRenderToken;
+        try {
+            const lib = await loadPdfJs();
+            const page = await pdfDoc.getPage(pageNumber);
+            if (token !== pdfRenderToken) return;
+
+            const baseViewport = page.getViewport({ scale: 1 });
+            const cssScale = (contentViewer.clientWidth / baseViewport.width) * pdfZoom;
+            const dpr = window.devicePixelRatio || 1;
+            const viewport = page.getViewport({ scale: Math.min(4, cssScale * dpr) });
+
+            let canvas = info.wrap.querySelector('canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.className = 'pdf-page-canvas';
+                info.wrap.prepend(canvas);
+            }
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            if (token !== pdfRenderToken) return;
+
+            // Text layer uses CSS-pixel scale (no DPR) so its spans line up
+            // with the displayed canvas, not its internal resolution.
+            const cssViewport = page.getViewport({ scale: cssScale });
+            const textContent = await page.getTextContent();
+            if (token !== pdfRenderToken) return;
+
+            let tl = info.textLayerDiv;
+            if (!tl) {
+                tl = document.createElement('div');
+                tl.className = 'pdf-text-layer';
+                info.wrap.appendChild(tl);
+                info.textLayerDiv = tl;
+            }
+            tl.innerHTML = '';
+            await lib.renderTextLayer({
+                textContentSource: textContent,
+                container: tl,
+                viewport: cssViewport,
+            }).promise;
+            if (token !== pdfRenderToken) return;
+
+            // Correct the aspect ratio now that the real page size is known
+            // (placeholder used page 1's proportions).
+            info.wrap.classList.remove('is-placeholder');
+            info.wrap.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
+            info.rendered = true;
+
+            paintHighlightsForPage(pageNumber);
+        } catch (err) {
+            console.error(`PDF page ${pageNumber} failed to render:`, err);
+        }
+    }
+
+    // Re-rasterize after zoom or container resize. Page wraps keep their
+    // aspect ratio, so scroll position survives proportionally.
+    function refreshVisiblePdfPages() {
+        if (!pdfDoc) return;
+        for (const info of Object.values(pdfPageRegistry)) {
+            info.rendered = false;
+        }
+        const visible = visiblePdfPages(PDF_TOOLBAR_OFFSET * 4);
+        for (const n of visible) {
+            if (!pdfPageQueue.includes(n)) pdfPageQueue.push(n);
+        }
+        pumpPdfQueue();
+    }
+
+    function setPdfZoom(zoom) {
+        if (!pdfDoc) return;
+        const prevHeight = contentViewer.scrollHeight;
+        const prevTop = contentViewer.scrollTop;
+
+        pdfZoom = Math.min(PDF_ZOOM_MAX, Math.max(PDF_ZOOM_MIN, zoom));
+        contentViewer.classList.toggle('is-zoomed', pdfZoom > 1.001);
+        for (const info of Object.values(pdfPageRegistry)) {
+            info.wrap.style.width = `${100 * pdfZoom}%`;
+        }
+        refreshVisiblePdfPages();
+        updateZoomLabel();
+
+        requestAnimationFrame(() => {
+            const ratio = prevHeight ? contentViewer.scrollHeight / prevHeight : 1;
+            contentViewer.scrollTop = prevTop * ratio;
+        });
+    }
+
+    // Pages whose boxes intersect [top - margin, bottom + margin] of the pane.
+    function visiblePdfPages(marginPx) {
+        const viewTop = contentViewer.scrollTop - marginPx;
+        const viewBottom = contentViewer.scrollTop + contentViewer.clientHeight + marginPx;
+        const hits = [];
+        for (const [n, info] of Object.entries(pdfPageRegistry)) {
+            const top = info.wrap.offsetTop;
+            if (top + info.wrap.offsetHeight >= viewTop && top <= viewBottom) {
+                hits.push(Number(n));
+            }
+        }
+        return hits.sort((a, b) => a - b);
+    }
+
+    function gotoPdfPage(pageNumber) {
+        if (!pdfDoc) return;
+        const target = Math.min(pdfNumPages, Math.max(1, pageNumber));
+        const info = pdfPageRegistry[target];
+        if (!info) return;
+        contentViewer.scrollTo({
+            top: info.wrap.offsetTop - PDF_TOOLBAR_OFFSET,
+            behavior: 'smooth',
+        });
+    }
+
+    function stepPdfPage(delta) {
+        gotoPdfPage(currentPdfPage + delta);
+    }
+
+    function updatePageIndicator() {
+        const el = document.getElementById('pdf-page-indicator');
+        if (!el || !pdfNumPages) return;
+        el.textContent = `Page ${currentPdfPage} / ${pdfNumPages}`;
+    }
+
+    function syncCurrentPageFromScroll() {
+        if (!pdfDoc || !pdfNumPages) return;
+        const probe = contentViewer.scrollTop + PDF_TOOLBAR_OFFSET + 24;
+        let page = 1;
+        for (const [n, info] of Object.entries(pdfPageRegistry)) {
+            if (info.wrap.offsetTop <= probe) page = Number(n);
+            else break;
+        }
+        if (page !== currentPdfPage) {
+            currentPdfPage = page;
+            updatePageIndicator();
+        }
+    }
+
+    function updateZoomLabel() {
+        const btn = document.getElementById('pdf-fit-btn');
+        if (btn) btn.textContent = pdfZoom === 1 ? 'Fit' : `${Math.round(pdfZoom * 100)}%`;
+    }
+
+    function buildPdfToolbar(container) {
+        const bar = document.createElement('div');
+        bar.className = 'pdf-toolbar';
+        bar.setAttribute('role', 'toolbar');
+        bar.setAttribute('aria-label', 'PDF reader controls');
+        bar.innerHTML = `
+            <button type="button" class="pdf-tbtn" data-act="prev" aria-label="Previous page"><i class="bi bi-chevron-up"></i></button>
+            <span class="pdf-page-indicator" id="pdf-page-indicator" role="status">Page 1 / ${pdfNumPages}</span>
+            <button type="button" class="pdf-tbtn" data-act="next" aria-label="Next page"><i class="bi bi-chevron-down"></i></button>
+            <span class="pdf-tsep" aria-hidden="true"></span>
+            <button type="button" class="pdf-tbtn" data-act="zoomout" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
+            <button type="button" class="pdf-tbtn pdf-tbtn-wide" id="pdf-fit-btn" data-act="fitwidth">Fit</button>
+            <button type="button" class="pdf-tbtn" data-act="zoomin" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>`;
+        bar.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-act]');
+            if (!btn) return;
+            markActivity();
+            switch (btn.dataset.act) {
+                case 'prev': stepPdfPage(-1); break;
+                case 'next': stepPdfPage(1); break;
+                case 'zoomout': setPdfZoom(pdfZoom - PDF_ZOOM_STEP); break;
+                case 'zoomin': setPdfZoom(pdfZoom + PDF_ZOOM_STEP); break;
+                case 'fitwidth': setPdfZoom(1); break;
+            }
+        });
+        container.appendChild(bar);
+    }
+
+    // Keyboard shortcuts (+ / − / f / arrow page jumps) while a PDF is open.
+    document.addEventListener('keydown', (e) => {
+        if (!pdfDoc || modal.style.display === 'flex') return;
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        switch (e.key) {
+            case '+': case '=': setPdfZoom(pdfZoom + PDF_ZOOM_STEP); break;
+            case '-': case '_': setPdfZoom(pdfZoom - PDF_ZOOM_STEP); break;
+            case 'f': case '0': setPdfZoom(1); break;
+            case 'ArrowLeft': stepPdfPage(-1); break;
+            case 'ArrowRight': stepPdfPage(1); break;
+            default: return;
+        }
+        e.preventDefault();
+    });
+
+    // Keep pages crisp when the reading pane itself changes size.
+    if ('ResizeObserver' in window) {
+        new ResizeObserver(() => {
+            if (!pdfDoc) return;
+            clearTimeout(pdfResizeTimer);
+            pdfResizeTimer = setTimeout(() => {
+                const prevHeight = contentViewer.scrollHeight;
+                const prevTop = contentViewer.scrollTop;
+                refreshVisiblePdfPages();
+                requestAnimationFrame(() => {
+                    const ratio = prevHeight ? contentViewer.scrollHeight / prevHeight : 1;
+                    contentViewer.scrollTop = prevTop * ratio;
+                });
+            }, 250);
+        }).observe(contentViewer);
     }
 
     // ── Highlight helpers ─────────────────────────────────────────────────────
@@ -845,9 +1120,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function paintSavedHighlights() {
+        // Only pages that are already rasterized can host boxes; each page
+        // paints its own highlights the moment rendering finishes.
         for (const h of savedHighlights) {
             const pageInfo = pdfPageRegistry[h.page_number];
-            if (!pageInfo) continue;
+            if (!pageInfo || !pageInfo.rendered) continue;
+            if (activeHighlightGroups.some(g => g.id === h.id)) continue;
+            const rects = (h.rects || []).map(r => ({ l: r.l, t: r.t, w: r.w, h: r.h }));
+            const els = paintHighlightGroup(pageInfo.hlLayer, rects, h.id, h.color);
+            registerHighlightGroup(h.id, h.page_number, rects, els);
+        }
+    }
+
+    function paintHighlightsForPage(pageNumber) {
+        for (const h of savedHighlights) {
+            if (h.page_number !== pageNumber) continue;
+            const pageInfo = pdfPageRegistry[h.page_number];
+            if (!pageInfo || !pageInfo.rendered) continue;
+            if (activeHighlightGroups.some(g => g.id === h.id)) continue;
             const rects = (h.rects || []).map(r => ({ l: r.l, t: r.t, w: r.w, h: r.h }));
             const els = paintHighlightGroup(pageInfo.hlLayer, rects, h.id, h.color);
             registerHighlightGroup(h.id, h.page_number, rects, els);
@@ -873,6 +1163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) el.textContent = `${savedHighlights.length} highlight${savedHighlights.length === 1 ? '' : 's'}`;
         const clearBtn = document.getElementById('hl-clear-btn');
         if (clearBtn) clearBtn.style.display = savedHighlights.length ? 'inline-flex' : 'none';
+        renderHlPanel();
     }
 
     // Turn the current text selection into a persisted highlight.
@@ -1069,9 +1360,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     contentViewer.addEventListener('mouseleave', hideHighlightDelete);
 
-    hlDelBtn.addEventListener('click', async () => {
-        const group = hlDelTarget;
-        if (!group || !group.id) return;
+    // One deletion path shared by the hover × badge, the touch action
+    // bubble, and the sidebar highlights panel.
+    async function removeHighlightGroup(group) {
+        if (!group || !group.id) return false;
         try {
             const res = await authFetch(`${API_BASE}/api/highlights/${encodeURIComponent(group.id)}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Delete failed');
@@ -1080,9 +1372,114 @@ document.addEventListener('DOMContentLoaded', async () => {
             savedHighlights = savedHighlights.filter(h => h.id !== group.id);
             updateHlCount();
             hideHighlightDelete();
+            return true;
         } catch (err) {
             console.error('Highlight delete failed:', err);
             if (typeof showToast === 'function') showToast('Could not remove that highlight.', 'error');
+            return false;
+        }
+    }
+
+    hlDelBtn.addEventListener('click', () => { removeHighlightGroup(hlDelTarget); });
+
+    // ── Touch: tap a highlight → small action bubble ──────────────────────────
+    // Hover-dependent × badges don't exist on touch screens; tapping the mark
+    // raises a Delete bubble instead (WCAG: every pointer path has an
+    // equivalent non-hover path).
+    const hlTapPop = document.createElement('div');
+    hlTapPop.className = 'hl-tap-pop';
+    hlTapPop.innerHTML = `
+        <span class="hl-tap-label">Highlight</span>
+        <button type="button" class="hl-tap-del"><i class="bi bi-trash3"></i> Remove</button>`;
+    document.body.appendChild(hlTapPop);
+
+    function hideHlTapPop() {
+        hlTapPop.classList.remove('is-visible');
+    }
+
+    contentViewer.addEventListener('click', (e) => {
+        const isCoarse = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        if (!isCoarse) return; // desktop uses the hover × badge
+
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) return;
+
+        if (hlTapPop.contains(e.target)) return; // its own button handles it
+
+        const wrap = e.target.closest ? e.target.closest('.pdf-page-wrap') : null;
+        if (!wrap) { hideHlTapPop(); return; }
+
+        const rect = wrap.getBoundingClientRect();
+        const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+        const group = findHighlightGroupAt(wrap, xPct, yPct);
+
+        if (!group) { hideHlTapPop(); return; }
+        hlTapPop.dataset.hid = group.id;
+        hlTapPop.classList.add('is-visible');
+        const popRect = hlTapPop.getBoundingClientRect();
+        hlTapPop.style.left = `${Math.min(Math.max(8, e.clientX - popRect.width / 2), window.innerWidth - popRect.width - 8)}px`;
+        hlTapPop.style.top = `${Math.max(8, e.clientY - popRect.height - 12)}px`;
+    });
+
+    hlTapPop.querySelector('.hl-tap-del').addEventListener('click', async () => {
+        const id = hlTapPop.dataset.hid;
+        const group = activeHighlightGroups.find(g => String(g.id) === String(id));
+        hideHlTapPop();
+        await removeHighlightGroup(group);
+    });
+    document.addEventListener('scroll', hideHlTapPop, { passive: true, capture: true });
+    window.addEventListener('resize', hideHlTapPop);
+
+    // ── Sidebar "Your highlights" panel ───────────────────────────────────────
+    // Keyboard- and screen-reader-accessible surface for every saved mark:
+    // snippet + color dot + page tag; click jumps to it, per-row button deletes.
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
+
+    function renderHlPanel() {
+        const list = document.getElementById('hl-list');
+        if (!list) return;
+        list.innerHTML = savedHighlights.map(h => {
+            const snippet = (h.text || '').trim().slice(0, 90) || 'Highlighted passage';
+            return `
+                <div class="hl-row" data-id="${escapeHtml(h.id)}" data-color="${escapeHtml(h.color || 'amber')}">
+                    <button type="button" class="hl-row-main" aria-label="Go to highlight on page ${Number(h.page_number) || 1}">
+                        <span class="hl-dot" aria-hidden="true"></span>
+                        <span class="hl-snippet">${escapeHtml(snippet)}</span>
+                        <span class="hl-row-page">p${Number(h.page_number) || 1}</span>
+                    </button>
+                    <button type="button" class="hl-row-del" aria-label="Remove this highlight"><i class="bi bi-x-lg"></i></button>
+                </div>`;
+        }).join('');
+        list.style.display = savedHighlights.length ? '' : 'none';
+    }
+
+    document.getElementById('hl-list').addEventListener('click', async (e) => {
+        const row = e.target.closest('.hl-row');
+        if (!row) return;
+        const id = row.dataset.id;
+        const group = activeHighlightGroups.find(g => String(g.id) === String(id));
+
+        if (e.target.closest('.hl-row-del')) {
+            await removeHighlightGroup(group);
+            return;
+        }
+
+        // Jump to the highlight and flash it so the eye lands on the mark.
+        if (group && pdfDoc) {
+            const info = pdfPageRegistry[group.pageNumber];
+            if (info) {
+                contentViewer.scrollTo({
+                    top: info.wrap.offsetTop - PDF_TOOLBAR_OFFSET,
+                    behavior: 'smooth',
+                });
+                group.els.forEach(el => el.classList.add('hl-flash'));
+                setTimeout(() => group.els.forEach(el => el.classList.remove('hl-flash')), 1600);
+            }
         }
     });
 
