@@ -235,6 +235,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('rhythm-total').textContent = fmtMinutes(totalMinutes);
     }
 
+    // Learning profile: friendly wording lives here - the backend's
+    // dataset-trained labels never reach the student.
+    const PROFILE_LEVELS = [
+        { word: 'Needs attention', tone: 'low' },
+        { word: 'Steady', tone: 'medium' },
+        { word: 'Excellent', tone: 'high' },
+    ];
+    const PROFILE_COMPREHENSION = [
+        { word: 'Building up', tone: 'low' },
+        { word: 'Fair', tone: 'medium' },
+        { word: 'Strong', tone: 'high' },
+    ];
+
+    async function loadClassification() {
+        try {
+            const clsRes = await authFetch(`${API_BASE}/api/engagement/student/${user.id}/classification`);
+            if (!clsRes.ok) return;
+            const clsData = await clsRes.json();
+            const latest = clsData.latest;
+            if (!latest) return;
+
+            const eng = PROFILE_LEVELS[latest.engagement_class] || PROFILE_LEVELS[1];
+            const comp = PROFILE_COMPREHENSION[latest.comprehension_class] || PROFILE_COMPREHENSION[1];
+
+            document.getElementById('profile-card').style.display = 'block';
+            const engEl = document.getElementById('profile-engagement');
+            engEl.textContent = eng.word;
+            engEl.className = `lvl-badge lvl-${eng.tone}`;
+            const compEl = document.getElementById('profile-comprehension');
+            compEl.textContent = comp.word;
+            compEl.className = `lvl-badge lvl-${comp.tone}`;
+
+            if (latest.created_at) {
+                const d = new Date(latest.created_at);
+                document.getElementById('profile-updated').textContent =
+                    `Updated ${d.toLocaleDateString()} at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            }
+        } catch (e) {
+            console.log('Learning profile unavailable:', e.message);
+        }
+    }
+
     if (engagementData) {
         let rendered = false;
         try {
@@ -263,6 +305,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderDailyFallback([]);
             renderLegacyRows();
         }
+
+        loadClassification();
     }
 
     // ── Quiz performance ─────────────────────────────────────────────────

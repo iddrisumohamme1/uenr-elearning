@@ -255,6 +255,33 @@
 
 .dist-subtext { font-size: 0.78rem; margin-bottom: var(--s3); }
 
+/* ─── Learning profile card ──────────────────────────────────────────── */
+.profile-card { margin-bottom: 2rem; }
+.profile-sub { font-size: 0.85rem; margin: -0.5rem 0 1.25rem; }
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 320px));
+    gap: var(--s4);
+}
+.profile-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: var(--s3) var(--s4);
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+}
+.profile-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+}
+.profile-item .lvl-badge { font-size: 0.8rem; margin-top: 0; padding: 4px 12px; }
+.profile-updated { font-size: 0.72rem; margin-top: 1rem; }
+
 /* ─── Recent sessions list ───────────────────────────────────────────── */
 .sess-item {
     display: flex;
@@ -426,4 +453,5 @@
     .rhythm-total { flex-direction: column; align-items: flex-start; gap: 0.25rem; text-align: left; }
     .rhythm-numeral { font-size: 2.1rem; }
     .act-chart { overflow-x: auto; gap: 5px; }
+    .profile-grid { grid-template-columns: 1fr; }
 }
