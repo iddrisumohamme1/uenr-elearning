@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderRecentSessions(rows) {
         const list = document.getElementById('activity-list');
         if (!rows.length) {
-            list.innerHTML = '<p class="text-muted">No study sessions recorded yet.</p>';
+            list.innerHTML = '<p class="text-muted">Open a material and study for a few minutes - your sessions will appear here.</p>';
             return;
         }
         list.innerHTML = rows.map(r => `
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderLegacyRows() {
         if (!logs.length) {
             document.getElementById('activity-list').innerHTML =
-                '<p class="text-muted">No engagement recorded yet. Start learning to build your analytics!</p>';
+                '<p class="text-muted">Open a course material to start building your analytics.</p>';
             document.getElementById('insight-list').innerHTML = '<li>No engagement data yet.</li>';
             return;
         }
@@ -198,32 +198,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('insight-list').innerHTML = `<li>${tip}</li>`;
     }
 
-    async function loadClassification() {
-        try {
-            const clsRes = await authFetch(`${API_BASE}/api/engagement/student/${user.id}/classification`);
-            if (!clsRes.ok) return;
-            const clsData = await clsRes.json();
-            const latest = clsData.latest;
-            if (!latest) return;
-
-            document.getElementById('classification-card').style.display = 'block';
-            document.getElementById('ml-engagement').textContent = latest.engagement_label || 'N/A';
-            document.getElementById('ml-comprehension').textContent = latest.comprehension_label || 'N/A';
-            document.getElementById('ml-model-type').textContent = latest.fallback ? 'Rule-Based Heuristic' : 'Two-Tower NN';
-
-            document.getElementById('ml-last-analyzed').textContent = latest.created_at
-                ? `${new Date(latest.created_at).toLocaleDateString()} ${new Date(latest.created_at).toLocaleTimeString()}`
-                : 'Unknown';
-
-            const engClass = latest.engagement_class === 0 ? 'class-at-risk'
-                : latest.engagement_class === 1 ? 'class-moderate' : 'class-high';
-            const compClass = latest.comprehension_class === 0 ? 'class-at-risk'
-                : latest.comprehension_class === 1 ? 'class-moderate' : 'class-high';
-            document.getElementById('ml-engagement').classList.add(engClass);
-            document.getElementById('ml-comprehension').classList.add(compClass);
-        } catch (e) {
-            console.log('ML classification not available:', e.message);
+    function renderDailyFallback(rows) {
+        // Client-side 14-day buckets from whatever log rows we have.
+        const buckets = new Map();
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            buckets.set(d.toISOString().slice(0, 10), { minutes: 0, scoreW: 0, secsW: 0 });
         }
+        rows.forEach(l => {
+            if (!l.logged_at) return;
+            const key = l.logged_at.slice(0, 10);
+            const b = buckets.get(key);
+            if (!b) return;
+            const secs = l.time_spent || 0;
+            const score = l.engagement_score || 0;
+            b.minutes += Math.round(secs / 60);
+            b.scoreW += score * secs;
+            b.secsW += secs;
+        });
+        const daily = [...buckets.entries()].map(([date, b]) => ({
+            date,
+            minutes: b.minutes,
+            score: b.secsW > 0 ? Math.round(b.scoreW / b.secsW) : 0,
+        }));
+        buildActivityChart(daily);
+        const totalMin = daily.reduce((s, d) => s + d.minutes, 0);
+        setRhythmTotal(totalMin);
+        document.getElementById('chart-caption').textContent =
+            totalMin > 0
+                ? 'Recent check-ins only - full history unavailable right now'
+                : 'No study time yet - open a material to start your first session';
+    }
+
+    function setRhythmTotal(totalMinutes) {
+        document.getElementById('rhythm-total').textContent = fmtMinutes(totalMinutes);
     }
 
     if (engagementData) {
@@ -237,13 +246,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (summary && (summary.session_count || 0) > 0) {
                 renderSummary(summary);
                 rendered = true;
+            } else if (summary) {
+                // Summary responded but no sessions yet - draw what raw rows show
+                renderDailyFallback(logs);
+                renderLegacyRows();
+                rendered = true;
             }
         } catch (err) {
-            console.error('Summary load failed, using fallback:', err);
+            console.error('Study history failed to load:', err);
+            renderDailyFallback(logs);
+            renderLegacyRows();
+            rendered = true;
         }
 
-        if (!rendered) renderLegacyRows();
-        if (rendered || logs.length > 0) loadClassification();
+        if (!rendered) {
+            renderDailyFallback([]);
+            renderLegacyRows();
+        }
     }
 
     // ── Quiz performance ─────────────────────────────────────────────────
@@ -390,7 +409,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('materials-count').textContent = s.totals?.materials_viewed ?? 0;
         document.getElementById('time-spent').textContent = fmtMinutes(s.totals?.minutes || 0);
 
-        buildActivityChart(s.daily || []);
+        const daily = s.daily || [];
+        buildActivityChart(daily);
+        setRhythmTotal(daily.reduce((sum, d) => sum + (d.minutes || 0), 0));
 
         const nSess = s.session_count || 0;
         const dist = s.distribution || {};

@@ -127,26 +127,83 @@
 .trend-chip.down { color: var(--clr-danger);  background: color-mix(in srgb, var(--clr-danger) 14%, transparent); }
 .trend-chip.flat { color: var(--text-muted, var(--border-strong)); background: color-mix(in srgb, var(--text-muted, var(--border-strong)) 12%, transparent); }
 
-/* ─── 14-day activity chart ──────────────────────────────────────────── */
-.activity-chart-card { grid-column: 1 / -1; }
-.chart-head-row {
+/* ─── Structural eyebrows: label each section's role consistently ────── */
+.eyebrow {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+}
+
+/* ─── Signature: Study Rhythm hero band ──────────────────────────────── */
+.rhythm-band {
+    background: var(--bg-surface);
+    background-image: var(--grad-surface);
+    background-image:
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--clr-primary) 9%, transparent),
+            transparent 55%),
+        var(--grad-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: var(--s6);
+    margin-bottom: 2rem;
+}
+.rhythm-head {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    gap: var(--s2);
+    align-items: flex-end;
+    gap: var(--s4);
     flex-wrap: wrap;
+    margin-bottom: var(--s4);
 }
-.chart-head-row h3 { margin: 0; }
+.rhythm-head h2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    line-height: 1.15;
+}
+.rhythm-total {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    text-align: right;
+}
+.rhythm-numeral {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--clr-primary);
+    letter-spacing: -0.02em;
+}
+.rhythm-total .text-muted { font-size: 0.78rem; max-width: 240px; }
+
+/* Compact stat chips under the hero */
+.chips-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 3rem; }
+.chips-grid .stat-card { padding: 1.25rem; }
+.stat-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+}
+.chips-grid .stat-value { font-size: 1.7rem; margin-top: 0.35rem; }
+
+/* ─── 14-day activity chart ──────────────────────────────────────────── */
 .act-chart {
     display: flex;
     align-items: stretch;
     gap: 7px;
-    height: 170px;
+    height: 180px;
+    min-height: 160px;
     padding-top: var(--s3);
 }
 .act-col {
     flex: 1;
-    min-width: 0;
+    min-width: 16px;
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -191,8 +248,10 @@
     border-radius: 3px;
     background: var(--border);
 }
-.act-col.is-today .act-day { color: var(--clr-primary); }
-.act-col.is-today .act-track { border-bottom: 2px solid var(--clr-primary); }
+.act-col.is-today .act-day { color: var(--clr-primary); font-weight: 800; }
+.act-col.is-today .act-bar {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--clr-primary) 55%, transparent);
+}
 
 .dist-subtext { font-size: 0.78rem; margin-bottom: var(--s3); }
 
@@ -355,49 +414,16 @@
 }
 .insight-icon { font-size: 2rem; color: var(--clr-energy); display: inline-flex; }
 
-.classification-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: var(--s6);
-    margin-top: var(--s5);
-}
-.classification-card h3 {
-    font-family: var(--font-display);
-    margin-bottom: var(--s2);
-}
-.classification-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--s4);
-}
-.classification-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s1);
-}
-.classification-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.classification-value {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-.classification-value.class-at-risk { color: #ef4444; }
-.classification-value.class-moderate { color: #f59e0b; }
-.classification-value.class-high { color: #22c55e; }
-
 @media (max-width: 900px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .chips-grid { grid-template-columns: repeat(2, 1fr); }
     .charts-grid { grid-template-columns: 1fr; }
-    .classification-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
     .analytics-content { padding: 1.5rem; }
-    .stats-grid { grid-template-columns: 1fr; }
+    .chips-grid { grid-template-columns: 1fr; }
     .insight-card { flex-direction: column; text-align: center; }
+    .rhythm-band { padding: var(--s4); }
+    .rhythm-total { flex-direction: column; align-items: flex-start; gap: 0.25rem; text-align: left; }
+    .rhythm-numeral { font-size: 2.1rem; }
+    .act-chart { overflow-x: auto; gap: 5px; }
 }
