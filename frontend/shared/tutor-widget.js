@@ -26,7 +26,7 @@
     if (!document.querySelector('link[href*="tutor.css"]')) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = '../shared/tutor.css?v=2';
+        link.href = '../shared/tutor.css?v=3';
         document.head.appendChild(link);
     }
 
