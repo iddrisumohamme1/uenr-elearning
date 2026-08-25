@@ -82,14 +82,61 @@
     border-bottom: 1px solid var(--border);
 }
 .tutor-course-label {
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     color: var(--text-muted);
     flex: none;
 }
 .tutor-course-select {
     flex: 1;
     min-width: 0;
+}
+
+/* ── Course selector, scoped to the tutor widget only ─────────────────
+   dropdown.js copies .tutor-course-select onto its wrapper, so these
+   rules restyle this instance's pill trigger + panel without touching
+   the shared dropdown used by every filter in the app. */
+.tutor-course-select .dd__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.85rem 0.42rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    border-radius: var(--r-full);
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+/* Status dot: neutral while "General", primary once grounded in a course */
+.tutor-course-select .dd__trigger::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-full);
+    background: var(--border-strong);
+    transition: background var(--t-fast), box-shadow var(--t-fast);
+}
+.tutor-course-select .dd__trigger:not(.dd__trigger--placeholder)::before {
+    background: var(--clr-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--clr-primary) 18%, transparent);
+}
+.tutor-course-select .dd__trigger:not(.dd__trigger--placeholder) {
+    border-color: color-mix(in srgb, var(--clr-primary) 35%, var(--border));
+    background: color-mix(in srgb, var(--clr-primary) 8%, var(--bg-surface));
+}
+.tutor-course-select .dd--sm .dd__value { max-width: 220px; }
+
+/* Panel: give long course titles room; open direction still auto-flips */
+.tutor-course-select .dd__panel {
+    max-width: min(340px, calc(100vw - 2rem));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tutor-course-select .dd__trigger::before { transition: none; }
 }
 .tutor-thread {
     display: flex;
