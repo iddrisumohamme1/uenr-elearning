@@ -272,9 +272,9 @@ def get_student_engagement_summary(student_id: str, user=Depends(get_current_use
         resp = with_retry(
             lambda c: c.table("engagement_logs")
             .select("material_id,course_id,engagement_score,engagement_level,"
-                    "time_spent,highlights,video_watch_seconds,logged_at")
+                    "time_spent,highlights,video_watch_seconds,created_at")
             .eq("student_id", student_id)
-            .order("logged_at", desc=False)
+            .order("created_at", desc=False)
             .limit(5000)
             .execute()
         )
@@ -298,7 +298,7 @@ def get_student_engagement_summary(student_id: str, user=Depends(get_current_use
     # ── Group ticks into study sessions: a gap > 30 min starts a new one ────
     sessions = []
     for l in logs:
-        ts = parse_ts(l.get("logged_at"))
+        ts = parse_ts(l.get("created_at"))
         if ts is None:
             continue
         score = float(l.get("engagement_score") or 0)
@@ -342,7 +342,7 @@ def get_student_engagement_summary(student_id: str, user=Depends(get_current_use
     # ── Daily series, last 14 days ──────────────────────────────────────────
     days = {}
     for l in logs:
-        ts = parse_ts(l.get("logged_at"))
+        ts = parse_ts(l.get("created_at"))
         if ts is None or (now - ts).days > 13:
             continue
         key = ts.date().isoformat()
@@ -366,7 +366,7 @@ def get_student_engagement_summary(student_id: str, user=Depends(get_current_use
     week_logs, prev_week_logs = [], []
     active_days = set()
     for l in logs:
-        ts = parse_ts(l.get("logged_at"))
+        ts = parse_ts(l.get("created_at"))
         if ts is None:
             continue
         age = now - ts
