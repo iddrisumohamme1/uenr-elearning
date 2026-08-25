@@ -14,10 +14,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
+    function setEngagementValue(score) {
+        document.getElementById('engagement-value').textContent =
+            (score === null || score === undefined) ? '--%' : `${score}%`;
+    }
+
     async function loadStats() {
+        let fallbackScore = null;
         try {
             await swrGet('stats', `${API_BASE}/api/students/${user.id}/stats`, stats => {
-                document.getElementById('engagement-value').textContent = `${stats.engagement_score}%`;
+                // Last-20-tick average - only used if the weekly summary
+                // endpoint is unavailable, so the card never goes blank.
+                fallbackScore = stats.engagement_score;
                 document.getElementById('courses-count').textContent = stats.enrolled_courses;
                 document.getElementById('completed-count').textContent = stats.completed_topics;
 
@@ -29,6 +37,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         } catch (err) {
             console.error('Error loading stats:', err);
+        }
+
+        // Same source as the Performance page's "This Week's Engagement",
+        // so both pages always agree.
+        try {
+            await swrGet('eng-summary', `${API_BASE}/api/engagement/student/${user.id}/summary`, data => {
+                const wk = data?.trend?.this_week_avg;
+                setEngagementValue(wk ?? fallbackScore);
+            });
+        } catch (err) {
+            console.error('Engagement summary failed, using recent-average fallback:', err);
+            setEngagementValue(fallbackScore);
         }
     }
 

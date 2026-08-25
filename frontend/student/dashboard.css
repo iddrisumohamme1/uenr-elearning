@@ -105,6 +105,13 @@
     font-family: var(--font-display);
 }
 
+.stat-hint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-muted, var(--text-secondary));
+    margin-top: 0.45rem;
+}
+
 .recent-activity h2 {
     margin-bottom: var(--s2);
 }
