@@ -40,12 +40,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Same source as the Performance page's "This Week's Engagement",
-        // so both pages always agree.
+        // so both pages always agree. forceRefresh bypasses the SWR cache -
+        // a stale weekly score is worse than no cache at all here.
         try {
             await swrGet('eng-summary', `${API_BASE}/api/engagement/student/${user.id}/summary`, data => {
                 const wk = data?.trend?.this_week_avg;
                 setEngagementValue(wk ?? fallbackScore);
-            });
+            }, { forceRefresh: true });
         } catch (err) {
             console.error('Engagement summary failed, using recent-average fallback:', err);
             setEngagementValue(fallbackScore);
