@@ -160,14 +160,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : 'Failed';
             const removeDisabled = entry.status === 'uploading' ? 'disabled' : '';
             const removeHidden = entry.status === 'done' ? 'style="display:none"' : '';
-            const errorLine = entry.error ? `<span class="file-queue__meta" style="color:var(--clr-danger)">${entry.error}</span>` : '';
 
             return `
                 <div class="file-queue__row ${rowClass}" data-id="${entry.id}">
                     <i class="bi ${fileIcon(f.name)} file-queue__icon"></i>
                     <div class="file-queue__info">
                         <span class="file-queue__name">${f.name}</span>
-                        <span class="file-queue__meta">${formatBytes(f.size)}${errorLine}</span>
+                        <span class="file-queue__meta">${formatBytes(f.size)}</span>
                     </div>
                     <div class="file-queue__progress" ${entry.status === 'uploading' ? '' : 'hidden'}>
                         <div class="file-queue__progress-fill" data-progress-id="${entry.id}"></div>
