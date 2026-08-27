@@ -22,13 +22,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const messageModal = document.getElementById('message-modal');
     const studentsModal = document.getElementById('students-modal');
+    const materialsModal = document.getElementById('materials-modal');
+    const materialsBody = document.getElementById('materials-body');
+    const removeMaterialModal = document.getElementById('remove-material-modal');
+    const removeMaterialConfirm = document.getElementById('remove-material-confirm');
     let messageRecipient = null;
+    let activeCourseId = null;
+    let pendingMaterialId = null;
+    let pendingMaterialTitle = '';
 
     const closeModal = (m) => { if (m) m.hidden = true; };
     document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
         btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
     );
-    [messageModal, studentsModal].forEach(m => m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
+    [messageModal, studentsModal, materialsModal, removeMaterialModal].forEach(m => m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
 
     function openMessage(studentName, studentId, courseLabel, courseId) {
         messageRecipient = { student_id: studentId, course_id: courseId };
@@ -110,6 +117,77 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function formatOrg(m) {
+        if (m.week_number != null) return `Week ${m.week_number}`;
+        if (m.unit_label) return m.unit_label;
+        if (m.semester) return m.semester;
+        return 'Full course';
+    }
+
+    async function openMaterials(courseId, courseLabel) {
+        activeCourseId = courseId;
+        document.getElementById('materials-title').textContent = courseLabel;
+        document.getElementById('materials-sub').textContent = 'Manage the files uploaded for this course.';
+        materialsModal.hidden = false;
+        materialsBody.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading materials…</p></div>';
+        try {
+            const data = await swrGet(`course-materials:${courseId}`, `${API_BASE}/api/materials/course/${courseId}`);
+            const materials = (data && data.materials) || [];
+            if (!materials.length) {
+                materialsBody.innerHTML = '<p class="text-muted">No materials uploaded for this course yet.</p>';
+                return;
+            }
+            materialsBody.innerHTML = materials.map(m => `
+                <div class="material-row">
+                    <div class="material-info">
+                        <span class="material-title"><i class="bi bi-file-earmark-text"></i> ${escapeHTML(m.title)}</span>
+                        <span class="material-meta">${escapeHTML(formatOrg(m))}${m.created_at ? ' · ' + new Date(m.created_at).toLocaleDateString() : ''}</span>
+                    </div>
+                    <button class="btn-material-remove" data-id="${m.id}" data-title="${escapeHTML(m.title)}" aria-label="Remove ${escapeHTML(m.title)}"><i class="bi bi-trash"></i> Remove</button>
+                </div>
+            `).join('');
+            materialsBody.querySelectorAll('.btn-material-remove').forEach(btn => {
+                btn.addEventListener('click', () => openRemoveMaterial(btn.dataset.id, btn.dataset.title));
+            });
+        } catch (err) {
+            materialsBody.innerHTML = '<p class="text-muted">Unable to load materials.</p>';
+            showToast('Unable to load materials.', 'error');
+        }
+    }
+
+    function openRemoveMaterial(id, title) {
+        pendingMaterialId = id;
+        pendingMaterialTitle = title;
+        document.getElementById('remove-material-title').textContent = `Remove "${title}"?`;
+        removeMaterialModal.hidden = false;
+    }
+
+    removeMaterialConfirm.addEventListener('click', async () => {
+        if (!pendingMaterialId) return;
+        const btn = removeMaterialConfirm;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="btn-spinner"></span> Removing…';
+        try {
+            const res = await authFetch(`${API_BASE}/api/materials/${pendingMaterialId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Material removed.', 'success');
+                closeModal(removeMaterialModal);
+                invalidateApiCache(`course-materials:${activeCourseId}`);
+                openMaterials(activeCourseId, document.getElementById('materials-title').textContent);
+            } else {
+                const data = await res.json().catch(() => ({}));
+                showToast(data.detail || 'Could not remove material.', 'error');
+            }
+        } catch (err) {
+            showToast('Could not remove material.', 'error');
+        } finally {
+            pendingMaterialId = null;
+            pendingMaterialTitle = '';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash"></i> Remove material';
+        }
+    });
+
     function renderCard(c) {
         const enrolled = c.enrolled != null ? String(c.enrolled) : '–';
         const atRisk = c.atRisk || 0;
@@ -127,6 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div class="course-actions">
                     <a class="btn-view" href="resources.html?course=${encodeURIComponent(c.id)}"><i class="bi bi-magic"></i> Study Resources</a>
+                    <button class="btn-view" data-materials-id="${c.id}" data-materials-label="${escapeHTML(c.code || '')} ${escapeHTML(c.title)}"><i class="bi bi-folder2-open"></i> Materials</button>
                     <button class="btn-view" data-course-id="${c.id}" data-course-label="${escapeHTML(c.code || '')} ${escapeHTML(c.title)}"><i class="bi bi-person-lines-fill"></i> Students</button>
                 </div>
             </article>
@@ -173,6 +252,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         grid.innerHTML = enriched.map(renderCard).join('');
 
+        grid.querySelectorAll('[data-materials-id]').forEach(btn => {
+            btn.addEventListener('click', () => openMaterials(btn.dataset.materialsId, btn.dataset.materialsLabel));
+        });
         grid.querySelectorAll('[data-course-id]').forEach(btn => {
             btn.addEventListener('click', () => openStudents(btn.dataset.courseId, btn.dataset.courseLabel));
         });

@@ -190,6 +190,86 @@ def get_course_materials(course_id: str, user=Depends(get_current_user)):
     )
 
 
+@router.delete("/{material_id}", status_code=200)
+def delete_material(material_id: str, user=Depends(require_role("lecturer", "hod"))):
+    """
+    Delete one learning material and everything tied to it.
+
+    Removing the materials row cascades through the database (engagement
+    logs, downloads, highlights, micro-question results, generated quizzes
+    and their submissions, and AI study resources all reference materials
+    with ON DELETE CASCADE). Auto-generated assignments keep their own
+    content but lose the source-material reference (ON DELETE SET NULL).
+    The uploaded file (and its converted-PDF twin, if any) is removed from
+    storage as well. Lecturers may only remove materials from courses they
+    own; HODs may remove materials within their department.
+    """
+    admin = get_admin_client()
+
+    try:
+        mat_resp = with_retry(
+            lambda c: c.table("materials")
+            .select("id, course_id, title, content_url, render_url")
+            .eq("id", material_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query material: {exc}")
+
+    mat_data = getattr(mat_resp, "data", []) or []
+    if not mat_data:
+        raise HTTPException(status_code=404, detail="Material not found.")
+    material = mat_data[0]
+
+    # Access control — mirror the upload rules.
+    try:
+        course_resp = with_retry(
+            lambda c: c.table("courses")
+            .select("id, title, department, lecturer_id")
+            .eq("id", material["course_id"])
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+
+    course_data = getattr(course_resp, "data", []) or []
+    if not course_data:
+        raise HTTPException(status_code=404, detail="Course not found.")
+    course = course_data[0]
+
+    if user["role"] == "lecturer" and course.get("lecturer_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Lecturers may only delete materials from their own courses.")
+    if user["role"] == "hod" and course.get("department") != user.get("department"):
+        raise HTTPException(status_code=403, detail="HOD may only delete materials for courses in their department.")
+
+    try:
+        with_retry(
+            lambda c: c.table("materials")
+            .delete()
+            .eq("id", material_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete material: {exc}")
+
+    cleanup_success = True
+    for key in ("content_url", "render_url"):
+        url = material.get(key) or ""
+        if url and "/materials/" in url:
+            path = url.split("/materials/", 1)[-1].split("?")[0]
+            if path:
+                try:
+                    admin.storage.from_(BUCKET_NAME).remove([path])
+                except Exception:
+                    cleanup_success = False
+
+    return {
+        "status": "ok",
+        "message": "Material deleted.",
+        "storage_cleaned": cleanup_success,
+    }
+
+
 @router.get("/download")
 def download_material(id: str, user=Depends(get_current_user)):
     """

@@ -90,6 +90,38 @@
         </div>
     </div>
 
+    <!-- Course materials modal -->
+    <div id="materials-modal" class="modal modal-wide" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="materials-title">Course materials</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="materials-sub"></p>
+            <div id="materials-body" class="students-body">
+                <div class="loading-wrapper loading-full">
+                    <div class="spinner"></div>
+                    <p>Loading materials…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove material confirmation -->
+    <div id="remove-material-modal" class="modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="remove-material-title">
+            <div class="modal-head">
+                <h3 id="remove-material-title">Remove this material?</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted">This permanently deletes the material and its file, along with student activity tied to it (engagement, downloads, study resources). This cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="remove-material-confirm" class="btn-danger"><i class="bi bi-trash"></i> Remove material</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../shared/sidebar.js"></script>
     <script src="../shared/api-cache.js"></script>
     <script src="../shared/session.js"></script>
