@@ -425,7 +425,7 @@
     align-items: stretch;
     justify-content: flex-start;
     width: 100%;
-    gap: var(--s1) !important;
+    gap: var(--s3) !important;
     flex: 1;
   }
 
