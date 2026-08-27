@@ -37,7 +37,11 @@
 .stat-tile:hover { border-color: var(--border-strong); transform: translateY(-2px); }
 .stat-tile::before { height: 2px; opacity: 0.85; }
 .stat-label {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.35;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -45,6 +49,8 @@
   color: var(--text-muted);
 }
 .stat-tile .stat-value { margin-top: 0.6rem; font-size: clamp(1.9rem, 3.4vw, 2.35rem); }
+.stat-tile:nth-child(2) { animation-delay: 80ms; }
+.stat-tile:nth-child(3) { animation-delay: 160ms; }
 
 /* ── Console panels ─────────────────────────────────────────────────────── */
 .dashboard-grid { gap: 1.5rem; }
@@ -112,7 +118,7 @@ tbody tr:hover { background: var(--bg-elevated); }
 @media (max-width: 768px) {
   .main-content { padding: 1.5rem; }
   .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .stat-tile .stat-value { font-size: 1.75rem; }
+  .stat-tile .stat-value { font-size: clamp(1.65rem, 4vw, 1.75rem); }
   .chart-card, .at-risk-panel { padding: 1.25rem; }
 }
 

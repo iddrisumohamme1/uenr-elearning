@@ -286,7 +286,7 @@ select.form-input option { background: var(--bg-surface); color: var(--text-prim
 @media (max-width: 560px) {
   .main-content { padding: 1.5rem; }
   .stats-grid { grid-template-columns: 1fr; gap: 1.25rem; }
-  .stat-tile .stat-value { font-size: 1.6rem; }
+  .stat-tile .stat-value { font-size: clamp(1.5rem, 3.8vw, 1.6rem); }
   .data-table { overflow-x: auto; }
   .data-table table { min-width: 450px; }
   .question-builder { padding: 1.25rem; }
