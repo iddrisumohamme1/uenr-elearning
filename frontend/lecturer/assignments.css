@@ -70,7 +70,7 @@
 }
 
 /* ── Panel (shared for both paths) ───────────────────────────────────── */
-.create-panel, .assign-section {
+.create-choice, .create-panel, .assign-section {
   background: var(--bg-card);
   background-image: var(--grad-surface);
   border: 1px solid var(--border);
