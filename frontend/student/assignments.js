@@ -260,29 +260,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                         ${assignments.length ? assignments.map(a => {
                             const [cls, label] = statusLabel(a);
-                            const gradeChip = a.auto_generated && a.submitted
+                            const hasQ = Boolean(a.questions);
+                            const gradeChip = hasQ && a.submitted
                                 ? `<div class="auto-grade">
                                         <span class="auto-grade-score">${a.score}%</span>
                                         <span class="assign-status done">${a.letter_grade}</span>
                                   </div>`
                                 : '';
-                            const feedbackSnippet = a.auto_generated && a.feedback
+                            const feedbackSnippet = hasQ && a.feedback
                                 ? `<p class="auto-feedback">${escapeHTML(a.feedback)}</p>`
                                 : '';
+                            const badge = a.auto_generated
+                                ? '<span class="auto-badge">Auto</span>'
+                                : (hasQ ? '<span class="auto-badge" style="background:var(--accent-soft);color:var(--clr-accent)">AI</span>' : '');
                             return `
-                            <div class="assign-item${a.auto_generated ? ' assign-item-auto' : ''}">
+                            <div class="assign-item${hasQ ? ' assign-item-auto' : ''}">
                                 <div class="assign-item-head">
-                                    <h4>${a.title} ${a.auto_generated ? '<span class="auto-badge">Auto</span>' : ''}</h4>
+                                    <h4>${a.title} ${badge}</h4>
                                     <span class="assign-status ${cls}">${label}</span>
                                 </div>
                                 <div class="assign-meta">
-                                    <span>${a.auto_generated ? 'From your downloads' : 'Week ' + (a.week_number || '–')}</span>
-                                    <span>${a.auto_generated ? (a.submitted ? 'Graded' : 'No due date') : 'Due ' + (a.due_date || 'flexible')}</span>
+                                    <span>${hasQ ? (a.auto_generated ? 'From your downloads' : 'AI-generated questions') : 'Week ' + (a.week_number || '–')}</span>
+                                    <span>${hasQ ? (a.submitted ? 'Graded' : 'No due date') : 'Due ' + (a.due_date || 'flexible')}</span>
                                 </div>
-                                ${a.auto_generated && a.submitted ? gradeChip + feedbackSnippet : ''}
-                                ${!a.auto_generated && a.instructions ? `<p class="assign-instructions">${a.instructions}</p>` : ''}
+                                ${hasQ && a.submitted ? gradeChip + feedbackSnippet : ''}
+                                ${!hasQ && a.instructions ? `<p class="assign-instructions">${a.instructions}</p>` : ''}
                                 <div class="assign-actions">
-                                    ${a.auto_generated
+                                    ${hasQ
                                         ? (a.submitted
                                             ? `<span class="assign-status ${cls}">${a.on_time ? 'Graded' : 'Completed'}</span>`
                                             : `<button class="btn-submit" data-auto-id="${a.id}" data-course="${course.title}">Take assignment</button>`)
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const course = btn.dataset.course;
                         const item = groups.flatMap(g => g.assignments).find(a => a.id === (id || autoId));
                         if (!item) return;
-                        if (autoId) openAuto(item, course);
+                        if (item.questions) openAuto(item, course);
                         else openSubmit(item, course);
                     });
                 });

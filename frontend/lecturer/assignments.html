@@ -31,14 +31,35 @@
                             <div class="avatar" id="user-avatar" title="Profile & settings">L</div>
                         </div>
                     </div>
-                    <p class="text-muted">Set assignments for your courses and review on-time submissions.</p>
+                    <p class="text-muted">Create assignments for your courses and review submissions.</p>
                 </div>
             </header>
 
-            <section class="create-panel fade-in-up">
+            <!-- ── Choice cards: pick creation method ──────────────────── -->
+            <section class="create-choice fade-in-up" id="create-choice">
+                <h3 class="section-title">Create Assignment</h3>
+                <div class="choice-grid">
+                    <button class="choice-card" id="choice-write" type="button">
+                        <span class="choice-icon"><i class="bi bi-pencil-square"></i></span>
+                        <span class="choice-title">Write your own</span>
+                        <span class="choice-desc">Set title, instructions, and due date manually</span>
+                    </button>
+                    <button class="choice-card" id="choice-ai" type="button">
+                        <span class="choice-icon choice-icon--ai"><i class="bi bi-stars"></i></span>
+                        <span class="choice-title">Generate with AI</span>
+                        <span class="choice-desc">Describe a topic and let AI draft questions for you to review</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ── Path A: Write your own ──────────────────────────────── -->
+            <section class="create-panel fade-in-up" id="panel-write" hidden>
                 <div class="panel-head">
-                    <h3>Create Assignment</h3>
-                    <p class="text-muted panel-sub">Students can submit text answers; on-time status is tracked automatically</p>
+                    <div class="panel-head-row">
+                        <button class="btn-back" id="back-write" type="button"><i class="bi bi-arrow-left"></i> Back</button>
+                        <h3>Write Assignment</h3>
+                    </div>
+                    <p class="text-muted panel-sub">Students submit a text answer; on-time status is tracked automatically</p>
                 </div>
                 <form id="assign-form" class="assign-form">
                     <div class="form-grid">
@@ -69,6 +90,107 @@
                 </form>
             </section>
 
+            <!-- ── Path B: AI generate ─────────────────────────────────── -->
+            <section class="create-panel fade-in-up" id="panel-ai" hidden>
+                <div class="panel-head">
+                    <div class="panel-head-row">
+                        <button class="btn-back" id="back-ai" type="button"><i class="bi bi-arrow-left"></i> Back</button>
+                        <h3><i class="bi bi-stars" style="color:var(--clr-accent);margin-right:0.4rem"></i>Generate Questions</h3>
+                    </div>
+                    <p class="text-muted panel-sub">AI drafts questions from your course material — you review and select before assigning</p>
+                </div>
+
+                <!-- Step 1: Config -->
+                <div id="ai-step-config">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Course</label>
+                            <select id="ai-course-select" class="form-input" data-dropdown required>
+                                <option value="" disabled selected>Loading courses...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Assignment title</label>
+                            <input type="text" id="ai-assign-title" class="form-input" placeholder="e.g. Chapter 5 Quiz" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Topic or description <span class="form-optional">(optional — leave blank to use all course materials)</span></label>
+                        <textarea id="ai-topic" class="form-input" rows="3" placeholder="e.g. Focus on SQL joins and subqueries from Lecture 4"></textarea>
+                    </div>
+                    <div class="form-grid form-grid--3">
+                        <div class="form-group">
+                            <label class="form-label">Objective questions</label>
+                            <select id="ai-num-obj" class="form-input" data-dropdown>
+                                <option value="5" selected>5</option>
+                                <option value="8">8</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Theory questions</label>
+                            <select id="ai-num-theory" class="form-input" data-dropdown>
+                                <option value="0">0</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                                <option value="5">5</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Difficulty</label>
+                            <select id="ai-difficulty" class="form-input" data-dropdown>
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Due date</label>
+                            <input type="date" id="ai-due" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Week number</label>
+                            <input type="number" id="ai-week" class="form-input" min="1" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Instructions</label>
+                        <textarea id="ai-instructions" class="form-input" rows="2" placeholder="Optional instructions for students"></textarea>
+                    </div>
+                    <button type="button" class="btn-auth btn-upload" id="ai-generate-btn">
+                        <span class="btn-spinner" id="ai-gen-spinner" hidden></span>
+                        <span id="ai-gen-text">Generate questions</span>
+                    </button>
+                </div>
+
+                <!-- Step 2: Review (hidden until questions arrive) -->
+                <div id="ai-step-review" hidden>
+                    <div class="review-header">
+                        <div class="review-summary">
+                            <span id="review-count">0 of 0 selected</span>
+                            <span class="text-muted" id="review-source"></span>
+                        </div>
+                        <div class="review-actions">
+                            <button type="button" class="btn-text" id="review-select-all">Select all</button>
+                            <button type="button" class="btn-text" id="review-deselect-all">Deselect all</button>
+                            <button type="button" class="btn-text" id="review-regen-all"><i class="bi bi-arrow-clockwise"></i> Regenerate all</button>
+                        </div>
+                    </div>
+                    <div id="review-list" class="review-list"></div>
+                    <div class="review-footer">
+                        <button type="button" class="btn-secondary" id="review-edit-config">Edit config</button>
+                        <button type="button" class="btn-auth btn-upload" id="review-create-btn">
+                            <span class="btn-spinner" id="review-create-spinner" hidden></span>
+                            <span id="review-create-text">Create assignment</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Your assignments list ───────────────────────────────── -->
             <section class="assign-section fade-in-up">
                 <div class="panel-head">
                     <h3>Your Assignments</h3>

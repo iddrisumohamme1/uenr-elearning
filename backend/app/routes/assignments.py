@@ -24,6 +24,15 @@ class AssignmentCreateRequest(BaseModel):
     instructions: Optional[str] = None
     due_date: Optional[str] = None  # ISO date (YYYY-MM-DD)
     week_number: Optional[int] = None
+    questions: Optional[dict] = None  # AI-generated question set to attach
+
+
+class GenerateQuestionsRequest(BaseModel):
+    course_id: str
+    topic: str = ""
+    num_objective: int = 5
+    num_theory: int = 2
+    difficulty: str = "medium"  # easy | medium | hard
 
 
 class AssignmentSubmitRequest(BaseModel):
@@ -108,19 +117,89 @@ def create_assignment(payload: AssignmentCreateRequest, user=Depends(require_rol
             raise HTTPException(status_code=400, detail="due_date must be a valid date (YYYY-MM-DD).")
 
     try:
+        row = {
+            "course_id": payload.course_id,
+            "title": payload.title,
+            "instructions": payload.instructions,
+            "due_date": due,
+            "week_number": payload.week_number,
+        }
+        if payload.questions:
+            row["questions"] = payload.questions
         insert_resp = with_retry(
-            lambda c: c.table("assignments").insert({
-                "course_id": payload.course_id,
-                "title": payload.title,
-                "instructions": payload.instructions,
-                "due_date": due,
-                "week_number": payload.week_number,
-            }).execute()
+            lambda c: c.table("assignments").insert(row).execute()
         )
         assignment = (getattr(insert_resp, "data", []) or [])[0]
         return {"status": "success", "assignment": assignment}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to create assignment: {exc}")
+
+
+@router.post("/generate-questions")
+def generate_questions(payload: GenerateQuestionsRequest, user=Depends(require_role("lecturer", "hod"))):
+    """Generate assignment questions from course material using AI.
+    Returns the question set so the lecturer can review before attaching."""
+    admin = get_admin_client()
+    _check_course_scope(admin, payload.course_id, user)
+
+    # Gather text from all uploaded materials for this course for context
+    try:
+        mat_resp = with_retry(
+            lambda c: c.table("materials")
+            .select("id, title, description, content_url, content_type")
+            .eq("course_id", payload.course_id)
+            .execute()
+        )
+        materials = getattr(mat_resp, "data", []) or []
+    except Exception:
+        materials = []
+
+    material_chunks = []
+    material_titles = []
+    for mat in materials:
+        material_titles.append(mat.get("title", ""))
+        text = f"{mat.get('title', '')} - {mat.get('description', '')}".strip()
+        content_url = mat.get("content_url") or ""
+        content_type = (mat.get("content_type") or "").lower()
+        if content_url:
+            extracted = material_text_from_url(content_url, content_type)
+            if extracted:
+                text = f"{text}\n{extracted}"
+        if text.strip():
+            material_chunks.append(text[:15000])  # per-material cap
+
+    combined_material = "\n\n".join(material_chunks) if material_chunks else ""
+
+    # Build context with topic + difficulty instructions
+    difficulty_map = {
+        "easy": "Focus on recall and basic comprehension. Use simple, direct phrasing.",
+        "medium": "Mix comprehension and application. Include some analytical questions.",
+        "hard": "Focus on analysis, evaluation, and synthesis. Use multi-step reasoning.",
+    }
+    difficulty_instruction = difficulty_map.get(payload.difficulty, difficulty_map["medium"])
+
+    num_obj = max(1, min(20, payload.num_objective))
+    num_theory = max(0, min(10, payload.num_theory))
+
+    quiz_data = quiz_ai.generate_quiz(
+        material_content=combined_material[:30000] if combined_material else payload.topic,
+        num_objective=num_obj,
+        num_theory=num_theory,
+    )
+
+    if _is_mock_quiz(quiz_data):
+        raise HTTPException(
+            status_code=503,
+            detail="AI question generation is unavailable. Check API key configuration.",
+        )
+
+    return {
+        "status": "success",
+        "questions": quiz_data,
+        "material_titles": [t for t in material_titles if t],
+        "num_objective": len(quiz_data.get("objective", [])),
+        "num_theory": len(quiz_data.get("theory", [])),
+    }
 
 
 def _load_material_text(admin, material_id: str) -> str:
@@ -350,24 +429,27 @@ def get_course_assignments(course_id: str, user=Depends(get_current_user)):
     assignment_ids = [a["id"] for a in assignments]
     result = []
 
-    # The questions blob (with answer keys) is only needed for the student's
-    # own auto-generated assignments — fetch it separately and sanitized.
+    # The questions blob (with answer keys) is needed for:
+    #  - auto-generated assignments (per-student)
+    #  - lecturer-created assignments with questions (shared with the class)
     questions_by_id = {}
     if is_student:
-        my_auto_ids = [
+        q_ids = [
             a["id"] for a in assignments
-            if a.get("auto_generated") and a.get("student_id") == user["id"]
+            if (a.get("auto_generated") and a.get("student_id") == user["id"])
+            or (not a.get("auto_generated") and a.get("questions"))
         ]
-        if my_auto_ids:
+        if q_ids:
             try:
                 qres = with_retry(
                     lambda c: c.table("assignments")
                     .select("id, questions")
-                    .in_("id", my_auto_ids)
+                    .in_("id", q_ids)
                     .execute()
                 )
                 for q in getattr(qres, "data", []) or []:
-                    questions_by_id[q["id"]] = q.get("questions")
+                    if q.get("questions"):
+                        questions_by_id[q["id"]] = q["questions"]
             except Exception:
                 pass
 
@@ -395,7 +477,7 @@ def get_course_assignments(course_id: str, user=Depends(get_current_user)):
             "source_material_id": a.get("source_material_id"),
             "source_material_title": material_titles.get(a.get("source_material_id")),
         }
-        if is_student and row["auto_generated"]:
+        if is_student and questions_by_id.get(a["id"]):
             row["questions"] = _sanitize_questions(questions_by_id.get(a["id"]))
         course_subs = [s for s in submissions if s["assignment_id"] == a["id"]]
         if is_student:
@@ -451,12 +533,13 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
 
     _check_course_scope(admin, assignment["course_id"], user, allow_student=True)
 
+    has_questions = bool(assignment.get("questions"))
     is_auto = bool(assignment.get("auto_generated"))
     if is_auto:
         if assignment.get("student_id") != user["id"]:
             raise HTTPException(status_code=403, detail="This assignment is not for you.")
-        if not payload.answers:
-            raise HTTPException(status_code=400, detail="An auto-generated assignment requires answers.")
+    if has_questions and not payload.answers:
+        raise HTTPException(status_code=400, detail="This assignment requires structured answers.")
 
     try:
         insert_payload = {
@@ -465,7 +548,7 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
             "content": payload.content or "",
         }
 
-        if is_auto:
+        if has_questions:
             questions = assignment.get("questions") or {}
             correct_answers = [q["correct_answer_index"] for q in questions.get("objective", [])]
             submitted_obj = payload.answers.get("objective", []) or []
@@ -524,7 +607,7 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
             "on_time": _is_on_time(submission.get("submitted_at"), assignment.get("due_date")),
             "message": "Assignment submitted.",
         }
-        if is_auto:
+        if has_questions:
             response["score"] = submission.get("score")
             response["letter_grade"] = submission.get("letter_grade")
             response["feedback"] = submission.get("feedback")

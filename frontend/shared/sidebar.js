@@ -27,6 +27,7 @@
             { folder: 'lecturer', file: 'dashboard.html', icon: 'bi-house-door', label: 'Dashboard' },
             { folder: 'lecturer', file: 'upload.html', icon: 'bi-cloud-arrow-up', label: 'Upload Content' },
             { folder: 'lecturer', file: 'my_courses.html', icon: 'bi-journal-bookmark', label: 'My Courses' },
+            { folder: 'lecturer', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
         ],
         student: [
             { folder: 'student', file: 'dashboard.html', icon: 'bi-house-door', label: 'Dashboard' },
