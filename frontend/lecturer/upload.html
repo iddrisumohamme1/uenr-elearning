@@ -86,7 +86,7 @@
                             <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
                                  aria-describedby="file-hint file-error">
                                 <input type="file" id="file" class="drop-zone__input"
-                                       accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.ods,.png,.jpg,.jpeg,.gif,.webp"
+                                       accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.ods,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.ogg"
                                        required hidden>
                                 <div class="drop-zone__content" id="drop-zone-content">
                                     <i class="bi bi-cloud-arrow-up drop-zone__icon"></i>
@@ -94,7 +94,7 @@
                                     <p class="drop-zone__sub">or <span class="drop-zone__browse">choose from folder</span></p>
                                 </div>
                             </div>
-                            <p class="form-hint" id="file-hint">PDF, DOCX, PPTX, XLSX, PNG, JPG — max 50 MB</p>
+                            <p class="form-hint" id="file-hint">PDF, DOCX, PPTX, XLSX, PNG, JPG, MP4, WebM — max 50 MB</p>
                             <p class="file-error" id="file-error" role="alert" hidden></p>
                         </div>
 
@@ -119,7 +119,10 @@
                             <p class="upload-progress__text" id="upload-progress-text">Uploading…</p>
                         </div>
 
-                        <button type="submit" class="btn-auth btn-full" id="upload-submit">Upload Material</button>
+                        <button type="submit" class="btn-auth btn-full" id="upload-submit">
+                            <span class="btn-spinner" id="btn-spinner" hidden></span>
+                            <span id="upload-submit-text">Upload Material</span>
+                        </button>
                     </form>
                 </div>
             </section>

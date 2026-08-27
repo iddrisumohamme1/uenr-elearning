@@ -28,12 +28,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressFill   = document.getElementById('upload-progress-fill');
     const progressText   = document.getElementById('upload-progress-text');
     const submitBtn      = document.getElementById('upload-submit');
+    const submitText     = document.getElementById('upload-submit-text');
+    const btnSpinner     = document.getElementById('btn-spinner');
     const liveRegion     = document.getElementById('upload-live');
 
     const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
     const ALLOWED_EXTS = new Set([
         '.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx',
-        '.odt','.odp','.ods','.png','.jpg','.jpeg','.gif','.webp'
+        '.odt','.odp','.ods','.png','.jpg','.jpeg','.gif','.webp',
+        '.mp4','.webm','.ogg'
     ]);
 
     attachLogout('logout-btn');
@@ -117,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!file) return 'No file selected.';
         const ext = getExt(file.name);
         if (ext && !ALLOWED_EXTS.has(ext)) {
-            return `${file.name} is not a supported file type. Upload a PDF, DOCX, PPTX, XLSX, PNG, or JPG.`;
+            return `${file.name} is not a supported file type. Upload a PDF, DOCX, PPTX, XLSX, PNG, JPG, or MP4.`;
         }
         if (file.size > MAX_SIZE) {
             return `${file.name} is ${formatBytes(file.size)} — the limit is 50 MB. Try compressing the file.`;
@@ -283,7 +286,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Show progress, disable button
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Uploading…';
+        btnSpinner.hidden = false;
+        submitText.textContent = 'Uploading…';
         progressWrap.hidden = false;
         progressFill.style.width = '0%';
         progressFill.classList.remove('upload-progress__bar-fill--done');
@@ -316,7 +320,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             announce('Upload failed. Server connection error.');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Upload Material';
+            btnSpinner.hidden = true;
+            submitText.textContent = 'Upload Material';
         }
     });
 
