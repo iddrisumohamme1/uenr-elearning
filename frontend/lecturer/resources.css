@@ -313,6 +313,12 @@
   gap: var(--s6);
 }
 
+/* Loading state spans the full section so its spinner/text centers
+   across the page instead of sitting in a single grid column. */
+.live-grid > .loading-wrapper {
+  grid-column: 1 / -1;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
