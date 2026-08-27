@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             th.forEach(q  => generatedQuestions.push({ ...q, _type: 'theory' }));
 
             if (!generatedQuestions.length) {
-                showToast('AI returned no questions. Try different settings.', 'warning');
+                showToast('no questions. Try different settings.', 'warning');
                 return;
             }
 
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const questions = { objective: objQs, theory: thQs };
 
         const instructions = document.getElementById('ai-instructions').value.trim()
-            || `Answer all questions. Objective questions are scored automatically; theory answers are graded by AI.`;
+            || 'Answer all the questions.';
         const dueDate = document.getElementById('ai-due').value || null;
         const weekNum = document.getElementById('ai-week').value ? Number(document.getElementById('ai-week').value) : null;
 
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                showToast('Assignment created with AI questions.', 'success');
+                showToast('Assignment created.', 'success');
                 invalidateApiCache(`assign:${courseId}`);
                 loadAssignments();
                 // Reset AI flow

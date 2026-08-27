@@ -298,7 +298,7 @@ def _auto_generate_impl(admin, user):
                 lambda c: c.table("assignments").insert({
                     "course_id": course_id,
                     "title": f"Assignment: {title_line[:80]}",
-                    "instructions": "Answer the questions based on the downloaded material. Objective questions are scored automatically; theory answers are graded by the AI.",
+                    "instructions": "Answer all the questions based on the downloaded material.",
                     "auto_generated": True,
                     "source_material_id": material_id,
                     "student_id": user["id"],

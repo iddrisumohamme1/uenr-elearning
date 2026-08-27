@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         lastAutoGraded = false;
         document.getElementById('auto-title').textContent = assignment.title;
         document.getElementById('auto-sub').textContent = `${courseTitle}${assignment.source_material_title ? ' · Based on: ' + assignment.source_material_title : ''}`;
-        document.getElementById('auto-instructions').textContent = assignment.instructions || 'Answer the questions based on the material you downloaded. Objective questions are scored automatically; theory answers are graded by AI.';
+        document.getElementById('auto-instructions').textContent = assignment.instructions || 'Answer all the questions based on the material you downloaded.';
         const questions = assignment.questions || {};
         const objHtml = (questions.objective || []).map((q, i) => `
             <div class="auto-question">
