@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const liveRegion     = document.getElementById('upload-live');
 
     const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
-    const ALLOWED_EXTS = new Set([
+    const ALLOWED_EXTS = new Set([,
         '.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx',
         '.odt','.odp','.ods','.png','.jpg','.jpeg','.gif','.webp',
         '.mp4','.webm','.ogg'
@@ -138,13 +138,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return null;
     }
 
-    function showError(msg) {
-        fileError.textContent = msg;
-        fileError.hidden = false;
-        dropZone.classList.add('drop-zone--error');
-        announce('Error: ' + msg);
-    }
-
     function clearError() {
         fileError.textContent = '';
         fileError.hidden = true;
@@ -219,9 +212,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderQueue();
 
         if (rejected && !added) {
-            showError(lastError);
+            showToast(lastError, 'error');
+            announce('Error: ' + lastError);
         } else if (rejected) {
-            showError(`${rejected} file${rejected > 1 ? 's' : ''} skipped: ${lastError}`);
+            const msg = `${rejected} file${rejected > 1 ? 's' : ''} skipped: ${lastError}`;
+            showToast(msg, 'warning');
+            announce(msg);
         } else {
             announce(`${added} file${added > 1 ? 's' : ''} added to queue.`);
         }
