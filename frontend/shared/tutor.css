@@ -132,9 +132,74 @@
 }
 .tutor-course-select .dd--sm .dd__value { max-width: 220px; }
 
-/* Panel: give long course titles room; open direction still auto-flips */
+/* ── Panel: styled option menu, not the generic flat list ────────────── */
 .tutor-course-select .dd__panel {
+    min-width: 260px;
     max-width: min(340px, calc(100vw - 2rem));
+    border-radius: var(--r-lg);
+    border-color: var(--border-strong);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-lg), 0 8px 32px color-mix(in srgb, #000 18%, transparent);
+    padding: 0.3rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Option rows: course-list feel, not a flat menu */
+.tutor-course-select .dd__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--text-primary);
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    transition: background var(--t-fast), border-color var(--t-fast);
+}
+.tutor-course-select .dd__option:hover,
+.tutor-course-select .dd__option:focus-visible {
+    background: var(--bg-elevated);
+    outline: none;
+    border-color: var(--border);
+}
+/* Active course: prominent primary pill, not just a color shift */
+.tutor-course-select .dd__option[aria-selected="true"] {
+    background: var(--primary-soft);
+    border-color: color-mix(in srgb, var(--clr-primary) 40%, transparent);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.tutor-course-select .dd__option[aria-selected="true"] .dd__check {
+    opacity: 1;
+    color: var(--clr-primary);
+}
+.tutor-course-select .dd__option .dd__check {
+    opacity: 0;
+    transition: opacity var(--t-fast);
+    font-size: 0.85rem;
+}
+
+/* General option: visually distinct at the top */
+.tutor-course-select .dd__option:first-child {
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--r-md) var(--r-md) 0 0;
+    margin-bottom: 0.15rem;
+    padding-bottom: 0.7rem;
+}
+.tutor-course-select .dd__option:first-child .dd__option-text {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.tutor-course-select .dd__option:first-child[aria-selected="true"] .dd__option-text {
+    color: var(--clr-primary);
+    font-style: normal;
+    font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {
