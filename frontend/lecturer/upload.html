@@ -59,7 +59,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="title">Material Title</label>
-                            <input type="text" id="title" class="form-input" placeholder="e.g. Introduction to SQL" required>
+                            <input type="text" id="title" class="form-input" placeholder="e.g. Introduction to SQL (optional for multiple files)">
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="description">Description</label>
@@ -82,34 +82,29 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label" for="file">Upload File</label>
+                            <label class="form-label" for="file">Upload Files</label>
                             <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
                                  aria-describedby="file-hint file-error">
-                                <input type="file" id="file" class="drop-zone__input"
+                                <input type="file" id="file" class="drop-zone__input" multiple
                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.ods,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.ogg"
                                        required hidden>
                                 <div class="drop-zone__content" id="drop-zone-content">
                                     <i class="bi bi-cloud-arrow-up drop-zone__icon"></i>
-                                    <p class="drop-zone__label">Drag and drop your file here</p>
+                                    <p class="drop-zone__label">Drag and drop files here</p>
                                     <p class="drop-zone__sub">or <span class="drop-zone__browse">choose from folder</span></p>
                                 </div>
                             </div>
-                            <p class="form-hint" id="file-hint">PDF, DOCX, PPTX, XLSX, PNG, JPG, MP4, WebM — max 50 MB</p>
+                            <p class="form-hint" id="file-hint">PDF, DOCX, PPTX, XLSX, PNG, JPG, MP4, WebM — max 50 MB per file</p>
                             <p class="file-error" id="file-error" role="alert" hidden></p>
                         </div>
 
-                        <div class="file-preview" id="file-preview" hidden>
-                            <div class="file-preview__card">
-                                <i class="bi file-preview__icon" id="file-preview-icon"></i>
-                                <div class="file-preview__info">
-                                    <span class="file-preview__name" id="file-preview-name"></span>
-                                    <span class="file-preview__size" id="file-preview-size"></span>
-                                </div>
-                                <button type="button" class="file-preview__remove" id="file-preview-remove"
-                                        aria-label="Remove file" title="Remove file">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                        <!-- File queue (populated by JS) -->
+                        <div class="file-queue" id="file-queue" hidden>
+                            <div class="file-queue__header">
+                                <span class="file-queue__count" id="file-queue-count"></span>
+                                <button type="button" class="file-queue__clear" id="file-queue-clear">Clear all</button>
                             </div>
+                            <div class="file-queue__list" id="file-queue-list"></div>
                         </div>
 
                         <div class="upload-progress" id="upload-progress" hidden>
@@ -133,13 +128,13 @@
     <div id="upload-again-modal" class="modal" hidden>
         <div class="modal-card">
             <div class="modal-head">
-                <h3>Material uploaded</h3>
+                <h3 id="upload-again-title">Materials uploaded</h3>
                 <button class="modal-close" id="upload-again-close" aria-label="Close">&times;</button>
             </div>
-            <p class="text-muted">Upload another file to the same course?</p>
+            <p class="text-muted" id="upload-again-body">Upload more files to the same course?</p>
             <div class="modal-actions">
                 <button class="btn-secondary" id="upload-again-dashboard">Back to dashboard</button>
-                <button class="btn-primary" id="upload-again-yes">Upload another</button>
+                <button class="btn-primary" id="upload-again-yes">Upload more</button>
             </div>
         </div>
     </div>

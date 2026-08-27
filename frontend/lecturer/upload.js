@@ -1,9 +1,9 @@
 /*
    LECTURER MATERIAL UPLOAD LOGIC
    frontend/lecturer/upload.js
-   Loads courses from Supabase, handles file upload via FastAPI backend.
-   Features: drag-and-drop, file preview, client-side validation,
-   progress bar via XHR, live-region announcements, upload-another modal.
+   Loads courses from Supabase, handles single/multi-file upload via FastAPI backend.
+   Features: drag-and-drop, file queue with per-file status, client-side validation,
+   sequential XHR upload with progress, live-region announcements, upload-another modal.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -17,13 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const academicYear   = document.getElementById('academic-year');
     const fileInput      = document.getElementById('file');
     const dropZone       = document.getElementById('drop-zone');
-    const dropContent    = document.getElementById('drop-zone-content');
-    const preview        = document.getElementById('file-preview');
-    const previewIcon    = document.getElementById('file-preview-icon');
-    const previewName    = document.getElementById('file-preview-name');
-    const previewSize    = document.getElementById('file-preview-size');
-    const previewRemove  = document.getElementById('file-preview-remove');
     const fileError      = document.getElementById('file-error');
+    const queueWrap      = document.getElementById('file-queue');
+    const queueList      = document.getElementById('file-queue-list');
+    const queueCount     = document.getElementById('file-queue-count');
+    const queueClear     = document.getElementById('file-queue-clear');
     const progressWrap   = document.getElementById('upload-progress');
     const progressFill   = document.getElementById('upload-progress-fill');
     const progressText   = document.getElementById('upload-progress-text');
@@ -38,6 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         '.odt','.odp','.ods','.png','.jpg','.jpeg','.gif','.webp',
         '.mp4','.webm','.ogg'
     ]);
+
+    /* ── File queue state ─────────────────────────────────────────────── */
+    // Each entry: { file, id, status:'waiting'|'uploading'|'done'|'failed', error?, xhr? }
+    let fileQueue = [];
+    let queueIdCounter = 0;
+    let isUploading = false;
 
     attachLogout('logout-btn');
     initProfilePopup();
@@ -59,12 +63,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (['ppt','pptx','odp'].includes(ext))       return 'bi-file-earmark-ppt';
         if (['xls','xlsx','ods'].includes(ext))       return 'bi-file-earmark-excel';
         if (['png','jpg','jpeg','gif','webp'].includes(ext)) return 'bi-file-earmark-image';
+        if (['mp4','webm','ogg'].includes(ext))       return 'bi-file-earmark-play';
         return 'bi-file-earmark';
     }
 
     function getExt(name) {
         const i = name.lastIndexOf('.');
         return i >= 0 ? name.slice(i).toLowerCase() : '';
+    }
+
+    function titleFromFilename(name) {
+        // Remove extension, replace underscores/dots/hyphens with spaces, title-case
+        return name.replace(/\.[^.]+$/, '').replace(/[_.\-]+/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
     /* ── Organization radios ──────────────────────────────────────────── */
@@ -141,32 +151,96 @@ document.addEventListener('DOMContentLoaded', async () => {
         dropZone.classList.remove('drop-zone--error');
     }
 
-    /* ── File preview ─────────────────────────────────────────────────── */
-    function showPreview(file) {
-        previewIcon.className = 'bi ' + fileIcon(file.name);
-        previewName.textContent = file.name;
-        previewSize.textContent = formatBytes(file.size);
-        preview.hidden = false;
-        dropZone.hidden = true;
-        announce(`File selected: ${file.name}, ${formatBytes(file.size)}`);
+    /* ── Queue rendering ──────────────────────────────────────────────── */
+    function renderQueue() {
+        const total = fileQueue.length;
+        queueWrap.hidden = total === 0;
+        queueCount.textContent = `${total} file${total !== 1 ? 's' : ''} selected`;
+
+        queueList.innerHTML = fileQueue.map((entry, idx) => {
+            const f = entry.file;
+            const statusClass = `file-queue__status--${entry.status}`;
+            const rowClass = `file-queue__row--${entry.status}`;
+            const statusLabel = entry.status === 'waiting' ? 'Waiting'
+                : entry.status === 'uploading' ? 'Uploading…'
+                : entry.status === 'done' ? 'Done'
+                : 'Failed';
+            const removeDisabled = entry.status === 'uploading' ? 'disabled' : '';
+            const removeHidden = entry.status === 'done' ? 'style="display:none"' : '';
+            const errorLine = entry.error ? `<span class="file-queue__meta" style="color:var(--clr-danger)">${entry.error}</span>` : '';
+
+            return `
+                <div class="file-queue__row ${rowClass}" data-id="${entry.id}">
+                    <i class="bi ${fileIcon(f.name)} file-queue__icon"></i>
+                    <div class="file-queue__info">
+                        <span class="file-queue__name">${f.name}</span>
+                        <span class="file-queue__meta">${formatBytes(f.size)}${errorLine}</span>
+                    </div>
+                    <div class="file-queue__progress" ${entry.status === 'uploading' ? '' : 'hidden'}>
+                        <div class="file-queue__progress-fill" data-progress-id="${entry.id}"></div>
+                    </div>
+                    <span class="file-queue__status ${statusClass}">${statusLabel}</span>
+                    <button type="button" class="file-queue__remove" data-remove-id="${entry.id}"
+                            ${removeDisabled} ${removeHidden}
+                            aria-label="Remove ${f.name}"><i class="bi bi-x-lg"></i></button>
+                </div>`;
+        }).join('');
+
+        // Wire remove buttons
+        queueList.querySelectorAll('.file-queue__remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = Number(btn.dataset.removeId);
+                removeFromQueue(id);
+            });
+        });
     }
 
-    function hidePreview() {
-        preview.hidden = true;
-        dropZone.hidden = false;
-        fileInput.value = '';
+    function addToQueue(files) {
         clearError();
-    }
+        let added = 0;
+        let rejected = 0;
+        let lastError = '';
 
-    function handleFile(file) {
-        clearError();
-        const err = validateFile(file);
-        if (err) {
-            showError(err);
-            return;
+        for (const file of files) {
+            const err = validateFile(file);
+            if (err) {
+                rejected++;
+                lastError = err;
+                continue;
+            }
+            fileQueue.push({
+                file,
+                id: ++queueIdCounter,
+                status: 'waiting',
+            });
+            added++;
         }
-        showPreview(file);
+
+        renderQueue();
+
+        if (rejected && !added) {
+            showError(lastError);
+        } else if (rejected) {
+            showError(`${rejected} file${rejected > 1 ? 's' : ''} skipped: ${lastError}`);
+        } else {
+            announce(`${added} file${added > 1 ? 's' : ''} added to queue.`);
+        }
     }
+
+    function removeFromQueue(id) {
+        const entry = fileQueue.find(e => e.id === id);
+        if (entry && entry.xhr) entry.xhr.abort();
+        fileQueue = fileQueue.filter(e => e.id !== id);
+        renderQueue();
+    }
+
+    function clearQueue() {
+        fileQueue.forEach(e => { if (e.xhr) e.xhr.abort(); });
+        fileQueue = [];
+        renderQueue();
+    }
+
+    queueClear.addEventListener('click', clearQueue);
 
     /* ── Drop zone events ─────────────────────────────────────────────── */
     dropZone.addEventListener('click', () => fileInput.click());
@@ -175,12 +249,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) handleFile(fileInput.files[0]);
+        if (fileInput.files.length) {
+            addToQueue(fileInput.files);
+            fileInput.value = ''; // reset so same file can be re-added
+        }
     });
 
-    previewRemove.addEventListener('click', hidePreview);
-
-    // Drag-and-drop on the zone
     ['dragenter','dragover'].forEach(evt =>
         dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('drop-zone--active'); })
     );
@@ -188,64 +262,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('drop-zone--active'); })
     );
     dropZone.addEventListener('drop', (e) => {
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            // Sync the native input so form validation stays consistent
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            fileInput.files = dt.files;
-            handleFile(file);
-        }
+        if (e.dataTransfer.files.length) addToQueue(e.dataTransfer.files);
     });
 
-    // Also allow drag on the whole page (not just the zone)
+    // Page-level drop fallback
     document.body.addEventListener('dragover', (e) => e.preventDefault());
     document.body.addEventListener('drop', (e) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            fileInput.files = dt.files;
-            handleFile(file);
+        if (e.dataTransfer.files.length) {
+            addToQueue(e.dataTransfer.files);
             dropZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
 
-    /* ── Upload via XHR with progress ─────────────────────────────────── */
-    function uploadWithProgress(formData) {
-        return new Promise((resolve, reject) => {
+    /* ── Upload single file via XHR ───────────────────────────────────── */
+    function uploadFile(entry, formData) {
+        return new Promise((resolve) => {
             const xhr = new XMLHttpRequest();
+            entry.xhr = xhr;
             xhr.open('POST', `${API_BASE}/api/materials/upload`);
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
                     const pct = Math.round((e.loaded / e.total) * 100);
-                    progressFill.style.width = pct + '%';
-                    progressText.textContent = `Uploading — ${formatBytes(e.loaded)} of ${formatBytes(e.total)}`;
+                    // Update per-file progress bar
+                    const fill = queueList.querySelector(`[data-progress-id="${entry.id}"]`);
+                    if (fill) fill.style.width = pct + '%';
                 }
             });
 
             xhr.addEventListener('load', () => {
+                entry.xhr = null;
                 try {
                     const data = JSON.parse(xhr.responseText);
-                    resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+                    resolve({ ok: xhr.status >= 200 && xhr.status < 300, data });
                 } catch {
-                    resolve({ ok: false, status: xhr.status, data: { detail: 'Invalid server response.' } });
+                    resolve({ ok: false, data: { detail: 'Invalid server response.' } });
                 }
             });
 
-            xhr.addEventListener('error', () => reject(new Error('Network error')));
-            xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+            xhr.addEventListener('error', () => { entry.xhr = null; resolve({ ok: false, data: { detail: 'Network error.' } }); });
+            xhr.addEventListener('abort', () => { entry.xhr = null; resolve({ ok: false, data: { detail: 'Cancelled.' } }); });
 
             xhr.send(formData);
         });
     }
 
-    /* ── Form submit ──────────────────────────────────────────────────── */
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    /* ── Sequential batch upload ──────────────────────────────────────── */
+    async function uploadBatch() {
+        const pending = fileQueue.filter(e => e.status === 'waiting' || e.status === 'failed');
+        if (!pending.length) return;
 
         const title       = document.getElementById('title').value.trim();
         const description = document.getElementById('description').value.trim();
@@ -254,10 +321,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
         const courseId    = courseSelect.value;
         const semesterVal = document.getElementById('semester').value;
-        const file        = fileInput.files[0];
 
-        if (!title || !courseId || !academicYear.value || !semesterVal || !file) {
-            showToast('Select a course, academic year, semester, enter a title, and upload a file.', 'warning');
+        if (!courseId || !academicYear.value || !semesterVal) {
+            showToast('Select a course, academic year, and semester.', 'warning');
             return;
         }
         if (organization === 'week' && !weekNumber) {
@@ -269,78 +335,130 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Client-side file validation (guard against bypassed drop-zone checks)
-        const fileErr = validateFile(file);
-        if (fileErr) { showError(fileErr); return; }
-
         const semester = `${academicYear.value} - ${semesterVal}`;
+        const total = pending.length;
+        let succeeded = 0;
+        let failed = 0;
 
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('course_id', courseId);
-        formData.append('semester', semester);
-        if (organization === 'week') formData.append('week_number', weekNumber);
-        if (organization === 'unit') formData.append('unit_label', unitLabel);
-        formData.append('file', file);
-
-        // Show progress, disable button
+        isUploading = true;
         submitBtn.disabled = true;
         btnSpinner.hidden = false;
-        submitText.textContent = 'Uploading…';
         progressWrap.hidden = false;
         progressFill.style.width = '0%';
         progressFill.classList.remove('upload-progress__bar-fill--done');
-        progressText.textContent = 'Uploading…';
-        announce('Upload started.');
 
-        try {
-            const { ok, data } = await uploadWithProgress(formData);
+        for (let i = 0; i < pending.length; i++) {
+            const entry = pending[i];
+            const fileTitle = title || titleFromFilename(entry.file.name);
+
+            // Update entry status
+            entry.status = 'uploading';
+            entry.error = null;
+            renderQueue();
+
+            // Update overall progress
+            const pct = Math.round(((i) / total) * 100);
+            progressFill.style.width = pct + '%';
+            progressText.textContent = `Uploading ${i + 1} of ${total} — ${entry.file.name}`;
+            announce(`Uploading ${i + 1} of ${total}: ${entry.file.name}`);
+
+            // Build FormData
+            const formData = new FormData();
+            formData.append('title', fileTitle);
+            formData.append('description', description);
+            formData.append('course_id', courseId);
+            formData.append('semester', semester);
+            if (organization === 'week') formData.append('week_number', weekNumber);
+            if (organization === 'unit') formData.append('unit_label', unitLabel);
+            formData.append('file', entry.file);
+
+            const { ok, data } = await uploadFile(entry, formData);
 
             if (ok) {
-                progressFill.style.width = '100%';
-                progressFill.classList.add('upload-progress__bar-fill--done');
-                progressText.textContent = 'Upload complete.';
-                announce('Upload complete.');
-                showToast('Material uploaded successfully.', 'success');
-                invalidateApiCache(`course-materials:${courseId}`);
-                showUploadAgainModal();
+                entry.status = 'done';
+                succeeded++;
             } else {
-                progressText.textContent = '';
-                progressWrap.hidden = true;
-                const msg = data.detail || data.message || 'Unknown error';
-                showToast('Upload failed: ' + msg, 'error');
-                announce('Upload failed: ' + msg);
+                entry.status = 'failed';
+                entry.error = data.detail || data.message || 'Upload failed';
+                failed++;
             }
-        } catch (err) {
-            console.error('Upload error:', err);
-            progressText.textContent = '';
-            progressWrap.hidden = true;
-            showToast('Upload failed: Server connection error.', 'error');
-            announce('Upload failed. Server connection error.');
-        } finally {
-            submitBtn.disabled = false;
-            btnSpinner.hidden = true;
-            submitText.textContent = 'Upload Material';
+            renderQueue();
         }
+
+        // Final progress
+        progressFill.style.width = '100%';
+        progressFill.classList.add('upload-progress__bar-fill--done');
+
+        isUploading = false;
+        submitBtn.disabled = false;
+        btnSpinner.hidden = true;
+
+        // Invalidate cache once for the course
+        invalidateApiCache(`course-materials:${courseId}`);
+
+        // Summary
+        if (failed === 0) {
+            progressText.textContent = `${succeeded} file${succeeded !== 1 ? 's' : ''} uploaded.`;
+            submitText.textContent = 'Upload Material';
+            announce(`Upload complete. ${succeeded} file${succeeded !== 1 ? 's' : ''} uploaded.`);
+            showToast(`${succeeded} material${succeeded !== 1 ? 's' : ''} uploaded successfully.`, 'success');
+            showUploadAgainModal(succeeded, failed);
+        } else {
+            progressText.textContent = `${succeeded} of ${total} uploaded. ${failed} failed.`;
+            submitText.textContent = 'Retry failed';
+            announce(`Upload complete. ${succeeded} of ${total} uploaded. ${failed} failed.`);
+            showToast(`${succeeded} of ${total} uploaded. ${failed} failed.`, failed > 0 ? 'warning' : 'success');
+        }
+    }
+
+    /* ── Form submit ──────────────────────────────────────────────────── */
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (isUploading) return;
+
+        // If no files in queue, check the native input (single-file fallback)
+        if (!fileQueue.length && fileInput.files.length) {
+            addToQueue(fileInput.files);
+            fileInput.value = '';
+        }
+
+        if (!fileQueue.length) {
+            showToast('Add at least one file to upload.', 'warning');
+            return;
+        }
+
+        await uploadBatch();
     });
 
     /* ── Upload-another modal ─────────────────────────────────────────── */
-    function showUploadAgainModal() {
+    function showUploadAgainModal(succeeded, failed) {
         const modal = document.getElementById('upload-again-modal');
+        const titleEl = document.getElementById('upload-again-title');
+        const bodyEl = document.getElementById('upload-again-body');
+
+        if (failed > 0) {
+            titleEl.textContent = 'Upload complete';
+            bodyEl.textContent = `${succeeded} file${succeeded !== 1 ? 's' : ''} uploaded. ${failed} failed. Retry failed files or upload more?`;
+        } else {
+            titleEl.textContent = `${succeeded} material${succeeded !== 1 ? 's' : ''} uploaded`;
+            bodyEl.textContent = 'Upload more files to the same course?';
+        }
 
         document.getElementById('upload-again-yes').onclick = () => {
             modal.hidden = true;
-            // Preserve course, year, semester — clear everything else
+            // Remove done files, keep failed ones for retry
+            fileQueue = fileQueue.filter(e => e.status === 'failed');
+            renderQueue();
+            progressWrap.hidden = true;
+            submitText.textContent = fileQueue.length ? 'Retry failed' : 'Upload Material';
             document.getElementById('title').value = '';
             document.getElementById('description').value = '';
             document.getElementById('week-number').value = '';
             document.getElementById('unit-label').value = '';
-            hidePreview();
-            progressWrap.hidden = true;
+            clearError();
             document.getElementById('title').focus();
-            showToast('Ready — upload another file.', 'info');
-            announce('Form ready. Upload another file.');
+            showToast('Ready — add more files or retry failed.', 'info');
+            announce('Form ready. Add more files or retry failed uploads.');
         };
 
         document.getElementById('upload-again-dashboard').onclick = () => {
