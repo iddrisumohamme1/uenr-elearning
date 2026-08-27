@@ -110,7 +110,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function submitAuto() {
         if (!activeAuto) return;
         const btn = document.getElementById('auto-submit-btn');
+        const spinner = document.getElementById('auto-submit-spinner');
+        const btnText = document.getElementById('auto-submit-btn-text');
         btn.disabled = true;
+        spinner.hidden = false;
+        btnText.textContent = 'Grading…';
         try {
             const questions = activeAuto.questions || {};
             const objective = (questions.objective || []).map((q, i) => {
@@ -120,6 +124,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (objective.some(v => v === -1)) {
                 showToast('Answer all objective questions before submitting.', 'error');
                 btn.disabled = false;
+                spinner.hidden = true;
+                btnText.textContent = 'Submit for grading';
                 return;
             }
             const theory = [];
@@ -181,6 +187,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Could not submit your assignment.', 'error');
         } finally {
             btn.disabled = false;
+            spinner.hidden = true;
+            btnText.textContent = 'Submit for grading';
         }
     }
 
@@ -208,7 +216,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const btn = document.getElementById('submit-btn');
+        const spinner = document.getElementById('submit-spinner');
+        const btnText = document.getElementById('submit-btn-text');
         btn.disabled = true;
+        spinner.hidden = false;
+        btnText.textContent = 'Submitting…';
         try {
             const res = await authFetch(`${API_BASE}/api/assignments/submit`, {
                 method: 'POST',
@@ -233,6 +245,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Could not submit your assignment.', 'error');
         } finally {
             btn.disabled = false;
+            spinner.hidden = true;
+            btnText.textContent = 'Submit assignment';
         }
     }
     document.getElementById('submit-btn').addEventListener('click', submitActive);
