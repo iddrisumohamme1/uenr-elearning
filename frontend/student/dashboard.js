@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
+                const CLAMP = 6;
                 grid.innerHTML = courses.map(course => `
                     <div class="stat-card course-click" onclick="window.location.href='../materials/materials.html?id=${course.id}'">
                         <h4>${course.title}</h4>
@@ -91,6 +92,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     </div>
                 `).join('');
+
+                if (courses.length <= CLAMP) return;
+
+                grid.classList.add('clamped');
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'show-all-btn';
+                btn.textContent = `Show all ${courses.length} courses`;
+                btn.setAttribute('aria-expanded', 'false');
+                btn.addEventListener('click', () => {
+                    const expanded = grid.classList.toggle('clamped');
+                    btn.textContent = expanded
+                        ? `Show all ${courses.length} courses`
+                        : 'Show fewer';
+                    btn.setAttribute('aria-expanded', String(!expanded));
+                });
+                grid.appendChild(btn);
             });
         } catch (err) {
             console.error('Error loading courses:', err);
