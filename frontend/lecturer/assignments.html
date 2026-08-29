@@ -31,7 +31,7 @@
                             <div class="avatar" id="user-avatar" title="Profile & settings">L</div>
                         </div>
                     </div>
-                    <p class="text-muted">Create assignments for your courses and review submissions.</p>
+                    <!-- <p class="text-muted">Create assignments for your courses and review submissions.</p> -->
                 </div>
             </header>
 
@@ -42,12 +42,12 @@
                     <button class="choice-card" id="choice-write" type="button">
                         <span class="choice-icon"><i class="bi bi-pencil-square"></i></span>
                         <span class="choice-title">Write your own</span>
-                        <span class="choice-desc">Set title, instructions, and due date manually</span>
-                    </button>
+                        <!-- <span class="choice-desc">Set title, instructions, and due date manually</span>
+                    </button> -->
                     <button class="choice-card" id="choice-ai" type="button">
                         <span class="choice-icon choice-icon--ai"><i class="bi bi-stars"></i></span>
-                        <span class="choice-title">Generate with AI</span>
-                        <span class="choice-desc">Describe a topic and let AI draft questions for you to review</span>
+                        <span class="choice-title">Generate </span>
+                        <!-- <span class="choice-desc">Describe a topic and let AI draft questions for you to review</span> -->
                     </button>
                 </div>
             </section>
@@ -59,7 +59,7 @@
                         <button class="btn-back" id="back-write" type="button"><i class="bi bi-arrow-left"></i> Back</button>
                         <h3>Write Assignment</h3>
                     </div>
-                    <p class="text-muted panel-sub">Students submit a text answer; on-time status is tracked automatically</p>
+                    <!-- <p class="text-muted panel-sub">Students submit a text answer; on-time status is tracked automatically</p> -->
                 </div>
                 <form id="assign-form" class="assign-form">
                     <div class="form-grid">
@@ -97,7 +97,6 @@
                         <button class="btn-back" id="back-ai" type="button"><i class="bi bi-arrow-left"></i> Back</button>
                         <h3><i class="bi bi-stars" style="color:var(--clr-accent);margin-right:0.4rem"></i>Generate Questions</h3>
                     </div>
-                    <p class="text-muted panel-sub">AI drafts questions from your course material — you review and select before assigning</p>
                 </div>
 
                 <!-- Step 1: Config -->
@@ -194,7 +193,7 @@
             <section class="assign-section fade-in-up">
                 <div class="panel-head">
                     <h3>Your Assignments</h3>
-                    <p class="text-muted panel-sub">Submissions and on-time rates per assignment</p>
+                    <!-- <p class="text-muted panel-sub">Submissions and on-time rates per assignment</p> -->
                 </div>
                 <div id="assign-list">
                     <div class="loading-wrapper loading-full">
@@ -219,6 +218,17 @@
                     <p>Loading submissions…</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Submission detail modal -->
+    <div id="sub-detail-modal" class="modal modal-wide" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="sub-detail-title">Submission detail</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <div id="sub-detail-body" class="students-body"></div>
         </div>
     </div>
 

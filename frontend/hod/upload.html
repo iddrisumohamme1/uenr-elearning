@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="../shared/dropdown.css">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="upload.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
@@ -31,26 +32,25 @@
                         </div>
                     </div>
                 </div>
-                <!-- <p class="text-muted">Upload materials for department courses in your faculty.</p> -->
             </header>
 
             <section class="upload-section">
                 <div class="stat-card">
-                    <form id="upload-form">
+                    <form id="upload-form" novalidate>
                         <div class="form-group">
-                            <label class="form-label">Course</label>
+                            <label class="form-label" for="course-select">Select Course</label>
                             <select id="course-select" class="form-input" data-dropdown required>
                                 <option value="" disabled selected>Loading courses...</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Academic Year</label>
+                            <label class="form-label" for="academic-year">Academic Year</label>
                             <select id="academic-year" class="form-input" data-dropdown required>
                                 <option value="" disabled selected>Loading years...</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Semester</label>
+                            <label class="form-label" for="semester">Semester</label>
                             <select id="semester" class="form-input" data-dropdown required>
                                 <option value="" disabled selected>Select semester</option>
                                 <option value="First Semester">First Semester</option>
@@ -58,11 +58,11 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Material Title</label>
-                            <input type="text" id="title" class="form-input" placeholder="e.g. Lecture 1 Notes" required>
+                            <label class="form-label" for="title">Material Title</label>
+                            <input type="text" id="title" class="form-input" placeholder="e.g. Introduction to SQL (optional for multiple files)">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Description</label>
+                            <label class="form-label" for="description">Description</label>
                             <textarea id="description" class="form-input" rows="4" placeholder="Optional brief description"></textarea>
                         </div>
                         <div class="form-group">
@@ -80,141 +80,74 @@
                             </div>
                             <p class="form-hint" id="org-hint">Materials are shown to students grouped under this week, unit, or the whole course.</p>
                         </div>
+
                         <div class="form-group">
-                            <label class="form-label">Upload File</label>
-                            <input type="file" id="file" class="form-input" required>
+                            <label class="form-label" for="file">Upload Files</label>
+                            <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
+                                 aria-describedby="file-hint file-error">
+                                <input type="file" id="file" class="drop-zone__input" multiple
+                                       accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.ods,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.ogg"
+                                       required hidden>
+                                <div class="drop-zone__content" id="drop-zone-content">
+                                    <i class="bi bi-cloud-arrow-up drop-zone__icon"></i>
+                                    <p class="drop-zone__label">Drag and drop files here</p>
+                                    <p class="drop-zone__sub">or <span class="drop-zone__browse">choose from folder</span></p>
+                                </div>
+                            </div>
+                            <p class="form-hint" id="file-hint">PDF, DOCX, PPTX, XLSX, PNG, JPG, MP4, WebM — max 50 MB per file</p>
+                            <p class="file-error" id="file-error" role="alert" hidden></p>
                         </div>
-                        <button type="submit" class="btn-auth btn-upload">Upload Material</button>
+
+                        <!-- File queue (populated by JS) -->
+                        <div class="file-queue" id="file-queue" hidden>
+                            <div class="file-queue__header">
+                                <span class="file-queue__count" id="file-queue-count"></span>
+                                <button type="button" class="file-queue__clear" id="file-queue-clear">Clear all</button>
+                            </div>
+                            <div class="file-queue__list" id="file-queue-list"></div>
+                        </div>
+
+                        <div class="upload-progress" id="upload-progress" hidden>
+                            <div class="upload-progress__bar-track">
+                                <div class="upload-progress__bar-fill" id="upload-progress-fill"></div>
+                            </div>
+                            <p class="upload-progress__text" id="upload-progress-text">Uploading…</p>
+                        </div>
+
+                        <button type="submit" class="btn-auth btn-full" id="upload-submit">
+                            <span class="btn-spinner" id="btn-spinner" hidden></span>
+                            <span id="upload-submit-text">Upload Material</span>
+                        </button>
                     </form>
                 </div>
             </section>
         </main>
     </div>
 
+    <!-- Upload-another modal -->
+    <div id="upload-again-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="upload-again-title">Materials uploaded</h3>
+                <button class="modal-close" id="upload-again-close" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="upload-again-body">Upload more files to the same course?</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="upload-again-dashboard">Back to dashboard</button>
+                <button class="btn-primary" id="upload-again-yes">Upload more</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live region for screen reader announcements -->
+    <div id="upload-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
     <script src="../shared/sidebar.js"></script>
+    <script src="../shared/api-cache.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
     <script src="../shared/dropdown.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-        const user = await requireSession('hod').catch(() => null);
-        if (!user) return;
-
-        const courseSelect = document.getElementById('course-select');
-        const form = document.getElementById('upload-form');
-        const academicYear = document.getElementById('academic-year');
-
-        attachLogout('logout-btn');
-        initProfilePopup();
-        document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
-
-        function loadAcademicYears() {
-            const now = new Date().getFullYear();
-            const options = [];
-            for (let y = now; y >= now - 3; y--) {
-                options.push(`<option value="${y}/${y + 1}">${y}/${y + 1}</option>`);
-            }
-            academicYear.innerHTML = `
-                <option value="" disabled selected>Select academic year</option>
-                ${options.join('')}
-            `;
-        }
-
-        function setupOrganization() {
-            const radios = document.querySelectorAll('input[name="organization"]');
-            const weekField = document.getElementById('org-week-field');
-            const unitField = document.getElementById('org-unit-field');
-            const hint = document.getElementById('org-hint');
-            const apply = (value) => {
-                weekField.hidden = value !== 'week';
-                unitField.hidden = value !== 'unit';
-                if (value === 'week') hint.textContent = 'Materials are shown to students grouped under this week.';
-                else if (value === 'unit') hint.textContent = 'Materials are shown to students grouped under this unit / part.';
-                else hint.textContent = 'Materials are shown to students as whole-semester content (no week grouping).';
-            };
-            radios.forEach(r => r.addEventListener('change', () => apply(r.value)));
-            apply(document.querySelector('input[name="organization"]:checked')?.value || 'week');
-        }
-
-        async function loadCourses() {
-            try {
-                const response = await authFetch(`${API_BASE}/api/courses/`);
-                const courses = await response.json();
-                if (!Array.isArray(courses) || courses.length === 0) {
-                    courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
-                    return;
-                }
-                courseSelect.innerHTML = `
-                    <option value="" disabled selected>Select a course</option>
-                    ${courses.map(course => `
-                        <option value="${course.id}">${course.title} (${course.code || 'No code'})</option>
-                    `).join('')}
-                `;
-            } catch (err) {
-                console.error('Error loading courses:', err);
-                courseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
-            }
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const title = document.getElementById('title').value.trim();
-            const description = document.getElementById('description').value.trim();
-            const weekNumber = document.getElementById('week-number').value.trim();
-            const unitLabel = document.getElementById('unit-label').value.trim();
-            const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
-            const courseId = courseSelect.value;
-            const semesterVal = document.getElementById('semester').value;
-            const fileInput = document.getElementById('file');
-
-            if (!title || !courseId || !academicYear.value || !semesterVal || !fileInput.files.length) {
-                showToast('Select a course, academic year, semester, enter a title, and upload a file.', 'warning');
-                return;
-            }
-            if (organization === 'week' && !weekNumber) {
-                showToast('Enter the week number for this material.', 'warning');
-                return;
-            }
-            if (organization === 'unit' && !unitLabel) {
-                showToast('Enter a unit / part label for this material.', 'warning');
-                return;
-            }
-
-            const semester = `${academicYear.value} - ${semesterVal}`;
-
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('description', description);
-            formData.append('course_id', courseId);
-            formData.append('semester', semester);
-            if (organization === 'week') formData.append('week_number', weekNumber);
-            if (organization === 'unit') formData.append('unit_label', unitLabel);
-            formData.append('file', fileInput.files[0]);
-
-            try {
-                const response = await authFetch(`${API_BASE}/api/materials/upload`, {
-                    method: 'POST',
-                    headers: {},
-                    body: formData,
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast('Material uploaded successfully.', 'success');
-                    window.location.href = 'dashboard.html';
-                } else {
-                    showToast('Upload failed: ' + (data.detail || data.message || 'Unknown error'), 'error');
-                }
-            } catch (err) {
-                console.error('Upload error:', err);
-                showToast('Upload failed: Server connection error.', 'error');
-            }
-        });
-
-        loadAcademicYears();
-        setupOrganization();
-        await loadCourses();
-    });
-    </script>
+    <script src="upload.js"></script>
 </body>
 </html>

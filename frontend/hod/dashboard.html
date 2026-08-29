@@ -60,44 +60,22 @@
                     <span class="pulse-legend-item"><span class="dot dot--engaged"></span>Engaged<b id="dept-legend-eng">0</b></span>
                 </div>
                 <p class="pulse-caption text-muted" id="dept-pulse-caption">Reading the department…</p>
+                <p class="pulse-hint">At risk = a student whose latest learning session the model flagged as at risk.</p>
             </section>
 
             <div class="stats-grid fade-in-up">
-                <div class="stat-card stat-card--danger">
-                    <span class="stat-label">Students at Risk</span>
-                    <p class="stat-value text-danger" id="stat-at-risk">--</p>
-                </div>
                 <div class="stat-card">
                     <span class="stat-label">Active Courses</span>
                     <p class="stat-value" id="stat-courses">--</p>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-label">Students Reached</span>
+                    <span class="stat-label">Total Students</span>
                     <p class="stat-value" id="stat-students">--</p>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Avg Engagement</span>
-                    <p class="stat-value" id="stat-engagement">--%</p>
                 </div>
             </div>
 
             <section class="dashboard-grid">
-                <div class="chart-card fade-in-up">
-                    <div class="panel-head">
-                        <h3>Engagement vs Comprehension</h3>
-                        <p class="text-muted panel-sub">Department-wide read on both signals</p>
-                    </div>
-                    <div class="chart-duo">
-                        <div class="chart-box">
-                            <canvas id="engagement-chart" height="220"></canvas>
-                        </div>
-                        <div class="chart-box">
-                            <canvas id="comprehension-chart" height="220"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <section class="at-risk-panel attention-board fade-in-up">
+                <section class="at-risk-panel attention-board dashboard-col--queue fade-in-up">
                     <div class="panel-head attention-head">
                         <div>
                             <span class="attention-eyebrow">Attention Queue</span>
@@ -112,42 +90,55 @@
                     </div>
                     <div class="cohort-strip" id="cohort-strip" hidden></div>
                     <div id="queue-body">
-                        <div class="queue-loading">
-                            <div class="loading-wrapper">
-                                <div class="spinner spinner-sm"></div>
-                                <p>Loading student data…</p>
-                            </div>
+                        <div class="skeleton-zone" aria-busy="true">
+                            <div class="skeleton skeleton-row"></div>
+                            <div class="skeleton skeleton-row skeleton-row--w80"></div>
+                            <div class="skeleton skeleton-row"></div>
+                            <div class="skeleton skeleton-row skeleton-row--w60"></div>
                         </div>
                     </div>
                 </section>
-            </section>
 
-            <div class="dashboard-grid">
-                <section class="panel-card fade-in-up">
+                <div class="chart-card dashboard-col--chart fade-in-up">
+                    <div class="panel-head">
+                        <h3>Comprehension Across the Department</h3>
+                        <p class="text-muted panel-sub">Department-wide understanding of each course's material</p>
+                    </div>
+                    <div class="chart-duo">
+                        <div class="chart-box">
+                            <canvas id="comprehension-chart" height="220"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="panel-card dashboard-col--metrics fade-in-up">
                     <div class="panel-head">
                         <h3>Course-wise Metrics</h3>
                         <p class="text-muted panel-sub">Engagement ledger across the department</p>
                     </div>
                     <div id="course-metrics-list" class="metrics-list">
-                        <div class="loading-wrapper">
-                            <div class="spinner"></div>
-                            <p>Loading course metrics…</p>
+                        <div class="skeleton-zone" aria-busy="true">
+                            <div class="skeleton skeleton-row"></div>
+                            <div class="skeleton skeleton-row skeleton-row--w80"></div>
+                            <div class="skeleton skeleton-row"></div>
+                            <div class="skeleton skeleton-row skeleton-row--w60"></div>
                         </div>
                     </div>
                 </section>
 
-                <section class="panel-card fade-in-up">
+                <section class="panel-card dashboard-col--classes fade-in-up">
                     <div class="panel-head">
                         <h3>My Classes</h3>
                         <p class="text-muted panel-sub" id="my-classes-sub">Courses you teach</p>
                     </div>
                     <div id="my-classes-list" class="course-list">
-                        <div class="loading-wrapper">
-                            <div class="spinner"></div>
-                            <p>Loading classes…</p>
+                        <div class="skeleton-zone" aria-busy="true">
+                            <div class="skeleton skeleton-row"></div>
+                            <div class="skeleton skeleton-row skeleton-row--w80"></div>
+                            <div class="skeleton skeleton-row"></div>
                         </div>
                     </div>
-            </section>
+                </section>
             </section>
 
             <div class="modal-overlay" id="message-modal" hidden>

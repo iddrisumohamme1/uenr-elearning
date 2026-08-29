@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Students - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="hod-dashboard.css">
+    <link rel="stylesheet" href="students.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <p class="page-eyebrow" id="dept-name">Department</p>
+                    <div class="title-row">
+                        <h1>Students</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar" title="Profile & settings"></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="stats-grid fade-in-up">
+                <div class="stat-card">
+                    <span class="stat-label">Total Students</span>
+                    <p class="stat-value" id="stat-total">--</p>
+                </div>
+                <div class="stat-card stat-card--danger">
+                    <span class="stat-label">Currently At Risk</span>
+                    <p class="stat-value text-danger" id="stat-at-risk">--</p>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">On Track</span>
+                    <p class="stat-value" id="stat-ontrack">--</p>
+                </div>
+            </div>
+
+            <section class="panel-card roster-card fade-in-up">
+                <div class="table-toolbar">
+                    <div class="filter-wrap">
+                        <input type="search" id="roster-search" class="form-input filter-input" placeholder="Search name or index…" aria-label="Search students">
+                        <div class="quickfilters" id="risk-filter" role="group" aria-label="Filter by status">
+                            <button type="button" class="qf-btn is-active" data-rf="all">All<span class="qf-count" id="rf-count-all"></span></button>
+                            <button type="button" class="qf-btn" data-rf="risk">At risk<span class="qf-count qf-count--risk" id="rf-count-risk"></span></button>
+                            <button type="button" class="qf-btn" data-rf="ok">On track<span class="qf-count qf-count--ok" id="rf-count-ok"></span></button>
+                        </div>
+                    </div>
+                    <div class="table-actions">
+                        <span class="table-count" id="roster-count">--</span>
+                        <button class="btn-tool btn-tool--ghost" id="export-csv" type="button"><i class="bi bi-download"></i> Export CSV</button>
+                        <button class="btn-tool btn-tool--primary" id="message-selected" type="button" disabled>
+                            <i class="bi bi-send"></i><span>Message</span><span class="msg-count" id="msg-count" hidden></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="data-table roster-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-check"><input type="checkbox" id="select-all" aria-label="Select all"></th>
+                                <th data-sort="name">Student <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                                <th data-sort="index">Index No.</th>
+                                <th data-sort="risk" class="th-risk">Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-body">
+                            <tr><td colspan="5"><div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading students…</p></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="roster-mobile" id="roster-cards" aria-live="polite"></div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="message-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="message-to">
+            <div class="modal-head">
+                <h3 id="message-to">Message student</h3>
+                <button class="modal-close" data-close-modal="message-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <p class="modal-body text-muted" id="message-course"></p>
+            <div class="form-group">
+                <label class="form-label" for="message-content">Message</label>
+                <textarea id="message-content" rows="5" class="form-input" placeholder="Write a short message with feedback or study advice…"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-tool btn-tool--ghost" data-close-modal="message-modal">Cancel</button>
+                <button class="btn-tool btn-tool--primary" id="message-send"><i class="bi bi-send"></i><span>Send message</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="profile-modal" hidden>
+        <div class="modal-card modal-card--wide" role="dialog" aria-modal="true" aria-labelledby="profile-name">
+            <div class="modal-head">
+                <h3 id="profile-name">Student profile</h3>
+                <button class="modal-close" data-close-modal="profile-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div id="profile-body">
+                <div class="loading-wrapper"><div class="spinner"></div><p>Loading profile…</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/sidebar.js"></script>
+    <script src="../shared/api-cache.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="../shared/dropdown.js"></script>
+    <script src="students.js"></script>
+</body>
+</html>

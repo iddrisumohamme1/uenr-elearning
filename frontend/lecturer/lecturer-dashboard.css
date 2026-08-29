@@ -227,20 +227,21 @@ tbody tr:hover { background: var(--bg-elevated); }
   white-space: nowrap;
 }
 
-/* Student rows */
+/* Student rows (table form) */
+.queue-table { overflow-x: auto; }
+.queue-table table { min-width: 760px; }
+.queue-table th,
+.queue-table td { white-space: nowrap; }
+
 .attention-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 0.25rem;
   animation: queueRowIn var(--t-base) both;
 }
-.attention-row:nth-child(2) { animation-delay: 50ms; }
-.attention-row:nth-child(3) { animation-delay: 100ms; }
-.attention-row:nth-child(4) { animation-delay: 150ms; }
-.attention-row:nth-child(5) { animation-delay: 200ms; }
-.attention-row + .attention-row { border-top: 1px solid var(--border); }
+tbody .attention-row:nth-child(2) { animation-delay: 50ms; }
+tbody .attention-row:nth-child(3) { animation-delay: 100ms; }
+tbody .attention-row:nth-child(4) { animation-delay: 150ms; }
+tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
 
+.queue-table .student-cell { display: flex; align-items: center; gap: 0.5rem; }
 .attention-ring {
   width: 10px;
   height: 10px;
@@ -252,23 +253,14 @@ tbody tr:hover { background: var(--bg-elevated); }
 .attention-row[data-sev="mod"] .attention-ring { background: var(--clr-warning); }
 .attention-row[data-sev="good"] .attention-ring { background: var(--clr-success); }
 
-.attention-main { flex: 1; min-width: 0; }
-.attention-name { font-family: 'Space Grotesk', var(--font-display); font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
-.attention-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 1rem;
-  margin-top: 0.3rem;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
+.queue-table .status-cell { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
 .meta-quiz.quiz--low { color: var(--clr-danger); }
 .meta-quiz.quiz--mod { color: var(--clr-warning); }
 .meta-quiz.quiz--good { color: var(--clr-success); }
+.meta-readout { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
 
-.attention-comp { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
-.comp-meter { display: flex; gap: 3px; }
+.attention-comp { display: inline-flex; align-items: center; gap: 0.6rem; }
+.comp-meter { display: inline-flex; gap: 3px; }
 .comp-seg {
   width: 7px;
   height: 14px;
@@ -291,6 +283,7 @@ tbody tr:hover { background: var(--bg-elevated); }
 .comp-label--mod { color: var(--clr-warning); }
 .comp-label--good { color: var(--clr-success); }
 
+.queue-table .col-action { text-align: right; }
 .attention-action { flex-shrink: 0; }
 
 /* States */
@@ -314,7 +307,6 @@ tbody tr:hover { background: var(--bg-elevated); }
   box-shadow: 0 0 0 5px var(--success-soft), 0 0 18px rgba(34,197,94,0.35);
 }
 .queue-error { padding: 1.5rem; text-align: center; }
-.queue-loading { padding: 1rem 0; }
 
 @keyframes attentionPulse { 50% { opacity: 0.4; } }
 @keyframes queueRowIn {
@@ -331,13 +323,12 @@ tbody tr:hover { background: var(--bg-elevated); }
 @media (max-width: 768px) {
   .attention-head { flex-direction: column; }
   .attention-readout { text-align: left; }
-  .attention-row { flex-wrap: wrap; }
-  .attention-comp { order: 3; width: 100%; }
-  .attention-action { width: 100%; display: inline-flex; align-items: center; justify-content: center; }
+  .queue-table table { min-width: 640px; }
 }
 @media (max-width: 560px) {
-  /* Attention queue */
-  .attention-row { gap: 0.75rem; padding: 0.75rem 0.25rem; }
+  /* Attention queue (table scrolls horizontally) */
+  .queue-table { margin: 0 -0.25rem; }
+  .queue-table table { min-width: 560px; }
   .attention-comp { gap: 0.4rem; }
 
   /* Charts + panels */
@@ -352,5 +343,62 @@ tbody tr:hover { background: var(--bg-elevated); }
 }
 @media (max-width: 400px) {
   .modal-card { padding: 1rem; }
-  .attention-name { font-size: 0.88rem; }
+  .queue-table td { white-space: normal; }
+}
+
+/* ── Dashboard grid: 12-col cockpit spans ──────────────────────────────── */
+.dashboard-col--queue { grid-column: span 7; }
+.dashboard-col--chart { grid-column: span 5; }
+
+/* Equal-height row: the queue body and chart fill to match each other so
+   tops AND bottoms line up whatever the data length. */
+.dashboard-col--queue #queue-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 30rem;
+  overflow-y: auto;
+}
+.dashboard-col--chart .chart-duo { flex: 1 1 auto; min-height: 0; }
+.chart-card { overflow: hidden; }
+@media (min-width: 1101px) {
+  .dashboard-col--chart .chart-box { height: 100%; min-height: 220px; }
+}
+
+/* One consistent padding token across both panels. */
+.chart-card,
+.at-risk-panel { padding: 1.5rem; }
+
+/* ── Skeleton loaders (stable heights — no jump on data arrival) ───────── */
+.skeleton-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+#queue-body .skeleton-zone { min-height: 18rem; }
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  height: 1.05rem;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+.skeleton-row { height: 3.1rem; }
+.skeleton-row--w80 { width: 80%; }
+.skeleton-row--w60 { width: 60%; }
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+@keyframes skeletonShimmer { 100% { transform: translateX(100%); } }
+
+@media (max-width: 1100px) {
+  .dashboard-grid > * { grid-column: 1 / -1; }
+  .dashboard-col--queue #queue-body { max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
 }

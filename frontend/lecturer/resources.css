@@ -293,7 +293,10 @@
 
 /* ── Live on the course ─────────────────────────────────────────────────── */
 .live-section { margin-top: var(--s12); }
-.live-head { margin-bottom: 1.5rem; }
+.live-head {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
 .live-head h2 {
   font-family: 'Space Grotesk', var(--font-display);
   font-size: 1.4rem;
@@ -311,12 +314,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--s6);
+  max-width: 980px;
+  margin: 0 auto;
 }
 
 /* Loading state spans the full section so its spinner/text centers
    across the page instead of sitting in a single grid column. */
-.live-grid > .loading-wrapper {
+.live-grid > .loading-wrapper,
+.live-grid > .text-muted:first-child:last-child {
   grid-column: 1 / -1;
+  text-align: center;
+  margin: var(--s2) auto 0;
 }
 
 .chip {
@@ -444,8 +452,16 @@
 }
 @media (max-width: 768px) {
   .main-content { padding: 1.5rem; }
-  .stage-desc { display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
-  .stage-name { display: none; }
+  /* Step rail on mobile: keep the short step names (Choose / Compose / Publish)
+     with the numbered circles, truncating instead of overflowing so all three
+     stages stay fully on-screen and never get covered. */
+  .stage-name { display: block; }
+  .stage-desc  { display: none; }
+  .stage       { flex: 1 1 0; gap: var(--s2); min-width: 0; }
+  .stage-rail  { gap: var(--s2); }
+  .stage-name  { font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage-num   { width: 2.2rem; height: 2.2rem; font-size: 0.72rem; }
+  .stage:not(:last-child)::after { margin: 0 var(--s1); }
   .press-row { grid-template-columns: 1fr; gap: var(--s4); }
   .format-grid { grid-template-columns: 1fr; }
   .press-actions { align-items: flex-start; }

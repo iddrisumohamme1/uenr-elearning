@@ -1,0 +1,290 @@
+/* File: frontend/hod/students.css
+   Department Students roster — layered on top of dashboard.css /
+   hod-dashboard.css. Desktop renders a data table; small screens render an
+   equivalent card grid (see responsive section at the bottom). */
+
+.roster-card { overflow: hidden; }
+
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+.table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: nowrap;
+    margin-bottom: 0.75rem;
+}
+.filter-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.filter-input { width: 180px; min-width: 100px; max-width: 100%; flex: 1 1 auto; }
+.quickfilters { flex-shrink: 0; }
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.table-count { color: var(--text-muted, #6b7280); font-size: 0.82rem; white-space: nowrap; }
+
+/* Refined toolbar actions (Export CSV, Message selected) */
+.btn-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--r-md, 0.5rem);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--t-fast, 150ms ease), color var(--t-fast, 150ms ease),
+                border-color var(--t-fast, 150ms ease), box-shadow var(--t-fast, 150ms ease);
+}
+.btn-tool i { font-size: 0.95rem; line-height: 1; }
+.btn-tool:focus-visible { outline: 2px solid var(--clr-primary, #2563eb); outline-offset: 2px; }
+.btn-tool--ghost {
+    background: var(--bg-card, #fff);
+    color: var(--text-secondary, #4b5563);
+    border: 1px solid var(--border, #e5e7eb);
+}
+.btn-tool--ghost:hover {
+    color: var(--text-primary, #111827);
+    border-color: var(--clr-primary, #2563eb);
+    background: var(--primary-soft, #eff6ff);
+}
+.btn-tool--primary {
+    background: var(--clr-primary, #2563eb);
+    color: #fff;
+    border: 1px solid var(--clr-primary, #2563eb);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.btn-tool--primary:hover { background: var(--clr-primary-dark, #1d4ed8); border-color: var(--clr-primary-dark, #1d4ed8); }
+.btn-tool--primary:disabled {
+    background: var(--bg-elevated, #f1f5f9);
+    color: var(--text-muted, #9ca3af);
+    border-color: var(--border, #e5e7eb);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+.btn-tool--primary:disabled .msg-count { background: var(--border, #e2e8f0); color: var(--text-muted, #9ca3af); }
+.msg-count {
+    min-width: 1.25rem;
+    padding: 0.05rem 0.42rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.toolbar-hint {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+}
+
+/* Segmented quick-filter (All / At risk / On track) */
+.quickfilters {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: var(--r-lg, 0.75rem);
+    background: var(--bg-elevated, #f8fafc);
+}
+.qf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border: none;
+    border-radius: var(--r-md, 0.5rem);
+    background: transparent;
+    color: var(--text-secondary, #4b5563);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--t-fast, 150ms ease), color var(--t-fast, 150ms ease);
+}
+.qf-btn:hover { color: var(--text-primary, #111827); background: var(--bg-card, #fff); }
+.qf-btn.is-active {
+    background: var(--clr-primary, #2563eb);
+    color: #fff;
+    box-shadow: var(--shadow-sm, none);
+}
+.qf-btn.is-active .qf-count--risk { background: rgba(255,255,255,0.22); color: #fff; }
+.qf-btn.is-active .qf-count--ok   { background: rgba(255,255,255,0.22); color: #fff; }
+.qf-count {
+    min-width: 1.35rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: var(--bg-elevated, #eef2f7);
+    color: var(--text-muted, #6b7280);
+}
+.qf-count--risk { background: rgba(239, 68, 68, 0.14); color: #dc2626; }
+.qf-count--ok   { background: rgba(34, 197, 94, 0.14); color: #16a34a; }
+
+/* ── Roster table ────────────────────────────────────────────────────── */
+.roster-table { margin-top: 0.25rem; }
+.roster-table table { min-width: 760px; }
+.roster-table th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+.roster-table th[data-sort]:hover { color: var(--text-primary, inherit); }
+.sort-icon { font-size: 0.7rem; opacity: 0.6; margin-left: 0.2rem; }
+.roster-table .col-check,
+.roster-table td.col-check { width: 40px; text-align: center; }
+.roster-table td.col-check input { accent-color: var(--clr-primary, #2563eb); cursor: pointer; }
+.roster-table td { vertical-align: middle; }
+.mono { font-family: var(--font-mono, monospace); font-size: 0.85em; }
+
+.name-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-primary, inherit);
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.name-link:hover .name-text { text-decoration: underline; }
+.avatar-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--clr-primary, #2563eb);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.th-risk { min-width: 200px; }
+.risk-chip {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.risk-chip--risk { background: rgba(239, 68, 68, 0.14); color: #dc2626; }
+.risk-chip--ok { background: rgba(34, 197, 94, 0.14); color: #16a34a; }
+.risk-reason { display: block; margin-top: 0.2rem; font-size: 0.78rem; color: var(--text-muted, #6b7280); }
+
+/* At-risk rows get a soft red tint plus a left accent bar so struggling
+   students stand out at a glance — but always paired with the chip + text. */
+.roster-row.row-risk td { background: rgba(239, 68, 68, 0.04); }
+.roster-row.row-risk td:first-child {
+    box-shadow: inset 3px 0 0 var(--clr-danger, #ef4444);
+}
+.roster-row.row-risk:hover td { background: rgba(239, 68, 68, 0.07); }
+
+.btn-msg {
+    background: var(--clr-primary, #2563eb);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.btn-msg:hover { filter: brightness(0.94); }
+
+.empty-cell { text-align: center; padding: 2.5rem 1rem !important; color: var(--text-muted, #6b7280); }
+
+/* ── Mobile card roster (hidden on desktop) ──────────────────────────── */
+.roster-mobile { display: none; }
+
+/* ── Profile modal ───────────────────────────────────────────────────── */
+.modal-card--wide { width: min(560px, 94vw); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+.modal-card textarea.form-input:focus { border-color: var(--clr-primary, #2563eb); box-shadow: 0 0 0 3px var(--primary-soft, #eff6ff); }
+.profile-line { margin: 0.25rem 0; color: var(--text-primary, inherit); }
+.profile-hr { margin: 1rem 0; border: none; border-top: 1px solid var(--border, #e5e7eb); }
+.profile-subhead { margin: 0 0 0.5rem; font-size: 0.95rem; }
+.profile-courses { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.profile-courses li { padding: 0.5rem 0.7rem; background: var(--bg-elevated, #f3f4f6); border-radius: 8px; font-size: 0.9rem; }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+/* Tablet: switch the table for a card grid; keep the toolbar on one line. */
+@media (max-width: 820px) {
+    .roster-table { display: none; }
+    .roster-mobile {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.75rem;
+    }
+    .table-toolbar { flex-wrap: nowrap; gap: 0.6rem; }
+    .filter-wrap { flex-wrap: nowrap; width: auto; gap: 0.5rem; }
+    .filter-input { display: none; }
+    .table-actions { flex-wrap: nowrap; gap: 0.4rem; }
+    .btn-tool { padding: 0.42rem 0.6rem; font-size: 0.78rem; }
+    .qf-btn { padding: 0.32rem 0.5rem; font-size: 0.78rem; }
+    .qf-count { min-width: 1.1rem; padding: 0 0.3rem; }
+    .quickfilters { gap: 0.15rem; }
+    .table-count { font-size: 0.76rem; }
+
+    .roster-card-m {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        padding: 1rem;
+        background: var(--bg-card, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: var(--r-lg, 0.75rem);
+        box-shadow: var(--shadow-sm, none);
+    }
+    .roster-card-m.is-risk { border-left: 3px solid var(--clr-danger, #ef4444); background: rgba(239, 68, 68, 0.03); }
+    .rcm-head { display: flex; align-items: center; gap: 0.5rem; }
+    .rcm-head input { accent-color: var(--clr-primary, #2563eb); cursor: pointer; }
+    .rcm-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.82rem;
+        color: var(--text-muted, #6b7280);
+    }
+    .rcm-meta .roster-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .rcm-status .risk-reason { display: block; }
+    .rcm-actions { display: flex; justify-content: flex-end; }
+}
+
+/* Small phones: single-column cards, compact toolbar on one line. */
+@media (max-width: 400px) {
+    .roster-mobile { grid-template-columns: 1fr; }
+    .table-toolbar { gap: 0.5rem; }
+    .filter-wrap { gap: 0.5rem; }
+    .btn-tool { padding: 0.42rem 0.6rem; font-size: 0.76rem; }
+    .qf-btn { padding: 0.32rem 0.5rem; font-size: 0.76rem; }
+}
+
+/* Below ~360px it can't physically fit on one line: let it wrap gracefully. */
+@media (max-width: 360px) {
+    .table-toolbar { flex-wrap: wrap; }
+    .table-actions { width: 100%; justify-content: flex-end; }
+}

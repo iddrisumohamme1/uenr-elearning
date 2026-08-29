@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isIdle = false;
     let classificationSent = false;
     let activeSeconds = 0;
+    let activeSinceClassify = 0;   // active seconds accrued since the last classification
 
     function detectTopic(title) {
         const t = (title || '').toLowerCase();
@@ -81,22 +82,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function resetMetrics() {
+        // Final refresh: capture this session's end state before switching
+        // away to another material / closing the viewer.
+        finalRefresh();
         metrics = { mouseMovements: 0, scrollDepth: 0, clicks: 0, timeSpent: 0, idleTime: 0, highlights: 0, videoWatchSeconds: 0, videoCoveragePct: 0, videoSeeks: 0 };
         lastActivity = Date.now();
         isIdle = false;
         classificationSent = false;
         activeSeconds = 0;
+        activeSinceClassify = 0;
         updateStatus('Active');
         hideAiInsight();
         setSessionHint('');
         showQuizBeacon();
     }
 
+    // Best-effort final classification for the session that just ended. Fires
+    // only after a real session has been classified and enough fresh active
+    // time has accrued since the last call to be worthwhile. keepalive lets the
+    // request survive page unload; failures are silently ignored.
+    function finalRefresh() {
+        if (!courseId || !classificationSent) return;
+        if (activeSinceClassify < 60) return;
+        const body = JSON.stringify({
+            student_id: user.id,
+            course_id: courseId,
+            material_id: selectedMaterial?.id || null,
+        });
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = typeof getToken === 'function' ? getToken() : null;
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            fetch(`${API_BASE}/api/engagement/auto-classify`, {
+                method: 'POST',
+                headers,
+                body,
+                keepalive: true,
+            }).catch(() => {});
+        } catch (err) { /* ignore */ }
+    }
+
     // Small guidance line under the highlights count in the Session panel.
     function setSessionHint(text) {
         const el = document.getElementById('session-hint');
-        if (!el) return;
-        el.textContent = text || '';
+        if (!el) return;        el.textContent = text || '';
         el.style.display = text ? 'block' : 'none';
     }
 
@@ -416,6 +445,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Final refresh on tab/window close (hard close path that never calls
+    // resetMetrics). keepalive ensures the request is delivered.
+    window.addEventListener('pagehide', () => finalRefresh());
+
     // Watchdog tick: accrues active time and flips to Idle after a minute
     // without material-area interaction. No countdowns live here.
     setInterval(() => {
@@ -440,10 +473,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateStatus('Idle');
         }
 
-        if (!isIdle && selectedMaterial) activeSeconds = metrics.timeSpent;
+        if (!isIdle && selectedMaterial) {
+            activeSeconds = metrics.timeSpent;
+            activeSinceClassify += 5;
+        }
 
-        // Two-Tower classification fires once 60s of real engagement accrued.
-        if (!classificationSent && activeSeconds >= 60) classifyEngagement();
+        // Two-Tower classification: fires once 60s of real engagement accrues,
+        // then re-fires every 5 minutes of active study so the prediction stays
+        // fresh against recent quiz/attendance changes.
+        if (selectedMaterial && !isIdle && (activeSinceClassify >= 300 || (!classificationSent && activeSeconds >= 60))) {
+            classifyEngagement();
+        }
     }, 5000);
 
     // ── Video watch analytics ─────────────────────────────────────────────────
@@ -548,9 +588,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, 30000);
 
-    // ── Two-Tower classification (runs once after 60s of activity) ───────────
+    // ── Two-Tower classification ─────────────────────────────────────────────
+    // Fires once 60s of active engagement accrues, then periodically every
+    // 5 minutes of active study (and on session close) so the prediction stays
+    // fresh against recent quiz/attendance changes. The chip updates live and
+    // each row is deduped to the latest per student on the dashboards.
+    let classifyInFlight = false;
     async function classifyEngagement() {
-        if (classificationSent || !courseId) return;
+        if (classifyInFlight || !courseId) return;
+        classifyInFlight = true;
+        activeSinceClassify = 0;
         classificationSent = true;
 
         try {
@@ -570,6 +617,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (err) {
             console.error('Classification error:', err);
+        } finally {
+            classifyInFlight = false;
         }
     }
 

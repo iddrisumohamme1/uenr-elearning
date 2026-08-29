@@ -6,8 +6,12 @@
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = await requireSession('lecturer').catch(() => null);
+    const user = await requireSession('lecturer', 'hod').catch(() => null);
     if (!user) return;
+
+    const coursesEndpoint = (user.role === 'hod')
+        ? `${API_BASE}/api/courses/`
+        : `${API_BASE}/api/courses/mine`;
 
     attachLogout('logout-btn');
     initProfilePopup();
@@ -27,6 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const form             = document.getElementById('assign-form');
     const listEl           = document.getElementById('assign-list');
     const subsModal        = document.getElementById('subs-modal');
+    const detailModal      = document.getElementById('sub-detail-modal');
+    const detailTitle      = document.getElementById('sub-detail-title');
+    const detailBody       = document.getElementById('sub-detail-body');
 
     // AI path
     const aiCourseSelect   = document.getElementById('ai-course-select');
@@ -53,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
     );
     subsModal && subsModal.addEventListener('click', (e) => { if (e.target === subsModal) closeModal(subsModal); });
+    detailModal && detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(detailModal); });
 
     /* ── Path switching ───────────────────────────────────────────────── */
     function showChoice() {
@@ -78,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ── Load courses ─────────────────────────────────────────────────── */
     async function loadCourses() {
         try {
-            const courses = await swrGet('catalog', `${API_BASE}/api/courses/`);
+            const courses = await swrGet('catalog', coursesEndpoint);
             if (!Array.isArray(courses) || !courses.length) {
                 courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
                 aiCourseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
@@ -437,7 +445,151 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    /* ── View submissions modal (unchanged) ───────────────────────────── */
+    /* ── View submissions table + per-student detail ──────────────────── */
+    let subsRows = [];
+    let subsSort = { key: 'student_name', dir: 1 };
+
+    function sortSubs(rows) {
+        const { key, dir } = subsSort;
+        const val = (r) => {
+            const v = r[key];
+            if (key === 'submitted_at') return v ? new Date(v).getTime() : (dir === 1 ? Infinity : -Infinity);
+            return v == null ? '' : String(v).toLowerCase();
+        };
+        return [...rows].sort((a, b) => {
+            const va = val(a), vb = val(b);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }
+
+    function statusCell(s) {
+        if (!s.submitted) return '<span class="badge badge--none">Not submitted</span>';
+        if (s.score == null) return '<span class="badge badge--warning">Awaiting grade</span>';
+        return '';
+    }
+
+    function renderSubsTable() {
+        const body = document.getElementById('subs-body');
+        const sorted = sortSubs(subsRows);
+        const submittedCount = subsRows.filter(s => s.submitted).length;
+        const onTimeCount = subsRows.filter(s => s.submitted && s.on_time).length;
+
+        const th = (label, key) => {
+            const active = subsSort.key === key;
+            const arrow = active ? (subsSort.dir === 1 ? ' &uarr;' : ' &darr;') : '';
+            return `<th class="subs-th" data-sort="${key}" role="columnheader" tabindex="0" aria-sort="${active ? (subsSort.dir === 1 ? 'ascending' : 'descending') : 'none'}">${label}${active ? arrow : ''}</th>`;
+        };
+
+        body.innerHTML = `
+            <p class="text-muted subs-summary">${subsRows.length} student${subsRows.length === 1 ? '' : 's'} · ${submittedCount} submitted · ${onTimeCount} on time · ${subsRows.length - submittedCount} not submitted</p>
+            <div class="data-table subs-table">
+                <table>
+                    <thead><tr>
+                        ${th('Student', 'student_name')}
+                        <th>Index</th>
+                        ${th('Submitted', 'submitted_at')}
+                        <th>Status</th>
+                        ${th('Score', 'score')}
+                        <th>Grade</th>
+                    </tr></thead>
+                    <tbody>
+                    ${sorted.map(s => {
+                        const grade = s.letter_grade
+                            ? `<span class="grade-pill grade-pill--${statusTone(s)}">${s.letter_grade}</span>`
+                            : '<span class="text-muted">–</span>';
+                        const score = s.score != null
+                            ? `<span class="score-num score-num--${scoreTone(s.score)}">${s.score}%</span>`
+                            : '<span class="text-muted">–</span>';
+                        return `
+                        <tr class="subs-row" data-student-id="${s.student_id}" tabindex="0" role="button" aria-label="View submission for ${escapeHTML(s.student_name || '')}">
+                            <td><span class="subs-student">${s.student_name || 'Unknown student'}</span></td>
+                            <td><span class="mono-id">${s.student_index ? escapeHTML(s.student_index) : '—'}</span></td>
+                            <td class="subs-time">${s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</td>
+                            <td>${statusCell(s)}</td>
+                            <td>${score}</td>
+                            <td>${grade}</td>
+                        </tr>`;
+                    }).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+
+        body.querySelectorAll('.subs-th').forEach(thEl => {
+            thEl.addEventListener('click', () => {
+                const key = thEl.dataset.sort;
+                if (subsSort.key === key) subsSort.dir *= -1;
+                else subsSort = { key, dir: 1 };
+                renderSubsTable();
+            });
+            thEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); thEl.click(); }
+            });
+        });
+
+        body.querySelectorAll('.subs-row').forEach(row => {
+            const open = () => openSubDetail(sortSubs(subsRows).find(s => s.student_id === row.dataset.studentId));
+            row.addEventListener('click', open);
+            row.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+            });
+        });
+    }
+
+    function statusTone(s) {
+        if (!s.submitted) return 'none';
+        if (s.score == null) return 'pending';
+        const sc = s.score;
+        if (sc >= 70) return 'high';
+        if (sc >= 50) return 'mid';
+        return 'low';
+    }
+    function scoreTone(sc) {
+        if (sc >= 70) return 'high';
+        if (sc >= 50) return 'mid';
+        return 'low';
+    }
+
+    function openSubDetail(s) {
+        if (!s) return;
+        detailTitle.textContent = s.student_name || 'Submission detail';
+        const notSubmitted = !s.submitted;
+        const awaiting = !notSubmitted && s.score == null;
+        detailBody.innerHTML = `
+            <div class="detail-id-row">
+                <span class="mono-id">${s.student_index ? escapeHTML(s.student_index) : 'No index number'}</span>
+                <span class="badge ${notSubmitted ? 'badge--none' : (awaiting ? 'badge--warning' : 'badge--success')}">${notSubmitted ? 'Not submitted' : (awaiting ? 'Awaiting grade' : 'Graded')}</span>
+            </div>
+            ${notSubmitted ? `
+                <div class="detail-empty">
+                    <p>This student has not submitted an answer yet.</p>
+                </div>` : `
+                <div class="detail-grid">
+                    <div class="detail-field">
+                        <span class="detail-label">Submitted</span>
+                        <span class="detail-value">${s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</span>
+                    </div>
+                    <div class="detail-field">
+                        <span class="detail-label">Timing</span>
+                        <span class="detail-value ${s.on_time ? 'tone-ok' : 'tone-late'}">${s.on_time ? 'On time' : 'Late'}</span>
+                    </div>
+                    <div class="detail-field">
+                        <span class="detail-label">Score</span>
+                        <span class="detail-value">${s.score != null ? `${s.score}%` : '—'}</span>
+                    </div>
+                    <div class="detail-field">
+                        <span class="detail-label">Grade</span>
+                        <span class="detail-value">${s.letter_grade || '—'}</span>
+                    </div>
+                </div>
+                ${s.content ? `<div class="detail-block"><span class="detail-label">Answer</span><div class="detail-content">${escapeHTML(s.content)}</div></div>` : ''}
+                ${s.feedback ? `<div class="detail-block"><span class="detail-label">Feedback</span><div class="detail-feedback">${escapeHTML(s.feedback)}</div></div>` : ''}
+            `}
+        `;
+        detailModal.hidden = false;
+    }
+
     async function viewSubmissions(assignmentId, title) {
         document.getElementById('subs-title').textContent = title;
         const body = document.getElementById('subs-body');
@@ -445,30 +597,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         body.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading submissions…</p></div>';
         try {
             const data = await swrGet(`subs:${assignmentId}`, `${API_BASE}/api/assignments/${assignmentId}/submissions`);
-            const subs = data.submissions || [];
-            if (!subs.length) {
-                body.innerHTML = '<p class="text-muted">No submissions yet.</p>';
+            subsRows = data.submissions || [];
+            if (!subsRows.length) {
+                body.innerHTML = '<p class="text-muted">No students enrolled in this course yet.</p>';
                 return;
             }
-            const onTimeCount = subs.filter(s => s.on_time).length;
-            body.innerHTML = `
-                <p class="text-muted" style="margin-bottom: var(--s4)">${subs.length} submission${subs.length === 1 ? '' : 's'} · ${onTimeCount} on time</p>
-                ${subs.map(s => `
-                    <div class="sub-card">
-                        <div class="sub-head">
-                            <span class="sub-name">${s.student_name || s.student_id}</span>
-                            <div class="sub-head-right">
-                                ${s.letter_grade ? `<span class="badge badge--ontime">${s.letter_grade}</span>` : ''}
-                                <span class="badge ${s.on_time ? 'badge--ontime' : 'badge--none'}">${s.on_time ? 'On time' : 'Late'}</span>
-                            </div>
-                        </div>
-                        <div class="sub-time">Submitted ${s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '–'}</div>
-                        ${s.score != null ? `<div class="sub-grade">Score ${s.score}%</div>` : ''}
-                        ${s.feedback ? `<div class="sub-feedback">${s.feedback}</div>` : ''}
-                        <div class="sub-content">${s.content}</div>
-                    </div>
-                `).join('')}
-            `;
+            subsSort = { key: 'student_name', dir: 1 };
+            renderSubsTable();
         } catch (err) {
             body.innerHTML = '<p class="text-muted">Unable to load submissions.</p>';
             showToast('Unable to load submissions.', 'error');
@@ -478,7 +613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ── Load assignments list (unchanged) ────────────────────────────── */
     async function loadAssignments() {
         try {
-            const courses = await swrGet('catalog', `${API_BASE}/api/courses/`);
+            const courses = await swrGet('catalog', coursesEndpoint);
             if (!Array.isArray(courses) || !courses.length) {
                 listEl.innerHTML = '<p class="text-muted">No courses assigned yet.</p>';
                 return;

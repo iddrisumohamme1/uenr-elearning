@@ -119,6 +119,15 @@
   color: var(--text-secondary);
 }
 .course-meta i { color: var(--clr-primary-light); }
+.course-risk-line {
+  margin: 0.6rem 0 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.09);
+  color: #dc2626;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
 .course-actions {
   margin-top: auto;
   padding-top: 1rem;

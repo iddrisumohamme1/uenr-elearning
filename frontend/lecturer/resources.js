@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await swrGet(`resources:${courseId}`, `${API_BASE}/api/resources/course/${courseId}`);
             const resources = (data && data.resources) || [];
             if (!resources.length) {
-                publishedList.innerHTML = '<p class="text-muted">No published resources for this course yet. Run the press above to publish the first one.</p>';
+                publishedList.innerHTML = '<p class="text-muted">No published resources for this course yet.</p>';
                 return;
             }
             publishedList.innerHTML = resources.map(r => {
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (selectedCourseId) {
             loadMaterials(selectedCourseId);
             loadPublished(selectedCourseId);
-            genStatus.textContent = 'Choose a material, then pick a format.';
+            genStatus.textContent = '';
         } else {
             materialSelect.innerHTML = '<option value="" disabled selected>Select a course first</option>';
             genStatus.textContent = 'Pick a course to start.';
@@ -209,12 +209,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     generateBtn.addEventListener('click', async () => {
         if (!selectedCourseId || !selectedMaterialId) {
             showToast('Select a course and a material first.', 'warning');
-            genStatus.textContent = 'Select a course and a material first.';
+            genStatus.textContent = '';
             return;
         }
         generateBtn.disabled = true;
         generateBtn.textContent = 'Composing…';
-        genStatus.textContent = 'The press is running — this can take a few seconds.';
         preview.hidden = true;
         try {
             const res = await authFetch(`${API_BASE}/api/resources/generate`, {
@@ -238,14 +237,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 previewBody.textContent = data.content_text;
                 preview.hidden = false;
                 setStage(2);
-                genStatus.textContent = 'Proof ready — review it, then publish for your students.';
+                genStatus.textContent = 'Proof ready — review it, then publish .';
             } else {
-                genStatus.textContent = data.detail || 'AI generation failed. Try again.';
-                showToast(data.detail || 'AI generation failed. Try again.', 'error');
+                genStatus.textContent = data.detail || ' Generation failed. Try again.';
+                showToast(data.detail || 'Generation failed. Try again.', 'error');
             }
         } catch (err) {
-            genStatus.textContent = 'AI generation failed. Try again.';
-            showToast('AI generation failed. Try again.', 'error');
+            genStatus.textContent = 'Generation failed. Try again.';
+            showToast('Generation failed. Try again.', 'error');
         } finally {
             generateBtn.disabled = false;
             generateBtn.textContent = 'Generate preview';
@@ -265,7 +264,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 showToast('Published for students.', 'success');
-                genStatus.textContent = 'Published. Your students can read it now.';
                 preview.hidden = true;
                 pendingResource = null;
                 setStage(1);

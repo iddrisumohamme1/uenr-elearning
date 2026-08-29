@@ -49,9 +49,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const rows = Object.entries(deptSummary.by_course).map(([id, data]) => {
                     const info = courseMap[id];
                     const name = info ? `${info.code || 'N/A'} - ${info.title}` : id;
-                    const healthPct = data.total > 0 ? Math.round((data.high / data.total) * 100) : 0;
-                    const healthLabel = healthPct >= 60 ? 'Healthy' : healthPct >= 30 ? 'Moderate' : 'At Risk';
-                    const healthClass = healthPct >= 60 ? 'text-success' : healthPct >= 30 ? 'text-warning' : 'text-danger';
+                    const atRiskPct = data.total > 0 ? (data.at_risk / data.total) * 100 : 0;
+                    let healthLabel, healthClass;
+                    if (data.total === 0) {
+                        healthLabel = 'No data';
+                        healthClass = 'text-muted';
+                    } else if (atRiskPct >= 30) {
+                        healthLabel = 'At Risk';
+                        healthClass = 'text-danger';
+                    } else if (atRiskPct >= 10) {
+                        healthLabel = 'Moderate';
+                        healthClass = 'text-warning';
+                    } else {
+                        healthLabel = 'Healthy';
+                        healthClass = 'text-success';
+                    }
                     return `
                         <tr>
                             <td style="padding: 1rem">${name}</td>

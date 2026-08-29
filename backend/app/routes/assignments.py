@@ -680,18 +680,50 @@ def get_assignment_submissions(assignment_id: str, user=Depends(require_role("le
     try:
         subs_resp = with_retry(
             lambda c: c.table("assignment_submissions")
-            .select("id, student_id, content, submitted_at, score, letter_grade, feedback, users!student_id(full_name)")
+            .select("id, student_id, content, submitted_at, score, letter_grade, feedback, users!student_id(full_name, index_number, role)")
             .eq("assignment_id", assignment_id)
             .order("submitted_at", desc=True)
             .execute()
         )
         submissions = getattr(subs_resp, "data", []) or []
+        subs_by_student = {}
         for s in submissions:
             s["on_time"] = _is_on_time(s.get("submitted_at"), assignment.get("due_date"))
             name = s.get("users")
             if isinstance(name, dict):
                 s["student_name"] = name.get("full_name")
+                s["student_index"] = name.get("index_number")
             s.pop("users", None)
-        return {"assignment_id": assignment_id, "submissions": submissions}
+            subs_by_student[s.get("student_id")] = s
+
+        enrolled_resp = with_retry(
+            lambda c: c.table("enrollments")
+            .select("student_id, users!student_id(full_name, index_number, role)")
+            .eq("course_id", assignment["course_id"])
+            .execute()
+        )
+        enrolled = getattr(enrolled_resp, "data", []) or []
+
+        roster = []
+        for row in enrolled:
+            u = row.get("users") or {}
+            if u.get("role") not in (None, "student"):
+                continue
+            sid = row.get("student_id")
+            sub = subs_by_student.get(sid)
+            roster.append({
+                "id": sub.get("id") if sub else None,
+                "student_id": sid,
+                "student_name": u.get("full_name"),
+                "student_index": u.get("index_number"),
+                "submitted": bool(sub),
+                "submitted_at": sub.get("submitted_at") if sub else None,
+                "on_time": sub.get("on_time") if sub else None,
+                "score": sub.get("score") if sub else None,
+                "letter_grade": sub.get("letter_grade") if sub else None,
+                "feedback": sub.get("feedback") if sub else None,
+                "content": sub.get("content") if sub else None,
+            })
+        return {"assignment_id": assignment_id, "course_id": assignment["course_id"], "submissions": roster}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch submissions: {exc}")

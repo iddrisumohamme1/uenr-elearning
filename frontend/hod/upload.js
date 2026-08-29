@@ -1,13 +1,13 @@
 /*
-   LECTURER MATERIAL UPLOAD LOGIC
-   frontend/lecturer/upload.js
+   HOD MATERIAL UPLOAD LOGIC
+   frontend/hod/upload.js
    Loads courses from Supabase, handles single/multi-file upload via FastAPI backend.
    Features: drag-and-drop, file queue with per-file status, client-side validation,
    sequential XHR upload with progress, live-region announcements, upload-another modal.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = await requireSession('lecturer', 'hod').catch(() => null);
+    const user = await requireSession('hod').catch(() => null);
     if (!user) return;
     const token = getToken();
 

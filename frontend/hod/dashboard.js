@@ -17,8 +17,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const deptName = document.getElementById('dept-name');
     const statCourses = document.getElementById('stat-courses');
     const statStudents = document.getElementById('stat-students');
-    const statEngagement = document.getElementById('stat-engagement');
-    const statAtRisk = document.getElementById('stat-at-risk');
     const courseMetricsList = document.getElementById('course-metrics-list');
     const myClassesList = document.getElementById('my-classes-list');
     const myClassesSub = document.getElementById('my-classes-sub');
@@ -29,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const messageModal = document.getElementById('message-modal');
     let messageRecipient = null;
-    let engagementChart = null;
     let comprehensionChart = null;
 
     let deptCourses = [];
@@ -57,9 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     deptName.textContent = user.department || 'Department';
 
     const firstName = user.full_name ? user.full_name.split(' ')[0] : 'Head of Department';
-    const hour = new Date().getHours();
-    const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    document.getElementById('welcome-text').textContent = `${timeGreeting}, ${firstName}`;
+    document.getElementById('welcome-text').textContent = ghanaGreeting(firstName);
     document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
 
     attachLogout('logout-btn');
@@ -113,10 +108,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         captionEl.textContent = caption;
     }
 
-    function renderCharts(engagement, comprehension) {
-        const engCtx = document.getElementById('engagement-chart');
+    function renderCharts(comprehension) {
         const compCtx = document.getElementById('comprehension-chart');
-        if (!engCtx || !compCtx || typeof Chart === 'undefined') return;
+        if (!compCtx || typeof Chart === 'undefined') return;
 
         const chartFont = { family: "'Inter', sans-serif", weight: '600' };
         const baseOptions = {
@@ -131,29 +125,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        if (engagementChart) engagementChart.destroy();
         if (comprehensionChart) comprehensionChart.destroy();
 
-        const engData = (engagement && typeof engagement === 'object')
-            ? [engagement.at_risk?.count || 0, engagement.moderate?.count || 0, engagement.highly_engaged?.count || 0]
-            : [0, 0, 0];
         const compData = (comprehension && typeof comprehension === 'object')
             ? [comprehension.low?.count || 0, comprehension.moderate?.count || 0, comprehension.good?.count || 0]
             : [0, 0, 0];
-
-        engagementChart = new Chart(engCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['At Risk', 'Moderate', 'Engaged'],
-                datasets: [{
-                    data: engData,
-                    backgroundColor: ['#ef4444', '#f59e0b', '#06b6d4'],
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }]
-            },
-            options: { ...baseOptions }
-        });
 
         comprehensionChart = new Chart(compCtx, {
             type: 'doughnut',
@@ -231,31 +207,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sev = severityClass(row);
         const lit = sev === 'low' ? 1 : sev === 'mod' ? 2 : 3;
         return `
-            <div class="attention-row" data-sev="${sev}">
-                <span class="attention-ring" aria-hidden="true"></span>
-                <div class="attention-main">
-                    <div class="attention-name">${escapeHTML(displayName)}</div>
-                    <div class="attention-meta">
-                        <span class="meta-readout">${flagAgeLabel(row.created_at)}</span>
-                        ${quizReadout(row.latest_quiz_score)}
-                        <span class="meta-readout">${row.reading_minutes ? `read ${Math.round(row.reading_minutes)} min` : 'no reading logged'}</span>
-                        <span class="meta-readout">${idleLabel(row.days_since_last_activity)}</span>
+            <tr class="attention-row" data-sev="${sev}">
+                <td class="student-cell">
+                    <span class="attention-ring" aria-hidden="true"></span>
+                    ${escapeHTML(displayName)}
+                </td>
+                <td class="status-cell">${flagAgeLabel(row.created_at)}</td>
+                <td>${quizReadout(row.latest_quiz_score)}</td>
+                <td>${row.reading_minutes ? `${Math.round(row.reading_minutes)} min` : '—'}</td>
+                <td>${idleLabel(row.days_since_last_activity)}</td>
+                <td aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
+                    <div class="attention-comp">
+                        <div class="comp-meter">
+                            <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
+                            <span class="comp-seg ${2 <= lit ? 'is-on' : ''}"></span>
+                            <span class="comp-seg ${3 <= lit ? 'is-on' : ''}"></span>
+                        </div>
+                        <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
                     </div>
-                </div>
-                <div class="attention-comp" aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
-                    <div class="comp-meter">
-                        <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
-                        <span class="comp-seg ${2 <= lit ? 'is-on' : ''}"></span>
-                        <span class="comp-seg ${3 <= lit ? 'is-on' : ''}"></span>
-                    </div>
-                    <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
-                </div>
-                <button class="attention-action btn-msg"
-                    data-name="${escapeHTML(displayName)}"
-                    data-id="${row.student_id}"
-                    data-course="${escapeHTML(courseLabel)}"
-                    data-course-id="${row.course_id}">Reach out</button>
-            </div>
+                </td>
+                <td class="col-action">
+                    <button class="attention-action btn-msg"
+                        data-name="${escapeHTML(displayName)}"
+                        data-id="${row.student_id}"
+                        data-course="${escapeHTML(courseLabel)}"
+                        data-course-id="${row.course_id}">Reach out</button>
+                </td>
+            </tr>
         `;
     }
 
@@ -318,13 +296,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             const riskPct = c.total > 0 ? (c.at_risk / c.total) * 100 : 0;
             const modPct = c.total > 0 ? (c.moderate / c.total) * 100 : 0;
             const goodPct = c.total > 0 ? (c.high / c.total) * 100 : 0;
-            const healthPct = Math.round(goodPct);
-            const healthClass = healthPct >= 60 ? 'success' : healthPct >= 30 ? 'warning' : 'danger';
+            const atRiskPct = c.total > 0 ? (c.at_risk / c.total) * 100 : 0;
+            let healthLabel, healthClass;
+            if (c.total === 0) {
+                healthLabel = 'No data';
+                healthClass = 'muted';
+            } else if (atRiskPct >= 30) {
+                healthLabel = 'At Risk';
+                healthClass = 'danger';
+            } else if (atRiskPct >= 10) {
+                healthLabel = 'Moderate';
+                healthClass = 'warning';
+            } else {
+                healthLabel = 'Healthy';
+                healthClass = 'success';
+            }
             return `
                 <div class="metric-item">
                     <div class="metric-head">
                         <span class="metric-name">${escapeHTML(name)}</span>
-                        <span class="metric-health metric-health--${healthClass}">${healthPct}% healthy</span>
+                        <span class="metric-health metric-health--${healthClass}">${healthLabel}</span>
                     </div>
                     <div class="metric-bar" role="img" aria-label="Engagement split for ${escapeHTML(name)}">
                         <span class="metric-seg metric-seg--risk" style="width:${riskPct}%"></span>
@@ -335,7 +326,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span>AT RISK <b>${c.at_risk}</b></span>
                         <span>MODERATE <b>${c.moderate}</b></span>
                         <span>HIGH <b>${c.high}</b></span>
-                        <span>LOGS <b>${c.total}</b></span>
+                        <span>STUDENTS <b>${c.total}</b></span>
                     </div>
                 </div>
             `;
@@ -416,7 +407,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <h4 class="queue-course-title">${escapeHTML(g.label.split(' · ').slice(1).join(' · '))}</h4>
                             <span class="queue-course-count">${g.students.length} flagged</span>
                         </div>
-                        ${g.students.map(row => renderAttentionRow(row, g.label)).join('')}
+                        <div class="data-table queue-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Flagged</th>
+                                        <th>Quiz</th>
+                                        <th>Reading</th>
+                                        <th>Activity</th>
+                                        <th>Comprehension</th>
+                                        <th class="col-action"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>${g.students.map(row => renderAttentionRow(row, g.label)).join('')}</tbody>
+                            </table>
+                        </div>
                     </div>
                 `).join('');
 
@@ -435,32 +441,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             ]);
 
             statCourses.textContent = Array.isArray(courses) ? courses.length : 0;
-            statStudents.textContent = (deptSummary && deptSummary.unique_students) || 0;
+            statStudents.textContent = (deptSummary && deptSummary.total_students) || 0;
 
             if (deptSummary && deptSummary.total_records > 0) {
                 const eng = deptSummary.department_engagement || {};
                 const atRisk = eng.at_risk?.count || 0;
                 const moderate = eng.moderate?.count || 0;
                 const high = eng.highly_engaged?.count || 0;
-                const total = deptSummary.total_records;
+                const total = deptSummary.classified_students || atRisk + moderate + high;
 
                 setDeptPulse(atRisk, moderate, high, total,
                     atRisk > 0
                         ? `${atRisk} student${atRisk === 1 ? '' : 's'} across the department need attention right now.`
                         : 'All students across the department are keeping pace.');
-
-                const moderatePct = eng.moderate?.pct || 0;
-                const highPct = eng.highly_engaged?.pct || 0;
-                statEngagement.textContent = `${Math.round((moderatePct + highPct * 2) / 2)}%`;
-                statAtRisk.textContent = String(atRisk);
             } else {
                 setDeptPulse(0, 0, 0, 0, 'No engagement data yet. When students start learning, their pulse will show here.');
-                statEngagement.textContent = '0%';
-                statAtRisk.textContent = '0';
             }
 
             renderCharts(
-                deptSummary ? deptSummary.department_engagement : null,
                 deptSummary ? deptSummary.department_comprehension : null
             );
 
@@ -531,8 +529,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('HOD dashboard error:', err);
             statCourses.textContent = '--';
             statStudents.textContent = '--';
-            statEngagement.textContent = '--%';
-            statAtRisk.textContent = '--';
             courseMetricsList.innerHTML = '<p class="text-muted">Unable to load analytics.</p>';
             myClassesList.innerHTML = '<p class="text-muted">Unable to load your classes.</p>';
             attentionCount.textContent = '--';

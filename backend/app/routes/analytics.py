@@ -14,6 +14,25 @@ from app.routes.study import _predict_percentage, _quiz_stats, _attendance_stats
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
+def latest_per_student(rows, key):
+    """
+    Reduces classification rows to ONE entry per student, keeping their most
+    recent classification (rows arrive unsorted). Used so every chart/card
+    counts unique students rather than raw log rows — a student who triggered
+    /auto-classify across several sessions otherwise gets counted multiple
+    times. Null classifications (heartbeat ticks) are ignored.
+    """
+    latest = {}
+    for r in rows:
+        sid = r.get("student_id")
+        if not sid or r.get(key) is None:
+            continue
+        ts = r.get("created_at") or ""
+        if sid not in latest or ts > latest[sid][0]:
+            latest[sid] = (ts, r[key])
+    return latest
+
+
 # ─── Lecturer Analytics ───────────────────────────────────────────────────────
 
 @router.get("/course/{course_id}/summary")
@@ -56,18 +75,28 @@ def course_summary(course_id: str, user=Depends(get_current_user)):
     if not logs:
         return {"course_id": course_id, "total_students": 0, "summary": {}}
 
-    total     = len(logs)
-    at_risk   = sum(1 for r in logs if r["engagement_class"] == 0)
-    moderate  = sum(1 for r in logs if r["engagement_class"] == 1)
-    high      = sum(1 for r in logs if r["engagement_class"] == 2)
-    low_comp  = sum(1 for r in logs if r["comprehension_class"] == 0)
-    mod_comp  = sum(1 for r in logs if r["comprehension_class"] == 1)
-    good_comp = sum(1 for r in logs if r["comprehension_class"] == 2)
-    student_ids = {record["student_id"] for record in logs if record.get("student_id")}
+    # Only rows carrying a genuine Two-Tower classification count here.
+    # /api/engagement/log writes NULL classes for heartbeat ticks, so
+    # ignoring NULL keeps the chart free of placeholder "Moderate" rows.
+    # The counts below are per-STUDENT (not per-row): each student is
+    # counted once, using their latest classification, so a student who
+    # triggered /auto-classify across several sessions isn't double-counted.
+    eng_latest = latest_per_student(logs, "engagement_class")
+    comp_latest = latest_per_student(logs, "comprehension_class")
+
+    total      = len(eng_latest)
+    at_risk    = sum(1 for v in eng_latest.values() if v[1] == 0)
+    moderate   = sum(1 for v in eng_latest.values() if v[1] == 1)
+    high       = sum(1 for v in eng_latest.values() if v[1] == 2)
+    comp_total = len(comp_latest)
+    low_comp   = sum(1 for v in comp_latest.values() if v[1] == 0)
+    mod_comp   = sum(1 for v in comp_latest.values() if v[1] == 1)
+    good_comp  = sum(1 for v in comp_latest.values() if v[1] == 2)
+    student_ids = set(eng_latest) | set(comp_latest)
 
     return {
         "course_id": course_id,
-        "total_logs": total,
+        "total_logs": len(logs),
         "unique_students": len(student_ids),
         "engagement": {
             "at_risk":   {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
@@ -75,9 +104,9 @@ def course_summary(course_id: str, user=Depends(get_current_user)):
             "highly_engaged": {"count": high,"pct": round(high     / total * 100, 1)},
         },
         "comprehension": {
-            "low":      {"count": low_comp,  "pct": round(low_comp  / total * 100, 1)},
-            "moderate": {"count": mod_comp,  "pct": round(mod_comp  / total * 100, 1)},
-            "good":     {"count": good_comp, "pct": round(good_comp / total * 100, 1)},
+            "low":      {"count": low_comp,  "pct": round(low_comp  / comp_total * 100, 1)},
+            "moderate": {"count": mod_comp,  "pct": round(mod_comp  / comp_total * 100, 1)},
+            "good":     {"count": good_comp, "pct": round(good_comp / comp_total * 100, 1)},
         },
     }
 
@@ -118,6 +147,19 @@ def course_at_risk(course_id: str, user=Depends(get_current_user)):
             .execute()
         )
         students = resp.data
+
+        # Reduce to the LATEST at-risk row per student so the queue lists each
+        # flagged student once (matching the distinct-student pulse card).
+        # Rows arrive newest-first, so the first hit per student is the newest.
+        latest = {}
+        seen = set()
+        for s in students or []:
+            sid = s.get("student_id")
+            if not sid or sid in seen:
+                continue
+            seen.add(sid)
+            latest[sid] = s
+        students = list(latest.values())
 
         # Enrich with student names so the lecturer dashboard can show who needs help.
         student_ids = list({s.get("student_id") for s in students if s.get("student_id")})
@@ -261,6 +303,20 @@ def department_summary(user=Depends(require_role("hod"))):
 
     admin = get_admin_client()
 
+    # Total registered students in the department — mirrors the Students page
+    # roster (/api/users/students) so the dashboard count matches the roster.
+    try:
+        students_resp = with_retry(
+            lambda c: c.table("users")
+            .select("id")
+            .eq("role", "student")
+            .eq("department", user["department"])
+            .execute()
+        )
+        total_students = len(getattr(students_resp, "data", []) or [])
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to count department students: {exc}")
+
     # Get courses in the HOD's department
     try:
         courses_resp = with_retry(
@@ -274,7 +330,7 @@ def department_summary(user=Depends(require_role("hod"))):
         raise HTTPException(status_code=500, detail=f"Failed to query department courses: {exc}")
 
     if not dept_courses:
-        return {"total_records": 0, "department_engagement": {}, "by_course": {}}
+        return {"total_records": 0, "total_students": total_students, "department_engagement": {}, "by_course": {}}
 
     course_ids = [c["id"] for c in dept_courses]
 
@@ -284,7 +340,7 @@ def department_summary(user=Depends(require_role("hod"))):
         try:
             resp = with_retry(
                 lambda c, cid=cid: c.table("engagement_logs")
-                .select("course_id, student_id, engagement_class, comprehension_class")
+                .select("course_id, student_id, engagement_class, comprehension_class, created_at")
                 .eq("course_id", cid)
                 .execute()
             )
@@ -294,43 +350,172 @@ def department_summary(user=Depends(require_role("hod"))):
             continue
 
     if not all_logs:
-        return {"total_records": 0, "department_engagement": {}, "by_course": {}}
+        return {"total_records": 0, "total_students": total_students, "department_engagement": {}, "by_course": {}}
 
-    total    = len(all_logs)
-    at_risk  = sum(1 for r in all_logs if r["engagement_class"] == 0)
-    moderate = sum(1 for r in all_logs if r["engagement_class"] == 1)
-    high     = sum(1 for r in all_logs if r["engagement_class"] == 2)
-    comp_low  = sum(1 for r in all_logs if r["comprehension_class"] == 0)
-    comp_mod  = sum(1 for r in all_logs if r["comprehension_class"] == 1)
-    comp_good = sum(1 for r in all_logs if r["comprehension_class"] == 2)
-    unique_students = len({r.get("student_id") for r in all_logs if r.get("student_id")})
+    # ── Per-student latest classification (NOT raw rows) ────────────────────
+    # A student who triggered /auto-classify across several sessions (or is
+    # at-risk in more than one course) must count only once, using their latest
+    # classification. This mirrors course_summary and course_at_risk, so the
+    # department pulse, legend and the Attention Queue read the same numbers.
+    total_records = sum(1 for r in all_logs if r.get("engagement_class") is not None)
 
-    # Per-course breakdown
-    by_course = defaultdict(lambda: {"at_risk": 0, "moderate": 0, "high": 0, "total": 0})
+    # Per-course reduction — a student is counted once per course they're in.
+    by_course_rows = defaultdict(list)
     for r in all_logs:
-        cid = r["course_id"]
-        by_course[cid]["total"] += 1
-        if r["engagement_class"] == 0:
-            by_course[cid]["at_risk"] += 1
-        elif r["engagement_class"] == 1:
-            by_course[cid]["moderate"] += 1
-        else:
-            by_course[cid]["high"] += 1
+        cid = r.get("course_id")
+        if cid:
+            by_course_rows[cid].append(r)
+
+    by_course = {}
+    for cid, rows in by_course_rows.items():
+        eng = latest_per_student(rows, "engagement_class")
+        by_course[cid] = {
+            "at_risk":  sum(1 for v in eng.values() if v[1] == 0),
+            "moderate": sum(1 for v in eng.values() if v[1] == 1),
+            "high":     sum(1 for v in eng.values() if v[1] == 2),
+            "total":    len(eng),
+        }
+
+    # Department-wide reduction — unique students across all logged classes,
+    # their single latest classification wins.
+    eng_latest = latest_per_student(all_logs, "engagement_class")
+    comp_latest = latest_per_student(all_logs, "comprehension_class")
+
+    classified_students = len(eng_latest)
+    at_risk   = sum(1 for v in eng_latest.values() if v[1] == 0)
+    moderate  = sum(1 for v in eng_latest.values() if v[1] == 1)
+    high      = sum(1 for v in eng_latest.values() if v[1] == 2)
+    comp_low  = sum(1 for v in comp_latest.values() if v[1] == 0)
+    comp_mod  = sum(1 for v in comp_latest.values() if v[1] == 1)
+    comp_good = sum(1 for v in comp_latest.values() if v[1] == 2)
+    unique_students = len(set(eng_latest) | set(comp_latest))
+
+    def _pct(count, denom):
+        return round(count / denom * 100, 1) if denom else 0
 
     return {
-        "total_records": total,
+        "total_records": total_records,
+        "classified_students": classified_students,
+        "total_students": total_students,
         "unique_students": unique_students,
         "department_engagement": {
-            "at_risk":  {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
-            "moderate": {"count": moderate, "pct": round(moderate / total * 100, 1)},
-            "highly_engaged": {"count": high,"pct": round(high    / total * 100, 1)},
+            "at_risk":  {"count": at_risk,  "pct": _pct(at_risk,  classified_students)},
+            "moderate": {"count": moderate, "pct": _pct(moderate, classified_students)},
+            "highly_engaged": {"count": high,"pct": _pct(high,    classified_students)},
         },
         "department_comprehension": {
-            "low":      {"count": comp_low,  "pct": round(comp_low  / total * 100, 1)},
-            "moderate": {"count": comp_mod,  "pct": round(comp_mod  / total * 100, 1)},
-            "good":     {"count": comp_good, "pct": round(comp_good / total * 100, 1)},
+            "low":      {"count": comp_low,  "pct": _pct(comp_low,  len(comp_latest))},
+            "moderate": {"count": comp_mod,  "pct": _pct(comp_mod,  len(comp_latest))},
+            "good":     {"count": comp_good, "pct": _pct(comp_good, len(comp_latest))},
         },
-        "by_course": dict(by_course),
+        "by_course": by_course,
+    }
+
+# ─── Lecturer Analytics ──────────────────────────────────────────────────────
+
+@router.get("/lecturer/summary")
+def lecturer_summary(user=Depends(require_role("lecturer", "hod"))):
+    """
+    Aggregated engagement + comprehension across the logged-in lecturer's own
+    courses. Every count is per-STUDENT: a student taking several of your
+    courses is counted ONCE, using their single latest classification —
+    mirroring the HOD department summary so the pulse, charts and "Total
+    Students" tile read the same distinct-student numbers.
+    """
+    admin = get_admin_client()
+
+    # Courses taught by this lecturer
+    try:
+        courses_resp = with_retry(
+            lambda c: c.table("courses")
+            .select("id")
+            .eq("lecturer_id", user["id"])
+            .execute()
+        )
+        my_courses = getattr(courses_resp, "data", []) or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query lecturer courses: {exc}")
+
+    course_ids = [c["id"] for c in my_courses]
+
+    # Total enrolled students (roster) — distinct across all my courses.
+    total_students = 0
+    if course_ids:
+        enrolled_ids = set()
+        for cid in course_ids:
+            try:
+                enroll_resp = with_retry(
+                    lambda c, cid=cid: c.table("enrollments")
+                    .select("student_id")
+                    .eq("course_id", cid)
+                    .execute()
+                )
+                for row in (getattr(enroll_resp, "data", []) or []):
+                    if row.get("student_id"):
+                        enrolled_ids.add(row["student_id"])
+            except Exception:
+                continue
+        total_students = len(enrolled_ids)
+
+    if not course_ids:
+        return {
+            "total_records": 0,
+            "total_students": total_students,
+            "classified_students": 0,
+            "unique_students": 0,
+            "total_courses": 0,
+            "engagement": {},
+            "comprehension": {},
+        }
+
+    # Engagement logs across my courses
+    all_logs = []
+    for cid in course_ids:
+        try:
+            resp = with_retry(
+                lambda c, cid=cid: c.table("engagement_logs")
+                .select("student_id, engagement_class, comprehension_class, created_at")
+                .eq("course_id", cid)
+                .execute()
+            )
+            all_logs.extend(getattr(resp, "data", []) or [])
+        except Exception:
+            continue
+
+    total_records = sum(1 for r in all_logs if r.get("engagement_class") is not None)
+
+    # Per-student latest classification (NOT raw rows) across all my courses —
+    # a student flagged in more than one course still counts only once.
+    eng_latest = latest_per_student(all_logs, "engagement_class")
+    comp_latest = latest_per_student(all_logs, "comprehension_class")
+
+    classified_students = len(eng_latest)
+    at_risk   = sum(1 for v in eng_latest.values() if v[1] == 0)
+    moderate  = sum(1 for v in eng_latest.values() if v[1] == 1)
+    high      = sum(1 for v in eng_latest.values() if v[1] == 2)
+    comp_low  = sum(1 for v in comp_latest.values() if v[1] == 0)
+    comp_mod  = sum(1 for v in comp_latest.values() if v[1] == 1)
+    comp_good = sum(1 for v in comp_latest.values() if v[1] == 2)
+
+    def _pct(count, denom):
+        return round(count / denom * 100, 1) if denom else 0
+
+    return {
+        "total_records": total_records,
+        "total_students": total_students,
+        "classified_students": classified_students,
+        "unique_students": len(set(eng_latest) | set(comp_latest)),
+        "total_courses": len(course_ids),
+        "engagement": {
+            "at_risk":  {"count": at_risk,  "pct": _pct(at_risk,  classified_students)},
+            "moderate": {"count": moderate, "pct": _pct(moderate, classified_students)},
+            "highly_engaged": {"count": high,"pct": _pct(high,     classified_students)},
+        },
+        "comprehension": {
+            "low":      {"count": comp_low,  "pct": _pct(comp_low,  len(comp_latest))},
+            "moderate": {"count": comp_mod,  "pct": _pct(comp_mod,  len(comp_latest))},
+            "good":     {"count": comp_good, "pct": _pct(comp_good, len(comp_latest))},
+        },
     }
 
 @router.get("/predict-grade/{student_id}/{course_id}")

@@ -21,6 +21,18 @@ _AUTH_CACHE: dict[str, tuple[float, dict]] = {}
 _AUTH_CACHE_TTL_S = 10
 
 
+def invalidate_user_cache(user_id: str):
+    """Drop cached profile rows for the given user.
+
+    Called after a self-served profile update so a subsequent
+    get_current_user returns fresh data instead of a stale row.
+    """
+    for key in list(_AUTH_CACHE.keys()):
+        _, profile = _AUTH_CACHE[key]
+        if profile and profile.get("id") == user_id:
+            _AUTH_CACHE.pop(key, None)
+
+
 def get_current_user(authorization: str = Header(default="")):
     """Validate the bearer token and return the user's profile row."""
     if not authorization.startswith("Bearer "):

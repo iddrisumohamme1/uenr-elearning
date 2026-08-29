@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - UENR E-Learning</title>
+    <link rel="stylesheet" href="../shared/variables.css">
+    <link rel="stylesheet" href="../shared/reset.css">
+    <link rel="stylesheet" href="../shared/typography.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/profile-popup.css">
+    <link rel="stylesheet" href="../shared/spinner.css">
+    <link rel="stylesheet" href="../shared/sidebar.css">
+    <link rel="stylesheet" href="../shared/toast.css">
+    <link rel="stylesheet" href="settings.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="../shared/theme.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Settings</h1>
+                <div class="user-profile">
+                    <div class="avatar">U</div>
+                </div>
+            </header>
+
+            <div class="settings-body">
+                <!-- Identity card: the signature element. Echoes a university ID card. -->
+                <section class="id-card" id="id-card">
+                    <div class="id-card-thumb" id="id-avatar-wrap" title="Change photo" role="button" tabindex="0" aria-label="Change profile photo">
+                        <img id="id-avatar-img" class="id-avatar-img" style="display:none" alt="Profile photo">
+                        <span id="id-avatar-text" class="id-avatar-initial">U</span>
+                        <div class="id-avatar-overlay"><i class="bi bi-camera-fill"></i><span>Change</span></div>
+                        <input type="file" id="id-avatar-input" accept="image/*" hidden>
+                    </div>
+                    <div class="id-card-info">
+                        <span class="id-role" id="id-role">student</span>
+                        <h2 class="id-name" id="id-full-name">Name</h2>
+                        <ul class="id-meta">
+                            <li><span class="id-meta-key">ID</span><span class="id-meta-val" id="id-index">—</span></li>
+                            <li><span class="id-meta-key">Dept</span><span class="id-meta-val" id="id-dept">—</span></li>
+                            <li><span class="id-meta-key">Email</span><span class="id-meta-val" id="id-email">—</span></li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Profile record: a read-only "about" ledger that flips to
+                     an edit form. Shown as a record by default; clicking Edit
+                     reveals the form; saving returns to the updated record. -->
+                <section class="settings-card" id="settings-card">
+
+                    <!-- ── View: the record ledger ─────────────────────────── -->
+                    <div class="record-view" id="record-view">
+                        <div class="settings-card-head record-head">
+                            <div>
+                                <h2>About</h2>
+                                <p class="settings-card-sub">Your profile as it appears on your account record.</p>
+                            </div>
+                            <button type="button" class="btn-ghost btn-edit" id="edit-btn">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                        </div>
+
+                        <dl class="record-list">
+                            <div class="record-row">
+                                <dt>Full name</dt>
+                                <dd id="rv-name">—</dd>
+                            </div>
+                            <div class="record-row">
+                                <dt id="rv-id-label">Index number</dt>
+                                <dd id="rv-id" class="rv-id-val">—</dd>
+                            </div>
+                            <div class="record-row">
+                                <dt>Department</dt>
+                                <dd id="rv-dept">—</dd>
+                            </div>
+                            <div class="record-row">
+                                <dt>Date of birth</dt>
+                                <dd id="rv-dob">—</dd>
+                            </div>
+                            <div class="record-row">
+                                <dt>Phone</dt>
+                                <dd id="rv-phone">—</dd>
+                            </div>
+                            <div class="record-row">
+                                <dt>Email</dt>
+                                <dd id="rv-email">—</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <!-- ── Edit: the form (hidden by default) ──────────────── -->
+                    <div class="record-edit" id="record-edit" hidden>
+                        <div class="settings-card-head record-head">
+                            <div>
+                                <h2>Edit profile</h2>
+                                <p class="settings-card-sub">Email is managed by your institution and can't be changed here.</p>
+                            </div>
+                            <button type="button" class="btn-quiet btn-cancel" id="cancel-btn">
+                                <i class="bi bi-x-lg"></i> Cancel
+                            </button>
+                        </div>
+
+                        <form id="profile-form" autocomplete="off" novalidate>
+                            <div class="form-group">
+                                <label class="form-label" for="full_name">Full Name</label>
+                                <input type="text" class="form-input" id="full_name" name="full_name" placeholder="Your full name" required>
+                                <small class="field-error" id="full_name-error"></small>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="email">Email Address</label>
+                                <input type="email" class="form-input" id="email" name="email" readonly disabled>
+                                <small class="field-help">Email cannot be changed here.</small>
+                            </div>
+
+                            <!-- Role-appropriate identifier -->
+                            <div class="form-group id-field" id="index-group">
+                                <label class="form-label" for="index_number" id="index-label">Index Number</label>
+                                <input type="text" class="form-input id-input" id="index_number" name="index_number" placeholder="e.g. UEB3503022" autocomplete="off">
+                                <small class="field-error" id="index_number-error"></small>
+                            </div>
+
+                            <div class="form-group id-field" id="staff-group" hidden>
+                                <label class="form-label" for="staff_id" id="staff-label">Staff ID</label>
+                                <input type="text" class="form-input id-input" id="staff_id" name="staff_id" placeholder="e.g. UENR/ST/2024/0001" autocomplete="off">
+                                <small class="field-error" id="staff_id-error"></small>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="date_of_birth">Date of Birth</label>
+                                    <input type="date" class="form-input" id="date_of_birth" name="date_of_birth">
+                                    <small class="field-error" id="date_of_birth-error"></small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="phone">Phone</label>
+                                    <input type="tel" class="form-input" id="phone" name="phone" placeholder="+233 20 000 0000" autocomplete="off">
+                                    <small class="field-error" id="phone-error"></small>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-auth btn-save" id="save-btn">
+                                <i class="bi bi-check2-circle"></i> Save changes
+                            </button>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="../shared/sidebar.js"></script>
+    <script src="../shared/session.js"></script>
+    <script src="../shared/profile-popup.js"></script>
+    <script src="../shared/toast.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

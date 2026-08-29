@@ -230,4 +230,27 @@ async function initNavBadges() {
     }
 }
 
+/**
+ * Timezone-aware greeting rendered on the role dashboards. The platform
+ * serves Ghanaian students, so the greeting is computed from the Africa/Accra
+ * clock rather than the visitor's local time — a machine set to another
+ * timezone previously showed "Good afternoon" at Ghanaian midnight.
+ * Falls back to local time when Intl timezone data is unavailable.
+ */
+function ghanaGreeting(firstName = '') {
+    let hour;
+    try {
+        hour = Number(new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Africa/Accra',
+            hour: 'numeric',
+            hourCycle: 'h23',
+        }).format(new Date()));
+    } catch (_) {
+        hour = new Date().getHours();
+    }
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const name = String(firstName || '').trim();
+    return name ? `${greeting}, ${name}` : greeting;
+}
+
 document.addEventListener('DOMContentLoaded', initNavBadges);

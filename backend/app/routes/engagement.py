@@ -159,10 +159,13 @@ def log_engagement(payload: MaterialEngagementLog, user=Depends(get_current_user
                     "video_coverage_pct": payload.video_coverage_pct,
                     "engagement_score": score,
                     "engagement_level": level,
-                    "engagement_class": 1,
-                    "engagement_label": level,
-                    "comprehension_class": 1,
-                    "comprehension_label": "Moderate",
+                    # Model classification is intentionally left NULL here. The
+                    # Two-Tower classes only get populated by /auto-classify, so
+                    # lecturer/HOD aggregations don't count placeholder heartbeats.
+                    "engagement_class": None,
+                    "engagement_label": None,
+                    "comprehension_class": None,
+                    "comprehension_label": None,
                 }
             )
             .execute()

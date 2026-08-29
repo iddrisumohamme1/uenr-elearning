@@ -20,8 +20,13 @@
         hod: [
             { folder: 'hod', file: 'dashboard.html', icon: 'bi-house-door', label: 'Overview' },
             { folder: 'hod', file: 'department_courses.html', icon: 'bi-journal-text', label: 'Courses' },
+            { folder: 'hod', file: 'students.html', icon: 'bi-people', label: 'Students' },
+            { folder: 'lecturer', file: 'my_courses.html', icon: 'bi-journal-bookmark', label: 'My Classes' },
             { folder: 'hod', file: 'create_course.html', icon: 'bi-plus-circle', label: 'Add Course' },
             { folder: 'hod', file: 'upload.html', icon: 'bi-cloud-arrow-up', label: 'Upload Material' },
+            { folder: 'lecturer', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
+            { folder: 'lecturer', file: 'resources.html', icon: 'bi-lightbulb', label: 'Study Resources' },
+            { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
         lecturer: [
             { folder: 'lecturer', file: 'dashboard.html', icon: 'bi-house-door', label: 'Dashboard' },
@@ -29,6 +34,7 @@
             { folder: 'lecturer', file: 'my_courses.html', icon: 'bi-journal-bookmark', label: 'My Courses' },
             { folder: 'lecturer', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
             { folder: 'lecturer', file: 'resources.html', icon: 'bi-lightbulb', label: 'Study Resources' },
+            { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
         student: [
             { folder: 'student', file: 'dashboard.html', icon: 'bi-house-door', label: 'Dashboard' },
@@ -39,6 +45,7 @@
             { folder: 'student', file: 'inbox.html', icon: 'bi-inbox', label: 'Inbox' },
             { folder: 'recommendations', file: 'recommendations.html', icon: 'bi-stars', label: 'Recommendations' },
             { folder: 'analytics', file: 'analytics.html', icon: 'bi-graph-up-arrow', label: 'Performance' },
+            { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
     };
 

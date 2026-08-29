@@ -13,9 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
 
     const firstName = user.full_name ? user.full_name.split(' ')[0] : 'Lecturer';
-    const hour = new Date().getHours();
-    const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    document.getElementById('welcome-text').textContent = `${timeGreeting}, ${firstName}`;
+    document.getElementById('welcome-text').textContent = ghanaGreeting(firstName);
     document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
 
     const pulseScoreEl = document.getElementById('pulse-score');
@@ -29,13 +27,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const legendEngaged = document.getElementById('legend-eng');
     const totalStudentsEl = document.getElementById('total-students');
     const totalCoursesEl = document.getElementById('total-courses');
-    const criticalStudentsEl = document.getElementById('critical-students');
     const queueBody = document.getElementById('queue-body');
     const cohortStrip = document.getElementById('cohort-strip');
     const attentionCount = document.getElementById('attention-count');
     const attentionCountSub = document.getElementById('attention-count-sub');
 
-    let engagementChart = null;
     let comprehensionChart = null;
 
     attachLogout('logout-btn');
@@ -132,10 +128,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         pulseCaption.textContent = caption || 'Reach out to the students flagged below.';
     }
 
-    function renderCharts(engagementCounts, comprehensionCounts) {
-        const engCtx = document.getElementById('engagement-chart');
+    function renderCharts(comprehensionCounts) {
         const compCtx = document.getElementById('comprehension-chart');
-        if (!engCtx || !compCtx || typeof Chart === 'undefined') return;
+        if (!compCtx || typeof Chart === 'undefined') return;
 
         const chartFont = { family: "'Inter', sans-serif", weight: '600' };
         const baseOptions = {
@@ -150,22 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        if (engagementChart) engagementChart.destroy();
         if (comprehensionChart) comprehensionChart.destroy();
-
-        engagementChart = new Chart(engCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['At Risk', 'Moderate', 'Engaged'],
-                datasets: [{
-                    data: [engagementCounts.atRisk, engagementCounts.moderate, engagementCounts.highlyEngaged],
-                    backgroundColor: ['#ef4444', '#f59e0b', '#06b6d4'],
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }]
-            },
-            options: { ...baseOptions }
-        });
 
         comprehensionChart = new Chart(compCtx, {
             type: 'doughnut',
@@ -243,31 +223,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sev = severityClass(row);
         const lit = sev === 'low' ? 1 : sev === 'mod' ? 2 : 3;
         return `
-            <div class="attention-row" data-sev="${sev}">
-                <span class="attention-ring" aria-hidden="true"></span>
-                <div class="attention-main">
-                    <div class="attention-name">${escapeHTML(displayName)}</div>
-                    <div class="attention-meta">
-                        <span class="meta-readout">${flagAgeLabel(row.created_at)}</span>
-                        ${quizReadout(row.latest_quiz_score)}
-                        <span class="meta-readout">${row.reading_minutes ? `read ${Math.round(row.reading_minutes)} min` : 'no reading logged'}</span>
-                        <span class="meta-readout">${idleLabel(row.days_since_last_activity)}</span>
+            <tr class="attention-row" data-sev="${sev}">
+                <td class="student-cell">
+                    <span class="attention-ring" aria-hidden="true"></span>
+                    ${escapeHTML(displayName)}
+                </td>
+                <td class="status-cell">${flagAgeLabel(row.created_at)}</td>
+                <td>${quizReadout(row.latest_quiz_score)}</td>
+                <td>${row.reading_minutes ? `${Math.round(row.reading_minutes)} min` : '—'}</td>
+                <td>${idleLabel(row.days_since_last_activity)}</td>
+                <td aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
+                    <div class="attention-comp">
+                        <div class="comp-meter">
+                            <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
+                            <span class="comp-seg ${2 <= lit ? 'is-on' : ''}"></span>
+                            <span class="comp-seg ${3 <= lit ? 'is-on' : ''}"></span>
+                        </div>
+                        <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
                     </div>
-                </div>
-                <div class="attention-comp" aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
-                    <div class="comp-meter">
-                        <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
-                        <span class="comp-seg ${2 <= lit ? 'is-on' : ''}"></span>
-                        <span class="comp-seg ${3 <= lit ? 'is-on' : ''}"></span>
-                    </div>
-                    <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
-                </div>
-                <button class="attention-action btn-msg"
-                    data-name="${escapeHTML(displayName)}"
-                    data-id="${row.student_id}"
-                    data-course="${escapeHTML(courseLabel)}"
-                    data-course-id="${row.course_id}">Reach out</button>
-            </div>
+                </td>
+                <td class="col-action">
+                    <button class="attention-action btn-msg"
+                        data-name="${escapeHTML(displayName)}"
+                        data-id="${row.student_id}"
+                        data-course="${escapeHTML(courseLabel)}"
+                        data-course-id="${row.course_id}">Reach out</button>
+                </td>
+            </tr>
         `;
     }
 
@@ -279,7 +261,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setPulse(0, 0, 0, 'No courses assigned yet. Upload content or create a quiz to get started.');
                 totalCoursesEl.textContent = '0';
                 totalStudentsEl.textContent = '0';
-                criticalStudentsEl.textContent = '0';
                 attentionCount.textContent = '0';
                 attentionCountSub.textContent = 'no courses yet';
                 cohortStrip.hidden = true;
@@ -289,42 +270,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             totalCoursesEl.textContent = String(courses.length);
 
-            const summaries = await Promise.all(
-                courses.map(c => swrGet(`lect-summary:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/summary`)
-                    .catch(() => null))
-            );
+            const summary = await swrGet('lect-summary-all', `${API_BASE}/api/analytics/lecturer/summary`);
+            const eng = (summary && typeof summary === 'object') ? (summary.engagement || {}) : {};
+            const comp = (summary && typeof summary === 'object') ? (summary.comprehension || {}) : {};
 
-            let totalAtRisk = 0;
-            let totalModerate = 0;
-            let totalEngaged = 0;
-            let totalUniqueStudents = 0;
-            let engagementCounts = { atRisk: 0, moderate: 0, highlyEngaged: 0 };
-            let comprehensionCounts = { low: 0, moderate: 0, good: 0 };
-
-            summaries.forEach(s => {
-                if (!s || typeof s !== 'object') return;
-                totalUniqueStudents += s.unique_students || 0;
-                engagementCounts.atRisk += s.engagement?.at_risk?.count || 0;
-                engagementCounts.moderate += s.engagement?.moderate?.count || 0;
-                engagementCounts.highlyEngaged += s.engagement?.highly_engaged?.count || 0;
-                comprehensionCounts.low += s.comprehension?.low?.count || 0;
-                comprehensionCounts.moderate += s.comprehension?.moderate?.count || 0;
-                comprehensionCounts.good += s.comprehension?.good?.count || 0;
-            });
-
-            totalAtRisk = engagementCounts.atRisk;
-            totalModerate = engagementCounts.moderate;
-            totalEngaged = engagementCounts.highlyEngaged;
+            const totalAtRisk = eng.at_risk?.count || 0;
+            const totalModerate = eng.moderate?.count || 0;
+            const totalEngaged = eng.highly_engaged?.count || 0;
 
             const caption = totalAtRisk > 0
                 ? 'Reach out to the students flagged below.'
                 : 'All students are keeping pace.';
 
             setPulse(totalAtRisk, totalModerate, totalEngaged, caption);
-            totalStudentsEl.textContent = String(totalUniqueStudents);
-            criticalStudentsEl.textContent = String(totalAtRisk);
+            totalStudentsEl.textContent = String((summary && summary.total_students) || 0);
 
-            renderCharts(engagementCounts, comprehensionCounts);
+            renderCharts({
+                low: comp.low?.count || 0,
+                moderate: comp.moderate?.count || 0,
+                good: comp.good?.count || 0,
+            });
 
             const atRiskResults = await Promise.all(
                 courses.map(c =>
@@ -398,7 +363,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <h4 class="queue-course-title">${escapeHTML(g.label.split(' · ').slice(1).join(' · '))}</h4>
                             <span class="queue-course-count">${g.students.length} flagged</span>
                         </div>
-                        ${g.students.map(row => renderAttentionRow(row, g.label)).join('')}
+                        <div class="data-table queue-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Flagged</th>
+                                        <th>Quiz</th>
+                                        <th>Reading</th>
+                                        <th>Activity</th>
+                                        <th>Comprehension</th>
+                                        <th class="col-action"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>${g.students.map(row => renderAttentionRow(row, g.label)).join('')}</tbody>
+                            </table>
+                        </div>
                     </div>
                 `).join('');
 
@@ -411,7 +391,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             setPulse(0, 0, 0, "Couldn't reach the server. Refresh to try again.");
             totalStudentsEl.textContent = '--';
             totalCoursesEl.textContent = '--';
-            criticalStudentsEl.textContent = '--';
             attentionCount.textContent = '--';
             attentionCountSub.textContent = '';
             cohortStrip.hidden = true;

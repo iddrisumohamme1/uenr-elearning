@@ -84,7 +84,10 @@
                         <p class="modal-body text-muted" id="delete-modal-text">Are you sure you want to delete this course? This will permanently remove its enrollments, materials, quizzes, and all related data.</p>
                         <div class="modal-actions">
                             <button class="btn-auth btn-sm" data-close-modal="delete-modal">Cancel</button>
-                            <button class="btn-auth btn-sm btn-danger" id="confirm-delete-btn">Delete Course</button>
+                            <button class="btn-auth btn-sm btn-danger" id="confirm-delete-btn">
+                                <span class="btn-spinner" id="confirm-delete-spinner" hidden></span>
+                                <span id="confirm-delete-label">Delete Course</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -102,7 +105,10 @@
                         </div>
                         <div class="modal-actions">
                             <button class="btn-auth btn-sm" data-close-modal="assign-modal">Cancel</button>
-                            <button class="btn-auth btn-sm" id="confirm-assign-btn">Assign</button>
+                            <button class="btn-auth btn-sm" id="confirm-assign-btn">
+                                <span class="btn-spinner" id="confirm-assign-spinner" hidden></span>
+                                <span id="confirm-assign-label">Assign</span>
+                            </button>
                         </div>
                     </div>
                 </div>

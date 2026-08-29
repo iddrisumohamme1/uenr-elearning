@@ -203,6 +203,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="course-meta">
                     <span><i class="bi bi-people"></i> ${enrolled} enrolled</span>
                 </div>
+                ${c.atRisk && c.atRiskReason
+                    ? `<p class="course-risk-line">At-risk signal: ${escapeHTML(c.atRiskReason)}</p>`
+                    : ''}
                 <div class="course-actions">
                     <a class="btn-view" href="resources.html?course=${encodeURIComponent(c.id)}"><i class="bi bi-magic"></i> Study Resources</a>
                     <button class="btn-view" data-materials-id="${c.id}" data-materials-label="${escapeHTML(c.code || '')} ${escapeHTML(c.title)}"><i class="bi bi-folder2-open"></i> Materials</button>
@@ -234,6 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const enriched = await Promise.all(courses.map(async (c) => {
             let enrolled = null;
             let atRisk = 0;
+            let atRiskReason = '';
             try {
                 const sData = await swrGet(`course-students:${c.id}`, `${API_BASE}/api/courses/${c.id}/students`);
                 enrolled = sData && sData.total_enrolled != null ? sData.total_enrolled : null;
@@ -242,8 +246,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const aData = await swrGet(`lect-summary:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/summary`);
                 atRisk = (aData && aData.engagement?.at_risk?.count) || 0;
             } catch (err) { /* keep 0 */ }
-            return { ...c, enrolled, atRisk };
+            if (atRisk > 0) {
+                try {
+                    const rData = await swrGet(`lect-at-risk:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/at-risk`);
+                    const flagged = (rData && Array.isArray(rData.students)) ? rData.students : [];
+                    if (flagged.length) {
+                        const top = flagged[0];
+                        const parts = [];
+                        if (typeof top.reading_minutes === 'number' && top.reading_minutes > 0) parts.push(`${top.reading_minutes}m read`);
+                        if (typeof top.latest_quiz_score === 'number') parts.push(`quiz ${top.latest_quiz_score}%`);
+                        if (typeof top.days_since_last_activity === 'number') parts.push(`${top.days_since_last_activity}d inactive`);
+                        atRiskReason = parts.length ? parts.join(' · ') : 'flagged at-risk';
+                    }
+                } catch (err) { /* keep reason empty */ }
+            }
+            return { ...c, enrolled, atRisk, atRiskReason };
         }));
+
+        enriched.sort((a, b) => (b.atRisk || 0) - (a.atRisk || 0));
 
         const totalStudents = enriched.reduce((sum, c) => sum + (c.enrolled || 0), 0);
         const totalRisk = enriched.reduce((sum, c) => sum + (c.atRisk || 0), 0);

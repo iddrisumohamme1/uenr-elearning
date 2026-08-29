@@ -166,8 +166,11 @@
   text-align: center;
 }
 
-/* Mobile — the panel becomes a bottom sheet */
-@media (max-width: 560px) {
+/* Mobile / touch — the panel becomes a bottom sheet.
+   Only applies on coarse-pointer (touch) devices under 560px, so a narrow
+   desktop/devtools window keeps the anchored inline dropdown instead of
+   jumping to the bottom of the screen. */
+@media (max-width: 560px) and (pointer: coarse) {
   .dd__panel {
     position: fixed;
     top: auto;

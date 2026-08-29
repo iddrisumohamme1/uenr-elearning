@@ -29,6 +29,19 @@ class UserOut(BaseModel):
     role: str
     department: Optional[str] = None
     avatar_url: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    index_number: Optional[str] = None
+    staff_id: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Self-served profile edits from the Settings page."""
+    full_name: Optional[str] = None
+    date_of_birth: Optional[str] = None  # ISO date (YYYY-MM-DD), cleared to null when empty
+    index_number: Optional[str] = None   # students only
+    staff_id: Optional[str] = None       # lecturers/hods only
+    phone: Optional[str] = None
 
 
 class AuthResponse(BaseModel):

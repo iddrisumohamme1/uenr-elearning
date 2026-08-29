@@ -19,6 +19,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const assignLecturerSelect = document.getElementById('assign-lecturer-select');
     const confirmAssignBtn = document.getElementById('confirm-assign-btn');
     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const confirmAssignSpinner = document.getElementById('confirm-assign-spinner');
+    const confirmDeleteSpinner = document.getElementById('confirm-delete-spinner');
+    const confirmAssignLabel = document.getElementById('confirm-assign-label');
+    const confirmDeleteLabel = document.getElementById('confirm-delete-label');
+
+    function setPending(btn, spinner, label, busy, text) {
+        btn.disabled = busy;
+        if (spinner) spinner.hidden = !busy;
+        label.textContent = text;
+    }
 
     let deptCourses = [];
     let activeCourse = null;
@@ -82,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function confirmDelete() {
         if (!activeCourse) return;
         const course = activeCourse;
-        confirmDeleteBtn.disabled = true;
+        setPending(confirmDeleteBtn, confirmDeleteSpinner, confirmDeleteLabel, true, 'Deleting…');
         try {
             const response = await authFetch(`${API_BASE}/api/courses/${course.id}`, { method: 'DELETE' });
             const data = await response.json().catch(() => ({}));
@@ -102,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Delete course error:', err);
             showToast('Server connection failed.', 'error');
         } finally {
-            confirmDeleteBtn.disabled = false;
+            setPending(confirmDeleteBtn, confirmDeleteSpinner, confirmDeleteLabel, false, 'Delete Course');
         }
     }
 
@@ -138,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const course = activeCourse;
-        confirmAssignBtn.disabled = true;
+        setPending(confirmAssignBtn, confirmAssignSpinner, confirmAssignLabel, true, 'Assigning…');
         try {
             const response = await authFetch(`${API_BASE}/api/courses/${course.id}`, {
                 method: 'PATCH',
@@ -159,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Assign course error:', err);
             showToast('Server connection failed.', 'error');
         } finally {
-            confirmAssignBtn.disabled = false;
+            setPending(confirmAssignBtn, confirmAssignSpinner, confirmAssignLabel, false, 'Assign');
         }
     }
 

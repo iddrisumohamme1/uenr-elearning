@@ -23,7 +23,7 @@
     let initialized = false;
     let openPanel = null;
 
-    const SHEET_QUERY = '(max-width: 560px)';
+    const SHEET_QUERY = '(max-width: 560px) and (pointer: coarse)';
     const isSheet = () => window.matchMedia(SHEET_QUERY).matches;
 
     function enhance(select) {
