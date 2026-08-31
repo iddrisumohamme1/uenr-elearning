@@ -16,9 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentQuiz = null;
     let currentQuestionIndex = 0;
     let selectedOption = null;
-    let score = 0;
     let answers = [];
-    let quizStartTime = 0;
 
     async function loadCourses() {
         try {
@@ -34,8 +32,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             list.innerHTML = courses.map(course => `
                 <div class="course-card" data-course-id="${course.id}">
-                    <h3>${course.title}</h3>
-                    <p>${course.lecturer_name || 'UENR'}</p>
+                    <h3>${escapeHTML(course.title)}</h3>
+                    <p>${escapeHTML(course.lecturer_name || 'UENR')}</p>
                 </div>
             `).join('');
 
@@ -62,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             currentQuiz = allQuizzes[0];
             currentQuestionIndex = 0;
-            score = 0;
             answers = new Array(currentQuiz.questions.length).fill(null);
 
             courseSelectorEl.style.display = 'none';
@@ -89,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function disarmLeaveGuard() { window.removeEventListener('beforeunload', warnOnLeave); }
 
     function startQuiz() {
-        quizStartTime = Date.now();
         document.getElementById('quiz-intro').style.display = 'none';
         document.getElementById('quiz-body').style.display = 'block';
         armLeaveGuard();
@@ -105,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('progress-text').textContent = `${currentQuestionIndex + 1} / ${currentQuiz.questions.length}`;
 
         document.getElementById('options-grid').innerHTML = q.options.map((opt, i) => `
-            <div class="option-card ${selectedOption === i ? 'selected' : ''}" data-index="${i}">${opt}</div>
+            <div class="option-card ${selectedOption === i ? 'selected' : ''}" data-index="${i}">${escapeHTML(opt)}</div>
         `).join('');
 
         document.querySelectorAll('.option-card').forEach(card => {
@@ -138,25 +134,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function submitQuiz() {
-        score = 0;
-        currentQuiz.questions.forEach((q, i) => { if (answers[i] === q.correct_option) score++; });
-        const finalScore = Math.round((score / currentQuiz.questions.length) * 100);
+        if (answers.some(a => a === null)) {
+            showToast('Please answer every question before submitting.', 'warning');
+            return;
+        }
+
+        let finalScore = null;
+        let correct = 0;
+        let total = currentQuiz.questions.length;
 
         try {
-            await authFetch(`${API_BASE}/api/quiz/submit`, {
+            const res = await authFetch(`${API_BASE}/api/quiz/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    student_id: user.id, course_id: currentQuiz.course_id,
-                    quiz_id: currentQuiz.id, score: finalScore,
-                    max_score: currentQuiz.questions.length,
-                    time_taken: Math.round((Date.now() - quizStartTime) / 1000)
+                    quiz_id: currentQuiz.id,
+                    answers: { manual: answers }
                 })
             });
-        } catch (err) { console.error('Submission error:', err); }
+            if (!res.ok) throw new Error('Submission failed');
+            const data = await res.json();
+            if (data && typeof data.score === 'number') {
+                finalScore = Math.round(data.score);
+                correct = data.correct ?? 0;
+                total = data.total ?? total;
+            }
+        } catch (err) {
+            console.error('Submission error:', err);
+            showToast('Failed to submit quiz. Please try again.', 'error');
+            return;
+        }
+
+        if (finalScore === null) {
+            showToast('Failed to submit quiz. Please try again.', 'error');
+            return;
+        }
 
         disarmLeaveGuard();
-        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${score}&total=${currentQuiz.questions.length}`;
+        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${correct}&total=${total}`;
     }
 
     loadCourses();

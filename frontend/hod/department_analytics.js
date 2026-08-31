@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     return `
                         <tr>
-                            <td style="padding: 1rem">${name}</td>
+                            <td style="padding: 1rem">${escapeHTML(name)}</td>
                             <td style="padding: 1rem">${data.total}</td>
                             <td style="padding: 1rem; color: var(--clr-danger)">${data.at_risk}</td>
                             <td style="padding: 1rem; color: var(--clr-warning)">${data.moderate}</td>
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             atRiskList.innerHTML = allAtRisk.slice(0, 10).map(s => `
                 <div class="course-item">
-                    <span>${s.course_name}</span>
+                    <span>${escapeHTML(s.course_name)}</span>
                     <span class="text-danger">Student: ${(s.student_id || 'unknown').substring(0, 8)}...</span>
                 </div>
             `).join('');

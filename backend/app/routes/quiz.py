@@ -185,9 +185,14 @@ def get_course_quizzes(course_id: str, user=Depends(get_current_user)):
                 lambda c, quiz=quiz: c.table("questions")
                 .select("id, question_text, options, correct_option")
                 .eq("quiz_id", quiz["id"])
+                .order("id")
                 .execute()
             )
             quiz["questions"] = getattr(questions_resp, "data", []) or []
+            # Answers are graded server-side; never ship correct_option to students.
+            if user.get("role") == "student":
+                for q in quiz["questions"]:
+                    q.pop("correct_option", None)
 
         return {"course_id": course_id, "quizzes": quizzes}
     except Exception as exc:
@@ -258,10 +263,23 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
     Records an AI quiz submission. Objective questions are auto-scored; theory
     (short-answer) questions are graded by the AI against their rubrics. The
     final score combines both, weighted by question count.
+    Manual (lecturer-created) quizzes are graded server-side by
+    ``_submit_manual_quiz`` so students never receive correct_answer indicators.
     """
     admin = get_admin_client()
 
     try:
+        # Manual (lecturer-created) quizzes submit a flat "manual" answer list;
+        # AI quizzes submit {"objective": [...], "theory": [...]}. Route the
+        # former to server-side grading so students never see correct_option.
+        manual_answers = (
+            payload.answers.get("manual")
+            if isinstance(payload.answers, dict) and payload.answers.get("manual") is not None
+            else None
+        )
+        if manual_answers is not None:
+            return _submit_manual_quiz(payload, manual_answers, user, admin)
+
         quiz_resp = with_retry(lambda c: c.table("generated_quizzes").select("quiz_data, course_id").eq("id", payload.quiz_id).execute())
         quiz_data = getattr(quiz_resp, "data", [])
         if not quiz_data:
@@ -400,6 +418,80 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin):
+    """Grade a lecturer-created quiz fully server-side.
+
+    ``submitted_answers`` is a flat list of selected option indices in question
+    order (matching the ``id``-ordered questions served by get_course_quizzes).
+    The scoring index is the stored ``correct_option`` value, which is never
+    leaked to the client.
+    """
+    quiz_resp = with_retry(
+        lambda c: c.table("quizzes")
+        .select("id, course_id, title")
+        .eq("id", payload.quiz_id)
+        .execute()
+    )
+    quiz_rows = getattr(quiz_resp, "data", []) or []
+    if not quiz_rows:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    course_id = quiz_rows[0].get("course_id")
+
+    enroll_resp = with_retry(
+        lambda c: c.table("enrollments")
+        .select("id")
+        .eq("student_id", user["id"])
+        .eq("course_id", course_id)
+        .execute()
+    )
+    if not (getattr(enroll_resp, "data", []) or []):
+        raise HTTPException(status_code=403, detail="Access denied to this course.")
+
+    questions_resp = with_retry(
+        lambda c: c.table("questions")
+        .select("id, correct_option")
+        .eq("quiz_id", payload.quiz_id)
+        .order("id")
+        .execute()
+    )
+    questions = getattr(questions_resp, "data", []) or []
+
+    correct = sum(
+        1 for i, q in enumerate(questions)
+        if i < len(submitted_answers) and submitted_answers[i] == q.get("correct_option")
+    )
+    total = len(questions)
+    percentage = round(correct / total * 100, 1) if total else 0.0
+
+    if percentage >= 80:
+        comp_level = "Good"
+    elif percentage >= 50:
+        comp_level = "Moderate"
+    else:
+        comp_level = "Low"
+
+    insert_resp = with_retry(
+        lambda c: c.table("quiz_submissions").insert({
+            "student_id": user["id"],
+            "quiz_id": payload.quiz_id,
+            "answers": {"manual": submitted_answers},
+            "score": percentage,
+            "comprehension_level": comp_level,
+        }).execute()
+    )
+    insert_rows = getattr(insert_resp, "data", []) or []
+
+    return {
+        "status": "success",
+        "score": percentage,
+        "correct": correct,
+        "total": total,
+        "comprehension_level": comp_level,
+        "message": "Quiz submitted and scored successfully",
+        "submission_id": insert_rows[0]["id"] if insert_rows else None,
+    }
 
 
 @router.get("/student/{student_id}")

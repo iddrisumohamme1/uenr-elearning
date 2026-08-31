@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ── DOM refs ─────────────────────────────────────────────────────── */
     const courseSelect   = document.getElementById('course-select');
     const form           = document.getElementById('upload-form');
-    const academicYear   = document.getElementById('academic-year');
     const fileInput      = document.getElementById('file');
     const dropZone       = document.getElementById('drop-zone');
     const fileError      = document.getElementById('file-error');
@@ -31,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const liveRegion     = document.getElementById('upload-live');
 
     const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
-    const ALLOWED_EXTS = new Set([,
+    const ALLOWED_EXTS = new Set([
         '.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx',
         '.odt','.odp','.ods','.png','.jpg','.jpeg','.gif','.webp',
         '.mp4','.webm','.ogg'
@@ -94,19 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         apply(document.querySelector('input[name="organization"]:checked')?.value || 'week');
     }
 
-    /* ── Academic years ───────────────────────────────────────────────── */
-    function loadAcademicYears() {
-        const now = new Date().getFullYear();
-        const options = [];
-        for (let y = now; y >= now - 3; y--) {
-            options.push(`<option value="${y}/${y + 1}">${y}/${y + 1}</option>`);
-        }
-        academicYear.innerHTML = `
-            <option value="" disabled selected>Select academic year</option>
-            ${options.join('')}
-        `;
-    }
-
     /* ── Courses ──────────────────────────────────────────────────────── */
     async function loadCourses() {
         try {
@@ -117,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             courseSelect.innerHTML = `
                 <option value="" disabled selected>Select a course</option>
-                ${courses.map(c => `<option value="${c.id}">${c.title} (${c.code || 'No code'})</option>`).join('')}
+                ${courses.map(c => `<option value="${c.id}">${escapeHTML(c.title)} (${escapeHTML(c.code || 'No code')})</option>`).join('')}
             `;
         } catch (err) {
             console.error('Error loading courses:', err);
@@ -165,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="file-queue__row ${rowClass}" data-id="${entry.id}">
                     <i class="bi ${fileIcon(f.name)} file-queue__icon"></i>
                     <div class="file-queue__info">
-                        <span class="file-queue__name">${f.name}</span>
+                        <span class="file-queue__name">${escapeHTML(f.name)}</span>
                         <span class="file-queue__meta">${formatBytes(f.size)}</span>
                     </div>
                     <div class="file-queue__progress" ${entry.status === 'uploading' ? '' : 'hidden'}>
@@ -174,7 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <span class="file-queue__status ${statusClass}">${statusLabel}</span>
                     <button type="button" class="file-queue__remove" data-remove-id="${entry.id}"
                             ${removeDisabled} ${removeHidden}
-                            aria-label="Remove ${f.name}"><i class="bi bi-x-lg"></i></button>
+                            aria-label="Remove ${escapeHTML(f.name)}"><i class="bi bi-x-lg"></i></button>
                 </div>`;
         }).join('');
 
@@ -315,10 +301,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const unitLabel   = document.getElementById('unit-label').value.trim();
         const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
         const courseId    = courseSelect.value;
-        const semesterVal = document.getElementById('semester').value;
 
-        if (!courseId || !academicYear.value || !semesterVal) {
-            showToast('Select a course, academic year, and semester.', 'warning');
+        if (!courseId) {
+            showToast('Select a course.', 'warning');
             return;
         }
         if (organization === 'week' && !weekNumber) {
@@ -330,7 +315,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const semester = `${academicYear.value} - ${semesterVal}`;
         const total = pending.length;
         let succeeded = 0;
         let failed = 0;
@@ -362,7 +346,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('title', fileTitle);
             formData.append('description', description);
             formData.append('course_id', courseId);
-            formData.append('semester', semester);
             if (organization === 'week') formData.append('week_number', weekNumber);
             if (organization === 'unit') formData.append('unit_label', unitLabel);
             formData.append('file', entry.file);
@@ -425,55 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await uploadBatch();
     });
 
-    /* ── Upload-another modal ─────────────────────────────────────────── */
-    function showUploadAgainModal(succeeded, failed) {
-        const modal = document.getElementById('upload-again-modal');
-        const titleEl = document.getElementById('upload-again-title');
-        const bodyEl = document.getElementById('upload-again-body');
-
-        if (failed > 0) {
-            titleEl.textContent = 'Upload complete';
-            bodyEl.textContent = `${succeeded} file${succeeded !== 1 ? 's' : ''} uploaded. ${failed} failed. Retry failed files or upload more?`;
-        } else {
-            titleEl.textContent = `${succeeded} material${succeeded !== 1 ? 's' : ''} uploaded`;
-            bodyEl.textContent = 'Upload more files to the same course?';
-        }
-
-        document.getElementById('upload-again-yes').onclick = () => {
-            modal.hidden = true;
-            // Remove done files, keep failed ones for retry
-            fileQueue = fileQueue.filter(e => e.status === 'failed');
-            renderQueue();
-            progressWrap.hidden = true;
-            submitText.textContent = fileQueue.length ? 'Retry failed' : 'Upload Material';
-            document.getElementById('title').value = '';
-            document.getElementById('description').value = '';
-            document.getElementById('week-number').value = '';
-            document.getElementById('unit-label').value = '';
-            clearError();
-            document.getElementById('title').focus();
-            showToast('Ready — add more files or retry failed.', 'info');
-            announce('Form ready. Add more files or retry failed uploads.');
-        };
-
-        document.getElementById('upload-again-dashboard').onclick = () => {
-            window.location.href = 'dashboard.html';
-        };
-
-        document.getElementById('upload-again-close').onclick = () => {
-            modal.hidden = true;
-            window.location.href = 'dashboard.html';
-        };
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) window.location.href = 'dashboard.html';
-        });
-
-        modal.hidden = false;
-    }
-
     /* ── Init ─────────────────────────────────────────────────────────── */
-    loadAcademicYears();
     await loadCourses();
     setupOrganization();
 });

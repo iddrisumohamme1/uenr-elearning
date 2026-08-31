@@ -2,6 +2,7 @@
 # Purpose: Learning materials management and Supabase persistence.
 
 import httpx
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -103,18 +104,21 @@ def upload_material(
     try:
         # Create the public storage bucket only if it does not already exist.
         try:
-            admin.storage.get_bucket(BUCKET_NAME)
+            with_retry(lambda c: c.storage.get_bucket(BUCKET_NAME))
         except Exception:
-            admin.storage.create_bucket(BUCKET_NAME, options={"public": True})
+            with_retry(lambda c: c.storage.create_bucket(BUCKET_NAME, options={"public": True}))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to verify storage bucket: {exc}")
 
     try:
-        bucket = admin.storage.from_(BUCKET_NAME)
-        file.file.seek(0)
-        file_bytes = file.file.read()
-        bucket.upload(storage_path, file_bytes)
-        public_url = bucket.get_public_url(storage_path)
+        def upload_file(client):
+            bucket = client.storage.from_(BUCKET_NAME)
+            file.file.seek(0)
+            file_bytes = file.file.read()
+            bucket.upload(storage_path, file_bytes)
+            return bucket.get_public_url(storage_path)
+
+        public_url = with_retry(upload_file)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {exc}")
 
@@ -123,18 +127,24 @@ def upload_material(
     # leaves render_url NULL and the embedded-viewer fallback stays in place.
     render_url: str | None = None
     if is_office_file(file_name):
+        file.file.seek(0)
+        file_bytes = file.file.read()
         pdf_bytes = convert_to_pdf(file_bytes, file_name)
         if pdf_bytes:
             try:
-                pdf_path = f"{Path(storage_path).stem}.pdf"
-                bucket.upload(pdf_path, pdf_bytes, {"content-type": "application/pdf"})
-                render_url = bucket.get_public_url(pdf_path)
+                def upload_pdf_twin(client):
+                    bucket = client.storage.from_(BUCKET_NAME)
+                    pdf_path = f"{Path(storage_path).stem}.pdf"
+                    bucket.upload(pdf_path, pdf_bytes, {"content-type": "application/pdf"})
+                    return bucket.get_public_url(pdf_path)
+
+                render_url = with_retry(upload_pdf_twin)
             except Exception as exc:
                 print(f"[materials] Converted-PDF upload failed for '{file_name}': {exc}")
 
     try:
-        insert_resp = (
-            admin.table("materials")
+        insert_resp = with_retry(
+            lambda c: c.table("materials")
             .insert(
                 {
                     "course_id": course_id,
@@ -311,7 +321,7 @@ def download_material(id: str, user=Depends(get_current_user)):
     _validate_supabase_url(url)
 
     try:
-        r = httpx.get(url, follow_redirects=True, timeout=30, verify=False)
+        r = httpx.get(url, follow_redirects=True, timeout=30)
         r.raise_for_status()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch file: {exc}")
@@ -323,21 +333,27 @@ def download_material(id: str, user=Depends(get_current_user)):
         media_type=content_type,
         headers={
             "Content-Disposition": f"attachment; filename=\"{filename}\"",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
         },
     )
 
 
 def _validate_supabase_url(url: str) -> str:
-    """Validate a URL is a Supabase storage URL (SSRF protection)."""
+    """Validate a URL is a Supabase storage URL (SSRF protection).
+
+    Requires HTTPS and an exact ``<project-ref>.supabase.co`` / ``.supabase.in``
+    host. A bare ``endswith()`` match is spoofable (``evilsupabase.co`` would
+    pass), so the host must be a single project-ref label before the suffix.
+    """
     try:
         parsed = urlparse(url)
         hostname = (parsed.hostname or "").lower()
-        if not any(hostname.endswith(h) for h in ALLOWED_PROXY_HOSTS):
+        if parsed.scheme != "https":
+            raise HTTPException(status_code=400, detail="Proxy only allows HTTPS URLs.")
+        suffix_pattern = "|".join(
+            re.escape(s) for s in sorted(ALLOWED_PROXY_HOSTS, key=len, reverse=True)
+        )
+        if not re.fullmatch(rf"[a-z0-9][a-z0-9-]*\.(?:{suffix_pattern})", hostname):
             raise HTTPException(status_code=400, detail="Proxy only allows Supabase storage URLs.")
-        if parsed.scheme not in ("https", "http"):
-            raise HTTPException(status_code=400, detail="Only HTTP(S) URLs are allowed.")
     except HTTPException:
         raise
     except Exception:
@@ -346,7 +362,7 @@ def _validate_supabase_url(url: str) -> str:
 
 
 @router.get("/proxy")
-def proxy_material(url: str, request: Request):
+def proxy_material(url: str, request: Request, user=Depends(get_current_user)):
     """
     Proxies a Supabase storage file so iframes can load it without
     being blocked by X-Frame-Options / CORS headers from Supabase.
@@ -361,7 +377,7 @@ def proxy_material(url: str, request: Request):
         upstream_headers["Range"] = range_header
 
     try:
-        r = httpx.get(url, headers=upstream_headers, follow_redirects=True, timeout=30, verify=False)
+        r = httpx.get(url, headers=upstream_headers, follow_redirects=True, timeout=30)
         r.raise_for_status()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch file: {exc}")
@@ -380,10 +396,6 @@ def proxy_material(url: str, request: Request):
         media_type=content_type,
         headers={
             "Content-Disposition": "inline",
-            # Allow the browser (pdf.js fetch, <video>/<img> sources) to use the proxy
-            # cross-origin from the frontend origin.
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
             **passthrough,
         },
     )

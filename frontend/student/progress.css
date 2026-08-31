@@ -242,7 +242,7 @@
 /* Physical attendance is the one input a student owns outright —
    it reads as the gold "energy" signifier, not a plain stat. */
 .readout--attendance {
-    border-color: rgba(251, 191, 36, 0.45);
+    border-color: rgba(16, 185, 129, 0.45);
     background: var(--energy-soft);
 }
 

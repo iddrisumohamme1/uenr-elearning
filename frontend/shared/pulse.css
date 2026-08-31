@@ -8,7 +8,7 @@
 .pulse-card {
   background: var(--bg-card);
   background-image:
-    radial-gradient(ellipse at 12% 0%, rgba(6,182,212,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 12% 0%, rgba(16,185,129,0.12) 0%, transparent 55%),
     var(--grad-surface);
   border: 1px solid var(--border);
   border-radius: var(--r-2xl);
@@ -78,7 +78,7 @@
 .pulse-seg + .pulse-seg { border-left: 2px solid var(--bg-card); }
 .pulse-seg--risk   { background: var(--clr-danger); }
 .pulse-seg--mod    { background: var(--clr-warning); }
-.pulse-seg--engaged{ background: linear-gradient(135deg, #06b6d4, #22c55e); }
+.pulse-seg--engaged{ background: linear-gradient(135deg, #10b981, #22c55e); }
 .pulse-legend {
   display: flex;
   gap: 1.5rem;

@@ -39,58 +39,20 @@
             <section class="create-choice fade-in-up" id="create-choice">
                 <h3 class="section-title">Create Assignment</h3>
                 <div class="choice-grid">
-                    <button class="choice-card" id="choice-write" type="button">
-                        <span class="choice-icon"><i class="bi bi-pencil-square"></i></span>
-                        <span class="choice-title">Write your own</span>
-                        <!-- <span class="choice-desc">Set title, instructions, and due date manually</span>
-                    </button> -->
                     <button class="choice-card" id="choice-ai" type="button">
                         <span class="choice-icon choice-icon--ai"><i class="bi bi-stars"></i></span>
                         <span class="choice-title">Generate </span>
                         <!-- <span class="choice-desc">Describe a topic and let AI draft questions for you to review</span> -->
                     </button>
+                    <button class="choice-card" id="choice-import" type="button">
+                        <span class="choice-icon choice-icon--import"><i class="bi bi-upload"></i></span>
+                        <span class="choice-title">Import questions</span>
+                        <!-- <span class="choice-desc">Upload questions from a Word, Excel or text file</span> -->
+                    </button>
                 </div>
             </section>
 
-            <!-- ── Path A: Write your own ──────────────────────────────── -->
-            <section class="create-panel fade-in-up" id="panel-write" hidden>
-                <div class="panel-head">
-                    <div class="panel-head-row">
-                        <button class="btn-back" id="back-write" type="button"><i class="bi bi-arrow-left"></i> Back</button>
-                        <h3>Write Assignment</h3>
-                    </div>
-                    <!-- <p class="text-muted panel-sub">Students submit a text answer; on-time status is tracked automatically</p> -->
-                </div>
-                <form id="assign-form" class="assign-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Course</label>
-                            <select id="course-select" class="form-input" data-dropdown required>
-                                <option value="" disabled selected>Loading courses...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Title</label>
-                            <input type="text" id="assign-title" class="form-input" placeholder="e.g. Week 3 Problem Set" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Due date</label>
-                            <input type="date" id="assign-due" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Week number</label>
-                            <input type="number" id="assign-week" class="form-input" min="1" placeholder="Optional">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Instructions</label>
-                        <textarea id="assign-instructions" class="form-input" rows="3" placeholder="What should students do?"></textarea>
-                    </div>
-                    <button type="submit" class="btn-auth btn-upload">Create assignment</button>
-                </form>
-            </section>
-
-            <!-- ── Path B: AI generate ─────────────────────────────────── -->
+            <!-- ── Path: AI generate ─────────────────────────────────────── -->
             <section class="create-panel fade-in-up" id="panel-ai" hidden>
                 <div class="panel-head">
                     <div class="panel-head-row">
@@ -187,6 +149,63 @@
                         </button>
                     </div>
                 </div>
+            </section>
+
+            <!-- ── Path C: Import questions from a file ─────────────────── -->
+            <section class="create-panel fade-in-up" id="panel-import" hidden>
+                <div class="panel-head">
+                    <div class="panel-head-row">
+                        <button class="btn-back" id="back-import" type="button"><i class="bi bi-arrow-left"></i> Back</button>
+                        <h3><i class="bi bi-upload" style="color:var(--clr-accent);margin-right:0.4rem"></i>Import Questions</h3>
+                    </div>
+                </div>
+
+                <form id="import-form" class="assign-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Course</label>
+                            <select id="imp-course-select" class="form-input" data-dropdown required>
+                                <option value="" disabled selected>Loading courses...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Assignment title</label>
+                            <input type="text" id="imp-assign-title" class="form-input" placeholder="e.g. Week 4 Test" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Question file</label>
+                        <div class="drop-zone" id="imp-drop-zone" role="button" tabindex="0">
+                            <input type="file" id="imp-file" class="drop-zone__input" accept=".txt,.csv,.md,.pdf,.docx,.doc,.xlsx,.xls" hidden>
+                            <div class="drop-zone__content" id="imp-drop-content">
+                                <i class="bi bi-file-earmark-arrow-up drop-zone__icon"></i>
+                                <p class="drop-zone__label" id="imp-drop-label">Drag and drop a question file here</p>
+                                <p class="drop-zone__sub">or <span class="drop-zone__browse">choose from folder</span> — .txt, .docx, .xlsx, .pdf</p>
+                            </div>
+                        </div>
+                        <p class="file-error" id="imp-file-error" role="alert" hidden></p>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Due date</label>
+                            <input type="date" id="imp-due" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Week number</label>
+                            <input type="number" id="imp-week" class="form-input" min="1" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Instructions</label>
+                        <textarea id="imp-instructions" class="form-input" rows="2" placeholder="Optional instructions for students"></textarea>
+                    </div>
+                    <button type="button" class="btn-auth btn-upload" id="imp-parse-btn">
+                        <span class="btn-spinner" id="imp-parse-spinner" hidden></span>
+                        <span id="imp-parse-text">Parse &amp; review questions</span>
+                    </button>
+                </form>
             </section>
 
             <!-- ── Your assignments list ───────────────────────────────── -->

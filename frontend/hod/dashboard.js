@@ -206,17 +206,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         const displayName = row.full_name || (row.student_id || 'Unknown').substring(0, 8) + '…';
         const sev = severityClass(row);
         const lit = sev === 'low' ? 1 : sev === 'mod' ? 2 : 3;
+        const reading = row.reading_minutes ? `${Math.round(row.reading_minutes)} min` : '—';
         return `
-            <tr class="attention-row" data-sev="${sev}">
-                <td class="student-cell">
-                    <span class="attention-ring" aria-hidden="true"></span>
-                    ${escapeHTML(displayName)}
-                </td>
-                <td class="status-cell">${flagAgeLabel(row.created_at)}</td>
-                <td>${quizReadout(row.latest_quiz_score)}</td>
-                <td>${row.reading_minutes ? `${Math.round(row.reading_minutes)} min` : '—'}</td>
-                <td>${idleLabel(row.days_since_last_activity)}</td>
-                <td aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
+            <article class="attention-card" data-sev="${sev}">
+                <div class="attention-card-head">
+                    <div class="student-cell">
+                        <span class="attention-ring" aria-hidden="true"></span>
+                        <span class="attention-name">${escapeHTML(displayName)}</span>
+                    </div>
+                    <button class="attention-action btn-msg"
+                        data-name="${escapeHTML(displayName)}"
+                        data-id="${row.student_id}"
+                        data-course="${escapeHTML(courseLabel)}"
+                        data-course-id="${row.course_id}"><i class="bi bi-send" aria-hidden="true"></i> Reach out</button>
+                </div>
+                <div class="attention-card-meta">
+                    <span class="status-cell">${flagAgeLabel(row.created_at)}</span>
+                    <span>${quizReadout(row.latest_quiz_score)}</span>
+                    <span class="meta-readout">reading ${reading}</span>
+                    <span class="meta-readout">${idleLabel(row.days_since_last_activity)}</span>
+                </div>
+                <div class="attention-card-foot" aria-label="Comprehension: ${escapeHTML(row.comprehension_label || 'Unknown')}">
                     <div class="attention-comp">
                         <div class="comp-meter">
                             <span class="comp-seg ${1 <= lit ? 'is-on' : ''}"></span>
@@ -225,15 +235,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                         <span class="comp-label comp-label--${sev}">${escapeHTML(row.comprehension_label || 'Unknown')}</span>
                     </div>
-                </td>
-                <td class="col-action">
-                    <button class="attention-action btn-msg"
-                        data-name="${escapeHTML(displayName)}"
-                        data-id="${row.student_id}"
-                        data-course="${escapeHTML(courseLabel)}"
-                        data-course-id="${row.course_id}">Reach out</button>
-                </td>
-            </tr>
+                </div>
+            </article>
         `;
     }
 
@@ -407,21 +410,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <h4 class="queue-course-title">${escapeHTML(g.label.split(' · ').slice(1).join(' · '))}</h4>
                             <span class="queue-course-count">${g.students.length} flagged</span>
                         </div>
-                        <div class="data-table queue-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Student</th>
-                                        <th>Flagged</th>
-                                        <th>Quiz</th>
-                                        <th>Reading</th>
-                                        <th>Activity</th>
-                                        <th>Comprehension</th>
-                                        <th class="col-action"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>${g.students.map(row => renderAttentionRow(row, g.label)).join('')}</tbody>
-                            </table>
+                        <div class="queue-cards">
+                            ${g.students.map(row => renderAttentionRow(row, g.label)).join('')}
                         </div>
                     </div>
                 `).join('');
@@ -507,14 +497,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ? `
                         <div class="my-class-item">
                             <div class="my-class-head">
-                                <span class="student-cell">${row.course.code || 'N/A'} - ${row.course.title}</span>
+                                <span class="student-cell">${escapeHTML(row.course.code || 'N/A')} - ${escapeHTML(row.course.title)}</span>
                             </div>
                             <p class="text-muted my-class-none">No signals yet — students haven't engaged.</p>
                         </div>`
                     : `
                         <div class="my-class-item">
                             <div class="my-class-head">
-                                <span class="student-cell">${row.course.code || 'N/A'} - ${row.course.title}</span>
+                                <span class="student-cell">${escapeHTML(row.course.code || 'N/A')} - ${escapeHTML(row.course.title)}</span>
                                 <span class="badge badge--danger">${row.atRisk} at risk</span>
                             </div>
                             <div class="pulse-bar pulse-bar--sm">

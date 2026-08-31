@@ -44,20 +44,6 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="academic-year">Academic Year</label>
-                            <select id="academic-year" class="form-input" data-dropdown required>
-                                <option value="" disabled selected>Loading years...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="semester">Semester</label>
-                            <select id="semester" class="form-input" data-dropdown required>
-                                <option value="" disabled selected>Select semester</option>
-                                <option value="First Semester">First Semester</option>
-                                <option value="Second Semester">Second Semester</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label class="form-label" for="title">Material Title</label>
                             <input type="text" id="title" class="form-input" placeholder="e.g. Introduction to SQL (optional for multiple files)">
                         </div>
@@ -115,32 +101,14 @@
                         </div>
 
                         <button type="submit" class="btn-auth btn-full" id="upload-submit">
-                            <span class="btn-spinner" id="btn-spinner" hidden></span>
                             <span id="upload-submit-text">Upload Material</span>
+                            <span class="btn-spinner" id="btn-spinner" hidden></span>
                         </button>
                     </form>
                 </div>
             </section>
-        </main>
+</main>
     </div>
-
-    <!-- Upload-another modal -->
-    <div id="upload-again-modal" class="modal" hidden>
-        <div class="modal-card">
-            <div class="modal-head">
-                <h3 id="upload-again-title">Materials uploaded</h3>
-                <button class="modal-close" id="upload-again-close" aria-label="Close">&times;</button>
-            </div>
-            <p class="text-muted" id="upload-again-body">Upload more files to the same course?</p>
-            <div class="modal-actions">
-                <button class="btn-secondary" id="upload-again-dashboard">Back to dashboard</button>
-                <button class="btn-primary" id="upload-again-yes">Upload more</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Live region for screen reader announcements -->
-    <div id="upload-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
     <script src="../shared/sidebar.js"></script>
     <script src="../shared/api-cache.js"></script>

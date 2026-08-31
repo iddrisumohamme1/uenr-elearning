@@ -368,7 +368,8 @@ class RecommendationEngine:
         return None
 
     # ── Public API ────────────────────────────────────────────────────────────
-    def get_recommendations(self, weak_concepts: str, top_n: int = 3, include_web: bool = True) -> list:
+    def get_recommendations(self, weak_concepts: str, top_n: int = 3, include_web: bool = True,
+                            enrolled_course_ids=None) -> list:
         # Lazy-load the pool + model on first use (idempotent afterwards).
         self._ensure_ready()
         # Pool refresh (if any) runs in the background — the student never waits on it.
@@ -376,28 +377,48 @@ class RecommendationEngine:
         if not self.resources:
             return []
 
+        # When the caller knows the student's enrollments, restrict the ranked
+        # pool to their world: academic materials only from enrolled courses,
+        # curated external links only on the topic this query is about. Live web
+        # (YouTube) results are already guided by the weak-concept query, so they
+        # stay as-is.
+        allowed = None
+        if enrolled_course_ids is not None:
+            enrolled = set(enrolled_course_ids)
+            target_topic = detect_topic(weak_concepts)
+            allowed = [
+                i for i, r in enumerate(self.resources)
+                if (r.get("source") == "material" and r.get("course_id") in enrolled)
+                or (r.get("source") != "material" and r.get("topic") == target_topic)
+            ]
+
         self._ensure_model()
         pool_results = []
         if self.model is not None and self.resource_embeddings is not None:
             try:
-                pool_results = self._semantic_search(weak_concepts, top_n * 2)
+                pool_results = self._semantic_search(weak_concepts, top_n * 2, allowed=allowed)
             except Exception as e:
                 print(f"[Recommendation] Semantic search error: {e}. Falling back to TF-IDF.")
         if not pool_results:
-            pool_results = self._tfidf_search(weak_concepts, top_n * 2)
+            pool_results = self._tfidf_search(weak_concepts, top_n * 2, allowed=allowed)
 
-        # Live web (YouTube) search is optional and network-bound. It runs in a
-        # worker thread and is bounded by WEB_SEARCH_TIMEOUT_SECONDS so a slow
-        # YouTube call never stacks on top of the pool search latency. The fast
-        # path (e.g. during quiz submission) can skip it entirely.
+        # Live web (YouTube + Wikipedia) search is optional and network-bound.
+        # It runs in a worker thread and is bounded by WEB_SEARCH_TIMEOUT_SECONDS
+        # so a slow upstream call never stacks on top of the pool search latency.
+        # The fast path (e.g. during quiz submission) can skip it entirely.
         results = pool_results
         if include_web:
-            web_future = _WEB_EXECUTOR.submit(self._youtube_recommendations, weak_concepts, top_n)
+            yt_future = _WEB_EXECUTOR.submit(self._youtube_recommendations, weak_concepts, top_n)
+            art_future = _WEB_EXECUTOR.submit(self._article_recommendations, weak_concepts, top_n)
             try:
-                youtube_results = web_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
+                youtube_results = yt_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
             except Exception:
                 youtube_results = []
-            results = pool_results + youtube_results
+            try:
+                article_results = art_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
+            except Exception:
+                article_results = []
+            results = pool_results + youtube_results + article_results
             results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
         return results[:top_n]
 
@@ -432,28 +453,72 @@ class RecommendationEngine:
             })
         return results
 
-    def _semantic_search(self, query: str, top_n: int) -> list:
+    def _article_recommendations(self, query: str, top_n: int) -> list:
+        """Fetch live web articles for the weak concept and map them into the
+        shared resource format so they mix cleanly with pool + YouTube
+        results."""
+        from app.services.web_article_service import search_articles
+
+        items = search_articles(query, max_results=top_n)
+        if not items:
+            return []
+
+        topic = detect_topic(query)
+        results = []
+        for i, item in enumerate(items):
+            # Rank-based relevance score; the search engine's ranking carries
+            # the signal, weighted slightly below YouTube to keep video first.
+            score = max(0.08, 0.88 - i * 0.06)
+            results.append({
+                "id": item["id"],
+                "material_id": "",
+                "course_id": "",
+                "title": item["title"],
+                "description": item["description"],
+                "url": item["url"],
+                "source": "article",
+                "type": "Article",
+                "difficulty": "intermediate",
+                "topic": topic,
+                "channel": item.get("channel") or "",
+                "thumbnails": item["thumbnails"],
+                "similarity_score": round(score, 4),
+            })
+        return results
+
+    def _semantic_search(self, query: str, top_n: int, allowed=None) -> list:
         import numpy as np
+        if allowed is not None and not allowed:
+            return []
         query_embedding = self.model.encode(query, convert_to_numpy=True)
 
-        norms_query = np.linalg.norm(query_embedding)
-        norms_resources = np.linalg.norm(self.resource_embeddings, axis=1)
+        if allowed is None:
+            embed_rows = self.resource_embeddings
+            indices = np.arange(len(self.resources))
+        else:
+            indices = np.array(allowed, dtype=int)
+            embed_rows = self.resource_embeddings[indices]
 
-        norms_query = max(norms_query, 1e-9)
+        query_norm = np.linalg.norm(query_embedding)
+        norms_resources = np.linalg.norm(embed_rows, axis=1)
+
+        query_norm = max(query_norm, 1e-9)
         norms_resources[norms_resources == 0] = 1e-9
 
-        similarities = np.dot(self.resource_embeddings, query_embedding) / (norms_resources * norms_query)
-        indices = np.argsort(similarities)[::-1][:top_n]
+        similarities = np.dot(embed_rows, query_embedding) / (norms_resources * query_norm)
+        order = np.argsort(similarities)[::-1][:top_n]
 
         results = []
-        for idx in indices:
-            r = self.resources[idx].copy()
-            r["similarity_score"] = round(float(similarities[idx]), 4)
+        for j in order:
+            r = self.resources[int(indices[j])].copy()
+            r["similarity_score"] = round(float(similarities[j]), 4)
             results.append(r)
         return results
 
-    def _tfidf_search(self, query: str, top_n: int) -> list:
+    def _tfidf_search(self, query: str, top_n: int, allowed=None) -> list:
         """Lightweight TF-IDF-like keyword matching (no external deps)."""
+        if allowed is not None and not allowed:
+            return []
         query_tokens = self._tokenize(query)
 
         # Build corpus vocabulary
@@ -478,8 +543,10 @@ class RecommendationEngine:
         if not query_vec:
             return []
 
+        candidates = range(len(self.resources)) if allowed is None else allowed
         scored = []
-        for i, tokens in enumerate(corpus_tokens):
+        for i in candidates:
+            tokens = corpus_tokens[i]
             doc_vec = tfidf(tokens)
             dot = sum(query_vec.get(t, 0) * doc_vec.get(t, 0) for t in query_vec)
             q_norm = math.sqrt(sum(v * v for v in query_vec.values())) or 1e-9

@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="sheet-date">${new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     <h2 class="sheet-title">${escapeHTML(r.title)}</h2>
-                    <div class="sheet-body">${escapeHTML(r.content_text)}</div>
+                    <div class="sheet-body">${renderMarkdown(r.content_text)}</div>
                 </article>
             `;
         }).join('');

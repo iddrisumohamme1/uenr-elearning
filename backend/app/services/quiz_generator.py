@@ -268,6 +268,38 @@ class QuizGeneratorService:
         avg = round(sum(scores) / len(scores), 3) if scores else 0.0
         return {"scores": scores, "feedback": feedback, "average": avg}
 
+    @staticmethod
+    def _has_key_points_section(text: str) -> bool:
+        """True when ``text`` already contains a Key Points heading followed by a list."""
+        lines = (text or "").splitlines()
+        for i, line in enumerate(lines):
+            s = re.sub(r"^[#*_\-\s]+|[#*_\-\s:]+$", "", line).strip()
+            if not re.fullmatch(r"(key\s*points?|key\s*takeaways?|takeaways?)", s, re.IGNORECASE):
+                continue
+            following = lines[i + 1 : i + 7]
+            if any(re.match(r"^\s*(?:[-*•]|\d+[.)])\s+", fl) for fl in following):
+                return True
+        return False
+
+    @staticmethod
+    def _extract_key_points_bullets(text: str) -> list:
+        """Normalize raw model output into a clean list of '- <point>' bullets."""
+        bullets, seen = [], set()
+        for line in (text or "").splitlines():
+            raw = line.strip()
+            if not raw:
+                continue
+            point = re.sub(r"^[-*•\d]+[.)]?\s*", "", raw).strip()
+            point = re.sub(r"^\*+|\*+$", "", point).strip()
+            key = point.lower()
+            if not point or key in seen:
+                continue
+            seen.add(key)
+            bullets.append(f"- {point}")
+            if len(bullets) >= 8:
+                break
+        return bullets
+
     def generate_resource(self, material_content: str, resource_type: str) -> str:
         """
         Generates a study resource (summary, key points or practice questions)
@@ -280,7 +312,9 @@ class QuizGeneratorService:
             "summary": (
                 "Write a concise but complete study summary of this course material. "
                 "Structure it with clear section headings, explain every core concept in "
-                "simple student-friendly language, and end with a short 'Key takeaways' list."
+                "simple student-friendly language, and end with a 'Key Points' section: "
+                "a 'Key Points' heading followed by a bullet list of the 4-6 most important "
+                "takeaways. Use '##' for section headings and '-' for list bullets."
             ),
             "key_points": (
                 "Extract the key points of this course material as a structured revision sheet. "
@@ -310,7 +344,81 @@ class QuizGeneratorService:
         if text.startswith("```"):
             text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
+        text = text.strip()
+
+        # Guarantee the Key Points section on summaries: models sometimes skip
+        # it, so extract the key points in a short follow-up call and append.
+        if resource_type == "summary" and text and not self._has_key_points_section(text):
+            key_prompt = (
+                "Extract the 4-6 most important key points from the course material below. "
+                "Return ONLY a markdown bullet list, one point per line, each starting "
+                "with '-'. No heading, no numbering, and no text before or after the list.\n\n"
+                f"Course Material:\n{material_content}"
+            )
+            extra = (self._complete(key_prompt) or "").strip()
+            bullets = self._extract_key_points_bullets(extra)
+            if bullets:
+                text = f"{text}\n\n## Key Points\n" + "\n".join(bullets)
+
         return text
+
+    def extract_questions(self, material_content: str) -> dict:
+        """
+        Convert a document's existing questions (with or without answer keys)
+        into the {"objective": [...], "theory": [...]} schema so lecturers can
+        import their question banks instead of retyping them. Returns {} when
+        the AI is unavailable or no questions can be read.
+        """
+        if not self._available:
+            return {}
+
+        prompt = f"""
+        You are converting a document that contains existing exam or assignment
+        questions (possibly with answer keys) into a structured format. Extract
+        EVERY question present in the document. Do NOT invent, add, merge or
+        remove questions, and do NOT explain anything.
+
+        Return ONLY a raw JSON object with this schema:
+        {{
+            "objective": [
+                {{"question": "question text...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}}
+            ],
+            "theory": [
+                {{"question": "question text...", "suggested_answer_rubric": "key points a marker should look for"}}
+            ]
+        }}
+
+        Rules:
+        - "objective" is for multiple-choice and true/false questions. Include every
+          answer choice in "options", in the order they appear. Set
+          "correct_answer_index" to the 0-based index of the correct option, or -1
+          when the document does not mark a correct answer.
+        - "theory" is for short-answer, essay and open-ended questions. When the
+          document includes a model answer, put it in "suggested_answer_rubric";
+          otherwise leave it as an empty string.
+        - If the document has no questions at all, return {{"objective": [], "theory": []}}.
+        - Do NOT include markdown code fences or any text outside the JSON object.
+
+        Document:
+        {material_content[:30000]}
+        """
+
+        for attempt in range(2):
+            text = self._complete(prompt)
+            if not text:
+                break
+            try:
+                data = self._extract_json(text)
+                if not isinstance(data, dict):
+                    data = {}
+                data.setdefault("objective", [])
+                data.setdefault("theory", [])
+                return data
+            except Exception as exc:
+                print(f"[AI] Error parsing extracted questions: {exc}")
+                if attempt == 0:
+                    continue
+        return {}
 
     def ask_tutor(self, question: str, material_context: str = "") -> str:
         """

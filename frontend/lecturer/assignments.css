@@ -59,6 +59,10 @@
   background: var(--accent-soft);
   color: var(--clr-accent);
 }
+.choice-icon--import {
+  background: var(--success-soft);
+  color: var(--clr-success);
+}
 .choice-title {
   font-weight: 700;
   font-size: 1rem;
@@ -123,6 +127,69 @@
 }
 .form-label { display: block; margin-bottom: var(--s2); font-size: 0.85rem; color: var(--text-secondary); }
 .form-optional { font-weight: 400; color: var(--text-muted); font-size: 0.78rem; }
+.file-error {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--clr-danger);
+}
+
+/* ── Import drop zone ────────────────────────────────────────────────── */
+.drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 140px;
+  padding: 1.5rem;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
+  text-align: center;
+  margin-top: var(--s2);
+}
+.drop-zone:hover,
+.drop-zone--over {
+  border-color: var(--clr-primary);
+  background: var(--primary-soft);
+}
+.drop-zone:focus-visible {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: var(--ring);
+}
+.drop-zone--has-file {
+  border-color: var(--clr-success);
+  border-style: solid;
+}
+.drop-zone__icon {
+  display: block;
+  font-size: 2rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  transition: color var(--t-fast);
+}
+.drop-zone:hover .drop-zone__icon,
+.drop-zone--over .drop-zone__icon,
+.drop-zone--has-file .drop-zone__icon {
+  color: var(--clr-primary);
+}
+.drop-zone--has-file .drop-zone__icon { color: var(--clr-success); }
+.drop-zone__label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+.drop-zone__sub { font-size: 0.85rem; color: var(--text-muted); }
+.drop-zone__browse {
+  color: var(--clr-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .form-input {
   width: 100%;
   font: inherit;
@@ -386,6 +453,49 @@
   background: var(--clr-success);
   color: #fff;
 }
+.q-opt-radio {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.q-opt-radio input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.q-opt-radio .q-option-marker {
+  border-width: 2px;
+}
+.q-opt-radio input:focus-visible + .q-option-marker {
+  outline: 2px solid var(--clr-primary);
+  outline-offset: 2px;
+}
+.q-opt-text {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 0.15rem 0.4rem;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.q-opt-text:hover { border-color: var(--border); background: var(--bg-card); }
+.q-opt-text:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  background: var(--bg-card);
+  box-shadow: var(--ring);
+}
+.q-opt-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-bottom: var(--s1);
+}
 
 /* Theory rubric */
 .q-rubric {
@@ -466,12 +576,12 @@
   font-weight: 600;
   color: var(--clr-primary);
   background: var(--primary-soft);
-  border: 1px solid rgba(59,130,246,0.2);
+  border: 1px solid rgba(16,185,129,0.2);
   border-radius: var(--r-md);
   cursor: pointer;
   transition: background var(--t-fast);
 }
-.btn-msg:hover { background: rgba(59,130,246,0.2); }
+.btn-msg:hover { background: rgba(16,185,129,0.2); }
 
 /* ── Submissions table ──────────────────────────────────────────────── */
 .subs-summary { font-size: 0.82rem; margin-bottom: var(--s4); }

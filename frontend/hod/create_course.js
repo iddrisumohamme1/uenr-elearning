@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const lecturerSelect = document.getElementById('lecturer-select');
     const form = document.getElementById('create-course-form');
+    const submitBtn = document.getElementById('btn-text').parentElement;
+    const btnSpinner = document.getElementById('btn-spinner');
+    const btnText = document.getElementById('btn-text');
+
+    function setSubmitting(submitting) {
+        submitBtn.disabled = submitting;
+        btnSpinner.hidden = !submitting;
+        btnText.textContent = submitting ? 'Creating…' : 'Create Course';
+    }
 
     attachLogout('logout-btn');
     initProfilePopup();
@@ -21,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             lecturerSelect.innerHTML = `
                 <option value="" disabled selected>Select a department lecturer</option>
                 ${lecturers.map(lecturer => `
-                    <option value="${lecturer.id}">${lecturer.full_name}${lecturer.id === user.id ? ' (you)' : ''}</option>
+                    <option value="${lecturer.id}">${escapeHTML(lecturer.full_name)}${lecturer.id === user.id ? ' (you)' : ''}</option>
                 `).join('')}
             `;
         } catch (err) {
@@ -42,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        setSubmitting(true);
         try {
             const response = await authFetch(`${API_BASE}/api/courses/create`, {
                 method: 'POST',
@@ -57,10 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 invalidateApiCache('lect-my-courses');
                 showToast('Course created successfully.', 'success');
                 window.location.href = 'dashboard.html';
-            } else {
-                showToast('Failed to create course: ' + (data.detail || data.message || 'Unknown error'), 'error');
+                return;
             }
+            setSubmitting(false);
+            showToast('Failed to create course: ' + (data.detail || data.message || 'Unknown error'), 'error');
         } catch (err) {
+            setSubmitting(false);
             console.error('Create course error:', err);
             showToast('Server connection failed.', 'error');
         }

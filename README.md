@@ -36,7 +36,7 @@ FYP/
 │   │   ├── reset.css             # CSS reset + base polish
 │   │   ├── typography.css        # Shared typography + utilities
 │   │   ├── responsive.css        # Mobile/tablet breakpoints (incl. off-canvas drawer)
-│   │   ├── sidebar.css + sidebar.js  # Shared sidebar (all roles): injected nav, unread badges, mobile drawer
+│   │   ├── sidebar.css + sidebar.js  # Shared sidebar (all roles): injected nav, unread badges, mobile drawer, sticky-header offset (--sticky-header-top)
 │   │   ├── dropdown.css + dropdown.js # Custom dropdown/select component
 │   │   ├── pulse.css             # Real-time engagement pulse bar
 │   │   ├── spinner.css           # Loading spinners, skeletons, button loaders
@@ -137,7 +137,7 @@ Fill in `backend/.env` with your Supabase project URL and keys (Project Settings
 ### 4. Run the backend
 ```powershell
 cd backend
-c:/Users/myPC/Desktop/FYP/venv/Scripts/Activate.ps1
+../venv/Scripts/Activate.ps1
 python -m uvicorn app.main:app --reload --port 8001
 ```
 - API docs: http://localhost:8001/docs
@@ -258,6 +258,14 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Responsive breakpoints: 772px (collapsed icon sidebar), 560px (off-canvas drawer), 400px (compact)
 - Shared sidebar across all roles: injected nav with icons/labels, unread-count badges,
   hamburger toggle that slides the sidebar in as a drawer on mobile
+- **Sticky page headers** on the HOD & lecturer pages (every screen width): the title
+  bar pins while scrolling, with the secondary bar — course-table toolbar (Dept Courses),
+  My Courses summary strip, Study Press stage rail, and the student-roster toolbar —
+  sticking just below it. The offset is measured once in the shared sidebar
+  (`syncStickyHeader()` → `--sticky-header-top`) and re-synced on resize/font-load.
+- **Loading spinners** in a shared `.loading-wrapper`/`.spinner` component: the HOD
+  student roster and course grids center the spinner across their grid on tablet,
+  and form buttons show an inline `.btn-spinner` while submitting
 - Profile avatar + popup with avatar upload on every authenticated page
 - Shared custom dropdown and pulse components across all roles
 - Toast notifications, loading spinners, skeleton placeholders, button loaders

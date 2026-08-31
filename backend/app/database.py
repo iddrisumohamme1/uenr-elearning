@@ -56,6 +56,14 @@ _CONNECTION_ERROR_MARKERS = (
     "max retries exceeded",
     "failed to establish a new connection",
     "connectionterminated error_code",
+    # DNS / name-resolution failures (e.g. `getaddrinfo failed`), which on
+    # flaky networks surface as ConnectError and must be retried like any
+    # other transient connection drop.
+    "getaddrinfo failed",
+    "nodename nor servname provided",
+    "temporary failure in name resolution",
+    "gaierror",
+    "connecterror",
     # Windows WSAEWOULDBLOCK (WinError 10035) — socket resource exhaustion
     # under concurrent requests. Transient; retrying with a fresh client works.
     "non-blocking socket operation could not be completed",

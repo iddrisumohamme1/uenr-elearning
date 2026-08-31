@@ -2,7 +2,7 @@
    DEPARTMENT COURSES LOGIC
    frontend/hod/department_courses.js
    Fetches all department courses from Supabase via FastAPI backend and
-   renders the course ledger: filter by lecturer, assign/reassign/resign
+   renders the course ledger: filter by lecturer, assign/reassign
    lecturers, and delete courses.
 */
 
@@ -59,29 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
-    async function resignCourse(course) {
-        try {
-            const response = await authFetch(`${API_BASE}/api/courses/${course.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lecturer_id: null })
-            });
-            const data = await response.json().catch(() => ({}));
-            if (response.ok) {
-                showToast(`${course.code || course.title} resigned. The course is now unassigned.`, 'success');
-                invalidateApiCache('hod-catalog');
-                invalidateApiCache('lect-my-courses');
-                loadCourses();
-            } else {
-                showToast('Failed to resign course: ' + (data.detail || 'Unknown error'), 'error');
-            }
-        } catch (err) {
-            console.error('Resign course error:', err);
-            showToast('Server connection failed.', 'error');
-        }
-    }
-
-    function openDeleteModal(course) {
+    async function openDeleteModal(course) {
         activeCourse = course;
         const name = `${course.code || 'N/A'} - ${course.title}`;
         document.getElementById('delete-modal-text').textContent =
@@ -223,13 +201,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         courseList.innerHTML = filtered.map(course => {
             const assigned = !!course.lecturer_id;
             const lecturerCell = assigned
-                ? `<span class="lecturer-cell">${course.lecturer_name}${course.lecturer_id === user.id ? ' <span class="text-muted">(you)</span>' : ''}</span>`
+                ? `<span class="lecturer-cell">${escapeHTML(course.lecturer_name)}${course.lecturer_id === user.id ? ' <span class="text-muted">(you)</span>' : ''}</span>`
                 : '<span class="badge badge--unassigned">Unassigned</span>';
             return `
                 <tr>
                     <td data-label="Course">
-                        <span class="course-code">${course.code || 'N/A'}</span>
-                        <span class="course-name">${course.title}</span>
+                        <span class="course-code">${escapeHTML(course.code || 'N/A')}</span>
+                        <span class="course-name">${escapeHTML(course.title)}</span>
                     </td>
                     <td data-label="Lecturer">${lecturerCell}</td>
                     <td data-label="Actions" class="actions-col">
@@ -237,10 +215,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <button class="course-action course-action--assign" data-assign="${course.id}" title="Assign a lecturer">
                                 <i class="bi bi-person-plus"></i> ${assigned ? 'Reassign' : 'Assign'}
                             </button>
-                            ${assigned ? `
-                            <button class="course-action course-action--resign" data-resign="${course.id}" title="Resign the lecturer from this course">
-                                <i class="bi bi-person-dash"></i> Resign
-                            </button>` : ''}
                             <button class="course-action course-action--danger" data-delete="${course.id}" title="Delete course">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -285,13 +259,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     courseList.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-assign], button[data-resign], button[data-delete]');
+        const btn = e.target.closest('button[data-assign], button[data-delete]');
         if (!btn) return;
-        const courseId = btn.dataset.assign || btn.dataset.resign || btn.dataset.delete;
+        const courseId = btn.dataset.assign || btn.dataset.delete;
         const course = deptCourses.find(c => c.id === courseId);
         if (!course) return;
         if (btn.hasAttribute('data-assign')) openAssignModal(course);
-        else if (btn.hasAttribute('data-resign')) resignCourse(course);
         else if (btn.hasAttribute('data-delete')) openDeleteModal(course);
     });
 

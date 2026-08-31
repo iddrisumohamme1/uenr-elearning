@@ -3,15 +3,15 @@
  * PAGE: HOME / LANDING PAGE
  * ==============================================================================
  * File: frontend/css/pages/home.css
- * Purpose: Specific styles for the main landing page, including the Hero, 
- * Features, and Roles sections.
+ * Purpose: Specific styles for the main landing page — a centered Hero with
+ * the gold engagement pulse, plus Features, How-it-works, and Roles.
  * ==============================================================================
  */
 
 /* --- HERO SECTION --- */
 .hero {
   position: relative;
-  padding: var(--s20) 0;
+  padding: var(--s12) 0 var(--s16);
   min-height: calc(100vh - var(--navbar-h));
   display: flex;
   align-items: center;
@@ -23,9 +23,9 @@
   max-width: var(--max-w);
   margin: 0 auto;
   padding: 0 var(--s6);
-  text-align: center;
   position: relative;
   z-index: 2;
+  text-align: center;
 }
 
 .hero__badge {
@@ -33,7 +33,7 @@
   align-items: center;
   gap: var(--s2);
   padding: var(--s2) var(--s4);
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   border: 1px solid var(--border-focus);
   border-radius: var(--r-full);
   color: var(--clr-primary-light);
@@ -53,13 +53,12 @@
 
 .hero__title {
   margin-bottom: var(--s6);
+  font-size: clamp(2.5rem, 5vw, 4rem);
   animation: slideUp 0.8s ease;
 }
 
-.hero__title-gradient {
-  background: var(--grad-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.hero__title-accent {
+  color: var(--clr-energy);
 }
 
 .hero__subtitle {
@@ -73,41 +72,17 @@
   display: flex;
   justify-content: center;
   gap: var(--s4);
+  flex-wrap: wrap;
   animation: slideUp 1.2s ease;
 }
 
-/* --- HERO BACKGROUND SHAPES --- */
-.hero__shape {
-  position: absolute;
-  filter: blur(80px);
-  z-index: 1;
-  opacity: 0.4;
-  border-radius: 50%;
-}
-
-.hero__shape--1 {
-  width: 400px;
-  height: 400px;
-  background: var(--clr-primary);
-  top: -100px;
-  right: -100px;
-}
-
-.hero__shape--2 {
-  width: 300px;
-  height: 300px;
-  background: var(--clr-accent);
-  bottom: -50px;
-  left: -50px;
-}
-
-.hero__shape--3 {
-  width: 260px;
-  height: 260px;
-  background: var(--clr-primary-light);
-  top: 40%;
-  left: 45%;
-  opacity: 0.25;
+.hero__trust {
+  margin: var(--s6) 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  animation: fadeIn 1.4s ease;
 }
 
 /* --- HERO ENGAGEMENT PULSE (signature element) ---
@@ -115,12 +90,12 @@
    core feature — real-time engagement monitoring — beating in real time. */
 .hero__pulse {
   position: absolute;
-  top: 44%;
+  top: 50%;
   left: 50%;
-  width: 520px;
-  height: 520px;
+  width: 560px;
+  height: 560px;
   transform: translate(-50%, -50%);
-  z-index: 1;
+  z-index: -1;
   pointer-events: none;
 }
 
@@ -133,7 +108,7 @@
   margin: -8px 0 0 -8px;
   border-radius: 50%;
   background: var(--clr-energy);
-  box-shadow: 0 0 24px var(--clr-energy), 0 0 64px rgba(251, 191, 36, 0.45);
+  box-shadow: 0 0 24px var(--clr-energy), 0 0 64px rgba(74, 222, 128, 0.3);
 }
 
 .hero__pulse-ring {
@@ -156,47 +131,6 @@
   0%   { transform: scale(1); opacity: 0.75; }
   70%  { opacity: 0.06; }
   100% { transform: scale(30); opacity: 0; }
-}
-
-/* --- HERO STATS BAR --- */
-.hero__stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s8);
-  margin-top: var(--s12);
-  flex-wrap: wrap;
-  animation: slideUp 1.4s ease;
-}
-
-.hero__stat {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-
-.hero__stat-value {
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 800;
-  background: var(--grad-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero__stat-label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-}
-
-.hero__stat-divider {
-  width: 1px;
-  height: 40px;
-  background: var(--border);
 }
 
 /* --- FEATURES SECTION --- */
@@ -252,7 +186,7 @@
   align-items: center;
   justify-content: center;
   margin-bottom: var(--s6);
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   border: 1px solid var(--border-focus);
   border-radius: var(--r-lg);
   transition: transform var(--t-base);
@@ -268,6 +202,7 @@
 
 .feature-card__title {
   margin-bottom: var(--s3);
+  font-size: 1.4rem;
 }
 
 .feature-card__desc {
@@ -275,9 +210,111 @@
   font-size: 1rem;
 }
 
+/* --- HOW IT WORKS SECTION --- */
+.how {
+  padding: var(--s20) 0;
+}
+
+.how__container {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 var(--s6);
+}
+
+.how__header {
+  text-align: center;
+  margin-bottom: var(--s16);
+}
+
+.how__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s10);
+  position: relative;
+}
+
+/* Connector line running through the step icons — the sequence is real,
+   so the line reads left → right the same way the steps are meant to be read */
+.how__grid::before {
+  content: "";
+  position: absolute;
+  top: 42px;
+  left: 16.66%;
+  right: 16.66%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.45), rgba(22, 163, 74, 0.45));
+  z-index: 0;
+}
+
+.how__step {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.how__step-icon {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto var(--s6);
+  display: grid;
+  place-items: center;
+  font-size: 1.9rem;
+  color: var(--clr-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t-base), box-shadow var(--t-base);
+}
+
+.how__step:hover .how__step-icon {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-focus);
+}
+
+.how__step-icon .bi {
+  color: inherit;
+}
+
+.how__step:nth-child(2) .how__step-icon { color: var(--clr-accent); }
+.how__step:nth-child(3) .how__step-icon { color: var(--clr-energy); }
+
+.how__step-num {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #06281d;
+  background: linear-gradient(135deg, var(--clr-energy), var(--clr-accent));
+  box-shadow: var(--shadow-sm);
+}
+
+.how__step-title {
+  font-size: 1.35rem;
+  margin-bottom: var(--s3);
+}
+
+.how__step-desc {
+  font-size: 1rem;
+  margin-bottom: 0;
+  max-width: 30ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* --- ROLES SECTION --- */
 .roles {
   padding: var(--s20) 0;
+  background: var(--bg-surface);
 }
 
 .roles__container {
@@ -321,7 +358,7 @@
   position: relative;
   transform: scale(1.05);
   box-shadow: var(--shadow-glow);
-  background-image: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, transparent 40%);
+  background-image: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
 }
 
 .role-card--featured:hover {
@@ -363,6 +400,10 @@
   color: var(--clr-primary);
 }
 
+.role-card__title {
+  font-size: 1.5rem;
+}
+
 .role-card__list {
   text-align: left;
   margin: var(--s6) 0 var(--s8);
@@ -392,12 +433,11 @@
 }
 
 /* --- LIGHT MODE READABILITY FIXES ---
-   The hero badge, gradient headline/stat values, and stat labels were
-   tuned for the dark theme; on the pale light background they dropped
-   below readable contrast. These overrides restore WCAG AA contrast
-   without touching the dark theme. */
+   The hero badge, gradient headline, and panel were tuned for the dark
+   theme; on the pale light background they need explicit overrides to keep
+   WCAG AA contrast. */
 [data-theme="light"] .hero__badge {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(16, 185, 129, 0.12);
   color: var(--clr-primary-dark);
 }
 
@@ -405,17 +445,9 @@
   box-shadow: none;
 }
 
-[data-theme="light"] .hero__title-gradient,
-[data-theme="light"] .hero__stat-value {
-  /* Darker blue → deep teal so gradient text stays legible on light bg */
-  background: linear-gradient(135deg, #2563eb, #0e7490);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-[data-theme="light"] .hero__stat-label {
-  color: var(--text-secondary);
+[data-theme="light"] .hero__title-accent {
+  /* Bright green on the pale light background needs to drop a shade to stay legible */
+  color: #15803d;
 }
 
 /* --- ANIMATIONS --- */
@@ -431,7 +463,7 @@
 
 /* --- FOOTER --- */
 .footer {
-  background: var(--bg-surface);
+  background: var(--bg);
   border-top: 1px solid var(--border);
   padding: var(--s16) 0 0;
 }
@@ -507,23 +539,35 @@
 }
 
 /* --- RESPONSIVE --- */
+/* Tablet (<= 1024px) */
+@media (max-width: 1024px) {
+  .hero__pulse {
+    width: 460px;
+    height: 460px;
+  }
+}
+
 /* Tablet (<= 900px) */
 @media (max-width: 900px) {
   .hero {
     padding: var(--s16) 0;
   }
 
-  .hero__pulse {
-    width: 420px;
-    height: 420px;
+  .how__grid {
+    grid-template-columns: 1fr;
+    gap: var(--s10);
+  }
+
+  .how__grid::before {
+    display: none;
   }
 }
 
 /* Small tablet / large phone (<= 768px) */
 @media (max-width: 768px) {
   .hero__pulse {
-    width: 340px;
-    height: 340px;
+    width: 380px;
+    height: 380px;
   }
 
   .hero__actions {
@@ -534,22 +578,6 @@
   .hero__actions .btn {
     width: 100%;
     max-width: 360px;
-  }
-
-  .hero__stats {
-    gap: var(--s5);
-  }
-
-  .hero__stat-divider {
-    display: none;
-  }
-
-  .role-card--featured {
-    transform: scale(1);
-  }
-
-  .role-card--featured:hover {
-    transform: translateY(-6px);
   }
 
   .footer__container {
@@ -566,15 +594,16 @@
   }
 
   .hero__title {
-    font-size: clamp(2.25rem, 10vw, 3rem);
+    font-size: clamp(2rem, 10vw, 2.75rem);
   }
 
   .hero__subtitle {
-    font-size: 1.125rem;
+    font-size: 1.1rem;
     margin-bottom: var(--s8);
   }
 
   .features,
+  .how,
   .roles {
     padding: var(--s12) 0;
   }
@@ -582,6 +611,10 @@
   /* Reduce card & text sizes on mobile */
   .features__grid {
     gap: var(--s4);
+  }
+
+  .features__header {
+    margin-bottom: var(--s10);
   }
 
   .feature-card {
@@ -596,7 +629,7 @@
   }
 
   .feature-card__title {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
   }
 
   .feature-card__desc {
@@ -619,7 +652,7 @@
   }
 
   .role-card__title {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
   }
 
   .role-card__list {
@@ -631,43 +664,35 @@
     margin-bottom: var(--s2);
   }
 
-  .feature-card__title,
-  .role-card__title {
-    margin-bottom: var(--s2);
+  .how__step-icon {
+    width: 72px;
+    height: 72px;
+    font-size: 1.6rem;
+  }
+
+  .how__step-title {
+    font-size: 1.15rem;
+  }
+
+  .how__step-desc {
+    font-size: 0.9rem;
   }
 }
 
 /* Small phone (<= 480px) */
 @media (max-width: 480px) {
   .hero__pulse {
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
   }
 
   .hero__badge {
     font-size: 0.8rem;
   }
 
-  .hero__stats {
-    gap: var(--s4);
-  }
-
-  .hero__stat-value {
-    font-size: 1.25rem;
-  }
-
-  .hero__stat-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
-  }
-
   .hero__actions .btn--lg {
     padding: 0.875rem 1.5rem;
     font-size: 1rem;
-  }
-
-  .features__header {
-    margin-bottom: var(--s10);
   }
 
   .role-card__list {
@@ -683,13 +708,8 @@
 /* Tiny phones (<= 400px) */
 @media (max-width: 400px) {
   .hero__pulse {
-    width: 240px;
-    height: 240px;
-  }
-
-  .hero__stats {
-    flex-direction: column;
-    gap: var(--s3);
+    width: 260px;
+    height: 260px;
   }
 
   .features__grid,

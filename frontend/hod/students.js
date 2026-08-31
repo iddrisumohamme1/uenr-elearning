@@ -407,5 +407,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Roster exported to CSV.', 'success');
     });
 
+    /* Sticky header offset is set by the shared sidebar.js (--sticky-header-top);
+       the toolbar's sticky top falls back to 0px via CSS if it ever runs here
+       without the sidebar. */
+
     await loadData();
 });

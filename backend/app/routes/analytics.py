@@ -14,6 +14,13 @@ from app.routes.study import _predict_percentage, _quiz_stats, _attendance_stats
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
+COMPREHENSION_LABELS = {
+    0: "Low Comprehension",
+    1: "Moderate Comprehension",
+    2: "Good Comprehension",
+}
+
+
 def latest_per_student(rows, key):
     """
     Reduces classification rows to ONE entry per student, keeping their most
@@ -219,10 +226,37 @@ def course_at_risk(course_id: str, user=Depends(get_current_user)):
             except Exception:
                 pass
 
+            # Reconcile comprehension so the queue card matches the charts.
+            # The chart (lecturer/department summary) counts each student's
+            # LATEST comprehension across ALL log rows via latest_per_student.
+            # The at-risk rows above freeze comprehension on the flag itself,
+            # which can disagree when a newer (non-flagged) row was classified
+            # differently. Override each student's comprehension with their
+            # latest overall classification so card and chart agree; fall back
+            # to the at-risk row value when no newer classification exists.
+            latest_comp_rows = []
+            try:
+                comp_resp = with_retry(
+                    lambda c: c.table("engagement_logs")
+                    .select("student_id, comprehension_class, comprehension_label, created_at")
+                    .eq("course_id", course_id)
+                    .in_("student_id", student_ids)
+                    .order("created_at", desc=True)
+                    .execute()
+                )
+                latest_comp_rows = getattr(comp_resp, "data", []) or []
+            except Exception:
+                pass
+            latest_comp = latest_per_student(latest_comp_rows, "comprehension_class")
+
             now = datetime.utcnow()
             for s in students:
                 sid = s.get("student_id")
                 total = reading_seconds.get(sid, 0)
+                comp = latest_comp.get(sid)
+                if comp is not None:
+                    s["comprehension_class"] = comp[1]
+                    s["comprehension_label"] = COMPREHENSION_LABELS.get(comp[1], s.get("comprehension_label"))
                 s["reading_minutes"] = round(total / 60, 1) if total else 0
                 s["latest_quiz_score"] = latest_quiz.get(sid)
                 s["days_since_last_activity"] = None

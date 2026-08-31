@@ -76,8 +76,8 @@
   gap: var(--s5);
   padding: var(--s6);
   background:
-    radial-gradient(ellipse at 80% -20%, rgba(6, 182, 212, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse at 0% 110%, rgba(59, 130, 246, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% -20%, rgba(16, 185, 129, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 0% 110%, rgba(22, 163, 74, 0.16) 0%, transparent 55%),
     var(--bg-card);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-2xl);
@@ -181,7 +181,7 @@
   border-radius: var(--r-full);
   color: var(--clr-energy);
   background: var(--energy-soft);
-  border: 1px solid rgba(251, 191, 36, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   margin-bottom: var(--s2);
 }
 

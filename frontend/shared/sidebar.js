@@ -147,9 +147,27 @@
         });
     }
 
+    /* Sticky headers: measure the page's top bar height into
+       --sticky-header-top so a secondary bar (toolbar, tab row, summary
+       strip) can pin itself just below the stuck title bar. Runs after
+       initMobileNav() so the injected hamburger toggle is included in the
+       height. Re-measured on resize and once fonts have settled. */
+    function syncStickyHeader() {
+        const topBar = document.querySelector('.top-bar')
+            || document.querySelector('.page-header')
+            || document.querySelector('.quiz-header');
+        const height = topBar ? topBar.offsetHeight : 0;
+        document.documentElement.style.setProperty('--sticky-header-top', `${height}px`);
+    }
+
     function mount() {
         render();
         initMobileNav();
+        syncStickyHeader();
+        window.addEventListener('resize', syncStickyHeader);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(syncStickyHeader);
+        }
     }
 
     if (document.readyState === 'loading') {

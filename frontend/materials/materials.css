@@ -1,72 +1,72 @@
 /*
    MATERIALS VIEWER — "THE READING DESK"
    frontend/materials/materials.css
-   A focused study surface: river-blue dark / paper light, teal reading
-   instruments, and an energy-gold beacon reserved only for the quiz moment.
+   A focused study surface: emerald-green dark / paper light, green reading
+   instruments, and an amber warning reserved only for the quiz moment.
 */
 
 /* ── Page-scoped tokens (this stylesheet loads only on the viewer) ─────── */
 :root {
-    --rd-teal:       #10c4d8;
-    --rd-teal-soft:  rgba(16, 196, 216, 0.12);
-    --rd-gold:       #f6b73a;
-    --rd-gold-soft:  rgba(246, 183, 58, 0.14);
-    --rd-ink:        #9fb0c9;
+    --rd-teal:       #10b981;
+    --rd-teal-soft:  rgba(16, 185, 129, 0.12);
+    --rd-gold:       #f59e0b;
+    --rd-gold-soft:  rgba(245, 158, 11, 0.14);
+    --rd-ink:        #94a3b8;
     --rd-mono:       'IBM Plex Mono', ui-monospace, monospace;
 
-    --bg:           #0a1120;
-    --bg-surface:   #101a2e;
-    --bg-card:      #16233c;
-    --bg-elevated:  #1b2a47;
+    --bg:           #060a12;
+    --bg-surface:   #0b101c;
+    --bg-card:      #101625;
+    --bg-elevated:  #161e30;
 
-    --text-primary:   #eef3fb;
-    --text-secondary: #9fb0c9;
-    --text-muted:     #61748f;
+    --text-primary:   #e6edf7;
+    --text-secondary: #8b95a9;
+    --text-muted:     #5b6478;
 
-    --clr-primary:    #10c4d8;
-    --clr-accent:     #10c4d8;
-    --clr-energy:     #f6b73a;
+    --clr-primary:    #10b981;
+    --clr-accent:     #10b981;
+    --clr-energy:     #f59e0b;
     --clr-success:    #34d399;
-    --clr-warning:    #f6b73a;
+    --clr-warning:    #f59e0b;
     --clr-danger:     #fb7185;
 
-    --primary-soft: rgba(16, 196, 216, 0.12);
-    --accent-soft:  rgba(16, 196, 216, 0.12);
-    --energy-soft:  rgba(246, 183, 58, 0.14);
+    --primary-soft: rgba(16, 185, 129, 0.12);
+    --accent-soft:  rgba(16, 185, 129, 0.12);
+    --energy-soft:  rgba(245, 158, 11, 0.14);
     --success-soft: rgba(52, 211, 153, 0.12);
     --danger-soft:  rgba(251, 113, 133, 0.12);
 
-    --border:        rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --border-focus:  rgba(16, 196, 216, 0.55);
+    --border:        rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --border-focus:  rgba(16, 185, 129, 0.5);
 
-    --grad-primary:  linear-gradient(135deg, #10c4d8, #3b82f6);
-    --grad-surface:  linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-    --shadow-glow:   0 0 30px rgba(16, 196, 216, 0.18);
-    --ring:          0 0 0 3px rgba(16, 196, 216, 0.25);
+    --grad-primary:  linear-gradient(135deg, #10b981, #22c55e);
+    --grad-surface:  linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    --shadow-glow:   0 0 30px rgba(16, 185, 129, 0.16);
+    --ring:          0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 [data-theme="light"] {
-    --bg:           #f5f8fc;
+    --bg:           #f4fbf7;
     --bg-surface:   #ffffff;
     --bg-card:      #ffffff;
-    --bg-elevated:  #edf3fa;
+    --bg-elevated:  #e1f3ea;
 
     --text-primary:   #0e1a2b;
-    --text-secondary: #43556f;
-    --text-muted:     #8496ae;
+    --text-secondary: #475569;
+    --text-muted:     #64748b;
 
-    --primary-soft: rgba(16, 196, 216, 0.1);
-    --accent-soft:  rgba(16, 196, 216, 0.1);
-    --energy-soft:  rgba(246, 183, 58, 0.18);
+    --primary-soft: rgba(16, 185, 129, 0.1);
+    --accent-soft:  rgba(16, 185, 129, 0.1);
+    --energy-soft:  rgba(245, 158, 11, 0.18);
     --success-soft: rgba(52, 211, 153, 0.12);
     --danger-soft:  rgba(251, 113, 133, 0.1);
 
-    --border:        rgba(15, 40, 90, 0.08);
-    --border-strong: rgba(15, 40, 90, 0.14);
-    --border-focus:  rgba(16, 196, 216, 0.5);
-    --shadow-glow:   0 0 24px rgba(16, 196, 216, 0.14);
-    --ring:          0 0 0 3px rgba(16, 196, 216, 0.18);
+    --border:        rgba(6, 70, 45, 0.08);
+    --border-strong: rgba(6, 70, 45, 0.14);
+    --border-focus:  rgba(16, 185, 129, 0.5);
+    --shadow-glow:   0 0 24px rgba(16, 185, 129, 0.14);
+    --ring:          0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
@@ -686,13 +686,13 @@
     padding: var(--s2) var(--s5);
     border: none;
     border-radius: var(--r-full);
-    background: linear-gradient(135deg, #f6b73a, #f59e0b);
+    background: linear-gradient(135deg, #f59e0b, #f59e0b);
     color: #261400;
     font-weight: 700;
     font-size: 0.78rem;
     font-family: var(--font-sans);
     cursor: pointer;
-    box-shadow: 0 0 0 0 rgba(246, 183, 58, 0.5);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
     animation: beacon-pulse 2s infinite;
     transition: transform 0.2s;
 }
@@ -702,9 +702,9 @@
 }
 
 @keyframes beacon-pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(246, 183, 58, 0.45); }
-    70%  { box-shadow: 0 0 0 12px rgba(246, 183, 58, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(246, 183, 58, 0); }
+    0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+    70%  { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
 }
 
 @keyframes pulse {
@@ -892,7 +892,7 @@
 /* Browsers no longer inherit color:transparent into ::selection, so selected
    glyphs would repaint as ghost letters over the canvas unless forced here. */
 .pdf-text-layer ::selection {
-    background: rgba(246, 183, 58, 0.4);
+    background: rgba(245, 158, 11, 0.4);
     color: transparent;
     -webkit-text-fill-color: transparent;
     text-shadow: none;
@@ -1002,7 +1002,7 @@
 
 .pdf-highlight-del:hover {
     color: #261400;
-    background: linear-gradient(135deg, #f6b73a, #f59e0b);
+    background: linear-gradient(135deg, #f59e0b, #f59e0b);
     border-color: transparent;
 }
 
@@ -1086,7 +1086,7 @@
 /* Brief attention flash after jumping to a highlight from the sidebar */
 .pdf-highlight.hl-flash {
     animation: hl-flash-pulse 0.5s ease-in-out 2 alternate;
-    box-shadow: 0 0 0 3px rgba(246, 183, 58, 0.85);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.85);
 }
 
 @keyframes hl-flash-pulse {

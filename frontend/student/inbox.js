@@ -75,12 +75,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="message-body">
                         <div class="message-head">
                             <div>
-                                <span class="message-sender">${sender}</span>
-                                ${courseLabel ? `<span class="message-course">${courseLabel}</span>` : ''}
+                                <span class="message-sender">${escapeHTML(sender)}</span>
+                                ${courseLabel ? `<span class="message-course">${escapeHTML(courseLabel)}</span>` : ''}
                             </div>
                             <span class="message-time">${fmtTime(m.created_at)}</span>
                         </div>
-                        <p class="message-text">${m.content}</p>
+                        <p class="message-text">${escapeHTML(m.content)}</p>
                     </div>
                     ${m.is_read ? '' : `<button class="message-mark-read" data-id="${m.id}" title="Mark as read"><i class="bi bi-check2-all"></i> Mark read</button>`}
                     <span class="message-dot">${m.is_read ? '' : '●'}</span>

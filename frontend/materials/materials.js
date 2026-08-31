@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (filter) {
             const current = filter.value;
             filter.innerHTML = `<option value="all">All semesters</option>` +
-                semesterKeys.map(s => `<option value="${s}">${s}</option>`).join('');
+                semesterKeys.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
             filter.value = semesterKeys.includes(current) ? current : 'all';
         }
 
@@ -209,8 +209,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="week-label">${groupLabel(key)}</div>
                     ${groups.get(key).map(material => `
                         <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-render-url="${material.render_url || ''}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
-                            <strong><span class="file-tag">${fileTag(material)}</span>${material.title}</strong>
-                            <p class="material-desc">${material.description || material.content_type || 'Material'}</p>
+                            <strong><span class="file-tag">${fileTag(material)}</span>${escapeHtml(material.title)}</strong>
+                            <p class="material-desc">${escapeHtml(material.description || material.content_type || 'Material')}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -218,8 +218,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         materialList.innerHTML = semesterKeys.map(semester => `
-            <div class="semester-group" data-semester="${semester}">
-                <div class="semester-label">${semester}</div>
+            <div class="semester-group" data-semester="${escapeHtml(semester)}">
+                <div class="semester-label">${escapeHtml(semester)}</div>
                 ${renderWeekGroups(semesterGroups.get(semester))}
             </div>
         `).join('');
@@ -273,6 +273,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const isPdf = !!renderUrl || contentType === 'application/pdf' || lowerUrl.endsWith('.pdf');
                 isEmbeddedContent = !isVideo && !isImage && !isPdf;
 
+                // Selecting any non-PDF material must tear down the PDF renderer
+                // state; otherwise stale keyboard shortcuts, highlight observers
+                // and the page registry keep acting on the detached document.
+                if (!isPdf) clearPdfHighlightState();
+
                 // Session-panel hint teaches the highlighting flow where it applies.
                 if (isPdf) {
                     setSessionHint('Tip — select any passage to highlight it.');
@@ -319,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         target.innerHTML = `
                             <div class="material-download-card">
                                 <span class="file-badge">${ext}</span>
-                                <h3>${fileName}</h3>
+                                <h3>${escapeHtml(fileName)}</h3>
                                 <p>Inline slide preview isn't reliable on small screens. Open this material in your device's viewer, or download it.</p>
                                 <button type="button" class="office-open-btn">Open material</button>
                                 <button type="button" class="office-dl-btn"><i class="bi bi-download"></i> Download</button>
@@ -664,7 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('mq-difficulty').textContent = `Question ${index + 1} of ${questions.length} (${data.difficulty})`;
 
             optionGrid.innerHTML = q.options.map((opt, i) => `
-                <button class="option-btn" data-index="${i}">${opt}</button>
+                <button class="option-btn" data-index="${i}">${escapeHtml(opt)}</button>
             `).join('');
 
             let hintEl = document.getElementById('mq-hint');
@@ -744,8 +749,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = document.createElement('div');
                 row.className = 'mq-result-row';
                 const q = questions[r.question_index];
-                row.innerHTML = `<strong>Q${r.question_index + 1}:</strong> ${q.question}<br>
-                    <span class="${r.correct ? 'mq-correct' : 'mq-incorrect'}">${r.correct ? 'Correct' : `Incorrect (Answer: ${q.options[r.correct_option]})`}</span>`;
+                row.innerHTML = `<strong>Q${r.question_index + 1}:</strong> ${escapeHtml(q.question)}<br>
+                    <span class="${r.correct ? 'mq-correct' : 'mq-incorrect'}">${r.correct ? 'Correct' : `Incorrect (Answer: ${escapeHtml(q.options[r.correct_option])})`}</span>`;
                 optionGrid.appendChild(row);
             });
 

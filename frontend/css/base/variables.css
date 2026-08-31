@@ -1,65 +1,65 @@
-/* 
+/*
  * ==============================================================================
  * DESIGN SYSTEM: CORE VARIABLES
  * ==============================================================================
  * File: frontend/css/base/variables.css
  * Purpose: Centralized design tokens for the UENR E-Learning Platform.
- * This file defines the global color palette, typography, spacing, and 
+ * This file defines the global color palette, typography, spacing, and
  * design effects (shadows, gradients, glassmorphism) to ensure consistency
  * across all modules (Student, Lecturer, HOD).
  *
- * Design Philosophy: 
- * - Premium Dark Mode: Deep blues and grays for reduced eye strain.
- * - Glassmorphism: Semi-transparent backgrounds with blur effects.
- * - Dynamic Accents: Vibrant blue-to-purple gradients for primary actions.
+ * Design Philosophy:
+ * - Green & White: Emerald green speaks to energy and UENR's natural-resources
+ *   identity; white keeps the system light, open, and legible.
+ * - Glassmorphism: Semi-transparent surfaces with blur effects.
+ * - Green accents: Emerald gradient for primary actions and the energy pulse.
  * ==============================================================================
  */
 
 :root {
   /* --- BRAND COLORS --- */
   /* Used for primary branding, buttons, and active states.
-     Palette grounded in the UENR identity: blue (loyalty & the river),
-     teal (water — the most abundant resource), gold (energy / the
-     African Energy Symbol). */
-  --clr-primary:      #3b82f6; /* UENR Blue */
-  --clr-primary-dark: #1d4ed8; 
-  --clr-primary-light:#60a5fa;
-  --clr-accent:       #06b6d4; /* Teal — water / current */
-  --clr-energy:       #fbbf24; /* Gold — energy (signature accent) */
-  
+     Emerald green (energy / natural resources) with a two-tone green pair
+     for gradients and depth. */
+  --clr-primary:      #10b981; /* Emerald — primary */
+  --clr-primary-dark: #059669;
+  --clr-primary-light:#34d399;
+  --clr-accent:       #16a34a; /* Deep green — depth accent */
+  --clr-energy:       #4ade80; /* Bright green — energy (signature accent) */
+
   /* Semantic Colors for feedback and status */
-  --clr-success:      #10b981; /* Emerald Green — natural resources */
+  --clr-success:      #22c55e; /* Green */
   --clr-warning:      #f59e0b; /* Amber */
   --clr-danger:       #ef4444; /* Rose Red */
 
   /* --- BACKGROUND SYSTEM --- */
-  /* Layered backgrounds to create depth in Dark Mode */
-  --bg:         #0a0f1e; /* Deep space background */
-  --bg-surface: #111827; /* Main section background */
-  --bg-card:    #1a2235; /* Card background */
-  --bg-elevated:#1f2a3d; /* Hover/Active background */
-  --bg-glass:   rgba(17, 24, 39, 0.7); /* For blurred overlays */
+  /* Layered backgrounds to create depth — deep, rich near-black in dark mode */
+  --bg:         #060a12; /* Near-black background */
+  --bg-surface: #0b101c; /* Main section background */
+  --bg-card:    #101625; /* Card background */
+  --bg-elevated:#161e30; /* Hover/Active background */
+  --bg-glass:   rgba(11, 16, 28, 0.8); /* For blurred overlays */
 
   /* --- TEXT SYSTEM --- */
-  --text-primary:   #f1f5f9; /* Near white for high readability */
-  --text-secondary: #94a3b8; /* Soft gray for descriptions */
-  --text-muted:     #64748b; /* Faded gray for less important info */
+  --text-primary:   #e6edf7; /* Soft white for high readability */
+  --text-secondary: #8b95a9; /* Soft gray for descriptions */
+  --text-muted:     #5b6478; /* Faded gray for less important info */
 
   /* --- BORDERS & LINES --- */
-  --border:       rgba(255,255,255,0.08);
-  --border-focus: rgba(59,130,246,0.6);
+  --border:       rgba(255,255,255,0.06);
+  --border-focus: rgba(16,185,129,0.55);
 
   /* --- GRADIENTS --- */
-  /* Blue → teal: river flow, energy in motion */
-  --grad-primary: linear-gradient(135deg, #3b82f6, #06b6d4);
-  --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+  /* Emerald → green: energy in motion */
+  --grad-primary: linear-gradient(135deg, #10b981, #22c55e);
+  --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.10) 0%, transparent 70%);
 
   /* --- SHADOWS & GLOWS --- */
   --shadow-sm:  0 2px 8px rgba(0,0,0,0.3);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.4);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.5);
-  --shadow-glow:0 0 30px rgba(59,130,246,0.25);
+  --shadow-glow:0 0 30px rgba(16,185,129,0.18);
 
   /* --- TYPOGRAPHY --- */
   --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
@@ -91,25 +91,25 @@
 
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  /* Background — soft sky blue, echoing the river / UENR blue */
-  --bg:         #e8f1fb;
-  --bg-surface: #f2f8fe;
+  /* Background — green & white */
+  --bg:         #f4fbf7;
+  --bg-surface: #ffffff;
   --bg-card:    #ffffff;
-  --bg-elevated:#dce9f8;
-  --bg-glass:   rgba(242,248,254,0.78);
+  --bg-elevated:#e1f3ea;
+  --bg-glass:   rgba(255,255,255,0.8);
 
   --text-primary:   #0f172a;
   --text-secondary: #475569;
   --text-muted:     #64748b; /* must stay darker than dark-mode muted — light bg needs dark text */
 
-  --border:       rgba(15,40,90,0.08);
-  --border-focus: rgba(59,130,246,0.5);
+  --border:       rgba(6,70,45,0.08);
+  --border-focus: rgba(16,185,129,0.5);
 
   --grad-surface: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%);
-  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  --grad-hero:    radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
 
   --shadow-sm:  0 2px 8px rgba(0,0,0,0.06);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.1);
-  --shadow-glow:0 0 30px rgba(59,130,246,0.12);
+  --shadow-glow:0 0 30px rgba(16,185,129,0.15);
 }

@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const courseSelect = document.getElementById('course-select');
     const materialSelect = document.getElementById('material-select');
     const generateBtn = document.getElementById('generate-btn');
-    const genStatus = document.getElementById('gen-status');
     const preview = document.getElementById('preview');
     const previewType = document.getElementById('preview-type');
     const previewTitle = document.getElementById('preview-title');
@@ -78,12 +77,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const courses = await swrGet('lect-my-courses', `${API_BASE}/api/courses/mine`);
             if (!Array.isArray(courses) || !courses.length) {
                 courseSelect.innerHTML = '<option value="" disabled>No courses assigned to you yet</option>';
-                genStatus.textContent = 'You have no courses assigned yet. Ask an HOD to assign you one.';
                 return;
             }
             courseSelect.innerHTML = `
                 <option value="" disabled selected>Select a course</option>
-                ${courses.map(c => `<option value="${c.id}">${c.title} (${c.code || 'No code'})</option>`).join('')}
+                ${courses.map(c => `<option value="${c.id}">${escapeHTML(c.title)} (${escapeHTML(c.code || 'No code')})</option>`).join('')}
             `;
             if (preselectId && courses.some(c => c.id === preselectId)) {
                 courseSelect.value = preselectId;
@@ -91,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (err) {
             courseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
-            genStatus.textContent = 'Could not load your courses. Check your connection and try again.';
         }
     }
 
@@ -134,7 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span class="live-date">${new Date(r.created_at).toLocaleDateString()}</span>
                         </div>
                         <h3>${escapeHTML(r.title)}</h3>
-                        <div class="live-text">${escapeHTML(r.content_text)}</div>
+                        <div class="live-text">${renderMarkdown(r.content_text)}</div>
                         <div class="live-foot">
                             <button class="btn-live-delete" data-id="${r.id}"><i class="bi bi-trash"></i> Remove</button>
                         </div>
@@ -187,19 +184,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (selectedCourseId) {
             loadMaterials(selectedCourseId);
             loadPublished(selectedCourseId);
-            genStatus.textContent = '';
         } else {
             materialSelect.innerHTML = '<option value="" disabled selected>Select a course first</option>';
-            genStatus.textContent = 'Pick a course to start.';
         }
     });
 
     materialSelect.addEventListener('change', () => {
         selectedMaterialId = materialSelect.value;
         resetPreview();
-        genStatus.textContent = selectedMaterialId
-            ? 'Choose a format, then generate a preview.'
-            : 'Choose a material to continue.';
     });
 
     document.querySelectorAll('input[name="format"]').forEach(radio => {
@@ -209,7 +201,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     generateBtn.addEventListener('click', async () => {
         if (!selectedCourseId || !selectedMaterialId) {
             showToast('Select a course and a material first.', 'warning');
-            genStatus.textContent = '';
             return;
         }
         generateBtn.disabled = true;
@@ -234,17 +225,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 previewType.textContent = FORMAT_LABELS[data.resource_type] || data.resource_type;
                 previewTitle.textContent = data.title;
                 previewCourse.textContent = selectedCourseName;
-                previewBody.textContent = data.content_text;
+                previewBody.innerHTML = renderMarkdown(data.content_text);
                 preview.hidden = false;
                 setStage(2);
-                genStatus.textContent = 'Proof ready — review it, then publish .';
             } else {
-                genStatus.textContent = data.detail || ' Generation failed. Try again.';
-                showToast(data.detail || 'Generation failed. Try again.', 'error');
+                showToast('Resources generation failed. Try again later.', 'error');
             }
         } catch (err) {
-            genStatus.textContent = 'Generation failed. Try again.';
-            showToast('Generation failed. Try again.', 'error');
+            showToast('Resources generation failed. Try again later.', 'error');
         } finally {
             generateBtn.disabled = false;
             generateBtn.textContent = 'Generate preview';
@@ -261,7 +249,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(pendingResource),
             });
-            const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 showToast('Published for students.', 'success');
                 preview.hidden = true;
@@ -270,12 +257,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 invalidateApiCache(`resources:${selectedCourseId}`);
                 loadPublished(selectedCourseId);
             } else {
-                genStatus.textContent = data.detail || 'Could not publish resource.';
-                showToast(data.detail || 'Could not publish resource.', 'error');
+                showToast('Publishing failed. Try again later.', 'error');
             }
         } catch (err) {
-            genStatus.textContent = 'Could not publish resource.';
-            showToast('Could not publish resource.', 'error');
+            showToast('Publishing failed. Try again later.', 'error');
         } finally {
             publishBtn.disabled = false;
             publishBtn.textContent = 'Publish for students';

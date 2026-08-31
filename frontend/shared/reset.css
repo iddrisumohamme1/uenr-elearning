@@ -20,7 +20,7 @@ table{border-collapse:collapse}
 :focus-visible{outline:none;box-shadow:var(--ring);border-radius:var(--r-sm)}
 
 /* Text selection uses brand color */
-::selection{background:rgba(59,130,246,0.35);color:#fff}
+::selection{background:rgba(16,185,129,0.35);color:#fff}
 
 /* Custom slim scrollbar to match the dark theme */
 *{scrollbar-width:thin;scrollbar-color:var(--bg-elevated) transparent}

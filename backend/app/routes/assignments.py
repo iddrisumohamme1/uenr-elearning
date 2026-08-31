@@ -3,16 +3,19 @@
 # for per-student assignments generated when a student downloads a material.
 
 from datetime import date, datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
 from app.routes.recommendations import RECOMMEND_THRESHOLD, record_auto_recommendation
+from app.services.doc_converter import convert_to_pdf
 from app.services.grades import letter_grade
-from app.services.material_content import material_text_from_url
+from app.services.material_content import extract_pdf_text, material_text_from_url
+from app.services.question_import import parse_docx, parse_plain_text, parse_xlsx
 from app.services.quiz_generator import quiz_ai
 
 router = APIRouter(prefix="/api/assignments", tags=["assignments"])
@@ -199,6 +202,121 @@ def generate_questions(payload: GenerateQuestionsRequest, user=Depends(require_r
         "material_titles": [t for t in material_titles if t],
         "num_objective": len(quiz_data.get("objective", [])),
         "num_theory": len(quiz_data.get("theory", [])),
+    }
+
+
+_MAX_IMPORT_BYTES = 10 * 1024 * 1024
+_MAX_IMPORT_QUESTIONS = 100
+
+
+def _sanitize_import_questions(data: dict) -> dict:
+    """Coerce raw AI/parser output into the questions schema the app stores."""
+    objective, theory = [], []
+    for q in (data or {}).get("objective", []) or []:
+        options = [str(o) for o in (q.get("options") or []) if str(o).strip()]
+        if not q.get("question") or not options:
+            continue
+        try:
+            idx = int(q.get("correct_answer_index", -1))
+        except (TypeError, ValueError):
+            idx = _LETTERS_LOOKUP(q.get("correct_answer_index"))
+        objective.append({
+            "question": str(q["question"]).strip(),
+            "options": options,
+            "correct_answer_index": idx if 0 <= idx < len(options) else -1,
+        })
+    for q in (data or {}).get("theory", []) or []:
+        if not q.get("question"):
+            continue
+        theory.append({
+            "question": str(q["question"]).strip(),
+            "suggested_answer_rubric": str(q.get("suggested_answer_rubric") or ""),
+        })
+    return {"objective": objective[: _MAX_IMPORT_QUESTIONS], "theory": theory[: _MAX_IMPORT_QUESTIONS]}
+
+
+def _LETTERS_LOOKUP(val) -> int:
+    if not isinstance(val, str):
+        return -1
+    s = val.strip().upper()
+    if len(s) == 1 and s in "ABCDEFGH":
+        return "ABCDEFGH".index(s)
+    return -1
+
+
+@router.post("/import-file")
+async def import_questions_file(
+    course_id: str = Form(...),
+    file: UploadFile = File(...),
+    user=Depends(require_role("lecturer", "hod")),
+):
+    """Parse a lecturer-uploaded question file into reviewable questions."""
+    admin = get_admin_client()
+    _check_course_scope(admin, course_id, user)
+
+    fname = Path(file.filename or "questions.txt").name
+    suffix = Path(fname).suffix.lower()
+    raw = await file.read()
+    if len(raw) > _MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=413, detail="This file is too large. Maximum size is 10 MB.")
+    if not raw or not raw.strip():
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+
+    questions = {"objective": [], "theory": []}
+    skipped = []
+    source = "file"
+    text = ""
+
+    try:
+        if suffix == ".xlsx":
+            questions, skipped = parse_xlsx(raw)
+        elif suffix == ".docx":
+            questions, skipped = parse_docx(raw)
+        elif suffix in (".txt", ".csv", ".md", ".text"):
+            text = raw.decode("utf-8", errors="replace")
+            questions, skipped = parse_plain_text(text)
+        elif suffix == ".pdf":
+            text = extract_pdf_text(raw)
+            questions, skipped = parse_plain_text(text)
+        else:
+            pdf = convert_to_pdf(raw, fname)
+            if pdf:
+                text = extract_pdf_text(pdf)
+                questions, skipped = parse_plain_text(text)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This file type is not supported. Use .txt, .xlsx, .docx or .pdf.",
+                )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"[assignments] Question import failed for '{fname}': {exc}")
+        raise HTTPException(status_code=500, detail="Could not read questions from this file.")
+
+    total = len(questions["objective"]) + len(questions["theory"])
+    if total == 0 and text.strip():
+        # Smart fallback: let the AI extract the questions from the document.
+        ai_data = quiz_ai.extract_questions(text)
+        if ai_data:
+            questions = _sanitize_import_questions(ai_data)
+            source = "ai"
+            total = len(questions["objective"]) + len(questions["theory"])
+
+    if total == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No questions were found in this file. Check the format or download the template.",
+        )
+
+    return {
+        "status": "success",
+        "source": source,
+        "filename": fname,
+        "questions": questions,
+        "num_objective": len(questions["objective"]),
+        "num_theory": len(questions["theory"]),
+        "skipped": skipped[:_MAX_IMPORT_QUESTIONS],
     }
 
 

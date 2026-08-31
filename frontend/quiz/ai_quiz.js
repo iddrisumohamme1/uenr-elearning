@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         optionsGridEl.innerHTML = q.options.map((opt, i) => `
             <button type="button" class="option-card ${selectedOption === i ? 'selected' : ''}" data-index="${i}">
                 <span class="opt-letter">${LETTERS[i] || i + 1}</span>
-                <span>${opt}</span>
+                <span>${escapeHTML(opt)}</span>
             </button>
         `).join('');
 
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('theory-questions').innerHTML = theory.map((t, i) => `
             <div class="theory-card">
                 <p class="question-num">Theory ${i + 1} of ${theory.length}</p>
-                <h3>${t.question}</h3>
+                <h3>${escapeHTML(t.question)}</h3>
                 <textarea class="theory-input" data-idx="${i}" rows="3" placeholder="Type your answer..."></textarea>
             </div>
         `).join('');

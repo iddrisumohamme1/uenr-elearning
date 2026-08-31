@@ -30,45 +30,111 @@
             </header>
 
             <section class="search-section" aria-label="Search for study resources">
-                <h2 class="search-heading"></h2>
                 <form id="search-form" class="search-bar" role="search">
                     <i class="bi bi-search search-bar-icon" aria-hidden="true"></i>
                     <input id="weak-concepts" type="search" placeholder="Describe the topic you're struggling with..." autocomplete="off" spellcheck="false" aria-label="Search topics" />
                     <button type="button" id="clear-search" class="search-clear" aria-label="Clear search" title="Clear">
                         <i class="bi bi-x-lg"></i>
                     </button>
-                    <button type="submit" id="search-btn" class="search-submit" aria-label="Search">
+                    <button type="submit" class="search-submit" aria-label="Search">
                         <i class="bi bi-arrow-right-short"></i>
                     </button>
                 </form>
 
-                <div id="related-searches" class="related-searches" style="display:none">
-                    <span class="related-label">Related searches</span>
+                <!-- <div id="related-searches" class="related-searches" style="display:none">
+                    <span class="related-label">Try searching:</span>
                     <div id="related-chips" class="chips-inline"></div>
-                </div>
+                </div> -->
             </section>
 
             <div id="pending-recs" class="pending-recs" style="display:none">
                 <h2 class="pending-title">Recommended for you</h2>
-                <p class="text-muted">Based on your recent quiz scores — dive into these before your next attempt.</p>
+                <p class="text-muted">Based on your recent quiz scores  dive into these before your next attempt.</p>
                 <div id="pending-recs-list" class="search-results"></div>
             </div>
 
-            <div id="results-info" class="results-info" style="display:none"></div>
-
-            <div id="loading-state" class="loading-wrapper" style="display:none">
-                <div class="spinner"></div>
-                <p>Searching for you...</p>
+            <div class="feed-head">
+                <span class="feed-headline" id="feed-headline">From the web, for you</span>
+                <nav class="feed-tabs" role="tablist" aria-label="Recommendation feeds">
+                    <button type="button" class="feed-tab is-active" id="tab-for-you" role="tab"
+                            aria-selected="true" aria-controls="feed-panel-for-you">
+                        <i class="bi bi-rocket-takeoff" aria-hidden="true"></i> For You
+                    </button>
+                    <button type="button" class="feed-tab" id="tab-saved" role="tab"
+                            aria-selected="false" aria-controls="feed-panel-saved">
+                        <i class="bi bi-bookmark-heart" aria-hidden="true"></i> Saved
+                        <span id="saved-count" class="feed-tab-count" hidden>0</span>
+                    </button>
+                </nav>
             </div>
 
-            <div id="error-state" class="error-state" style="display:none">
-                <p id="error-message">Unable to load recommendations.</p>
-            </div>
+            <section id="feed-panel-for-you" role="tabpanel" aria-label="For You feed">
+                <div id="feed-error" class="feed-state" style="display:none">
+                    <i class="bi bi-cloud-lightning-rain feed-state-icon"></i>
+                    <p id="feed-error-msg">We couldn't build your feed right now.</p>
+                    <button type="button" id="feed-retry" class="btn-feed-retry">Try again</button>
+                </div>
+                <div id="feed-empty" class="feed-state" style="display:none">
+                    <i class="bi bi-compass feed-state-icon"></i>
+                    <h3>We're still scouting the web</h3>
+                    <p class="text-muted">We pull fresh videos and articles for the topics you're struggling with. Search for a topic above to find something right now.</p>
+                </div>
+                <div id="feed-list" class="feed-list"></div>
+                <div id="feed-skeletons" class="feed-skeletons" aria-hidden="true">
+                    <div class="feed-skeleton"></div>
+                    <div class="feed-skeleton"></div>
+                    <div class="feed-skeleton"></div>
+                </div>
+                <div id="feed-sentinel" class="feed-sentinel"></div>
+                <div id="feed-end" class="feed-end" style="display:none">
+                    <p>You're all caught up.</p>
+                    <p class="text-muted">Open something from above, or search for a topic you're stuck on.</p>
+                </div>
+            </section>
 
-            <div id="recommendations-list" class="search-results">
-                <!-- Recommendations will be loaded here -->
+            <section id="feed-panel-saved" role="tabpanel" aria-label="Saved items" style="display:none">
+                <div id="saved-empty" class="feed-state" style="display:none">
+                    <i class="bi bi-bookmark-plus feed-state-icon"></i>
+                    <h3>No saved items yet</h3>
+                    <p class="text-muted">Tap the bookmark on anything in For You to keep it here for later.</p>
+                </div>
+                <div id="saved-list" class="feed-list"></div>
+            </section>
+
+            <div id="search-zone" style="display:none">
+                <div id="results-info" class="results-info" style="display:none"></div>
+                <div id="loading-state" class="loading-wrapper" style="display:none">
+                    <div class="spinner"></div>
+                    <p>Searching for you...</p>
+                </div>
+                <div id="error-state" class="error-state" style="display:none">
+                    <p id="error-message">Unable to load recommendations.</p>
+                </div>
+                <div id="recommendations-list" class="search-results"></div>
             </div>
         </main>
+    </div>
+
+    <div id="viewer-overlay" class="viewer-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="viewer-panel" role="document">
+            <header class="viewer-head">
+                <div class="viewer-head-main">
+                    <span id="viewer-badge" class="viewer-badge">Article</span>
+                    <h2 id="viewer-title" class="viewer-title"></h2>
+                    <p id="viewer-meta" class="viewer-meta"></p>
+                </div>
+                <button type="button" id="viewer-close" class="viewer-close" aria-label="Close viewer">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div id="viewer-body" class="viewer-body"></div>
+            <footer class="viewer-foot">
+                <a id="viewer-external" class="viewer-external" href="#" target="_blank" rel="noopener noreferrer" hidden>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Open in a new tab
+                </a>
+                <p id="viewer-note" class="viewer-note" hidden>Some websites block embedded viewing. If the page looks blank, use "Open in a new tab".</p>
+            </footer>
+        </div>
     </div>
     <script src="../shared/sidebar.js"></script>
     <script src="../shared/api-cache.js"></script>

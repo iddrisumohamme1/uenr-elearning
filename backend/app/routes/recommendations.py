@@ -3,6 +3,9 @@
 #          Accepts a weak concept description and returns top-N matched learning
 #          materials, OR auto-detects weak topics from the student's quiz history.
 
+import threading
+import time
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -12,6 +15,7 @@ from app.database import get_admin_client, with_retry
 from app.services.material_content import material_text_from_url
 from app.services.quiz_generator import quiz_ai
 from app.services.recommendation_engine import engine, detect_topic
+from app.services import feed_ranker
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
@@ -61,6 +65,13 @@ class AskTutorRequest(BaseModel):
     course_id: Optional[str] = None
 
 
+class FeedTrackRequest(BaseModel):
+    item_type: str
+    item_key: str
+    action: str
+    payload: Optional[dict] = None
+
+
 def _decorate_recommendations(results: list, query: str) -> list:
     """Attach a human-readable reason + percentage to each recommendation."""
     short = " ".join(query.split())[:80] or query
@@ -71,6 +82,43 @@ def _decorate_recommendations(results: list, query: str) -> list:
         item["similarity_percent"] = round(float(item.get("similarity_score", 0)) * 100, 1)
         decorated.append(item)
     return decorated
+
+
+def _enrolled_course_ids(admin, student_id: str) -> list:
+    """Course ids the student is currently enrolled in — scopes every
+    recommendation to the student's own courses. Never raises."""
+    try:
+        resp = with_retry(
+            lambda c: c.table("enrollments")
+            .select("course_id")
+            .eq("student_id", student_id)
+            .execute()
+        )
+        return [r["course_id"] for r in (getattr(resp, "data", []) or []) if r.get("course_id")]
+    except Exception:
+        return []
+
+
+def _scope_notification_items(items: list, material_course: dict, enrolled_ids: set) -> list:
+    """Filter stored notification rows down to what the student can actually use.
+    ``material_course`` maps lowercased material title -> course_id. Material
+    rows are kept only if their resource resolves to a material in an enrolled
+    course; other sources (youtube/article) are kept only when their stored
+    course context is an enrolled course. Anything unverifiable is hidden —
+    nothing is deleted."""
+    scoped = []
+    for n in items:
+        src = (n.get("resource_source") or "").strip().lower()
+        if src == "material":
+            title = (n.get("resource_title") or "").strip().lower()
+            cid = material_course.get(title)
+            if cid and cid in enrolled_ids:
+                scoped.append(n)
+        else:
+            cid = n.get("course_id") or ""
+            if cid in enrolled_ids:
+                scoped.append(n)
+    return scoped
 
 
 def record_auto_recommendation(
@@ -92,10 +140,12 @@ def record_auto_recommendation(
     resources) and skips the network-bound live YouTube search.
     """
     try:
+        admin = get_admin_client()
         results = engine.get_recommendations(
             weak_concepts=weak_concept,
             top_n=top_n,
             include_web=include_web,
+            enrolled_course_ids=_enrolled_course_ids(admin, student_id),
         )
     except Exception as e:
         print(f"[Recommendation] Auto-recommendation failed: {e}")
@@ -157,9 +207,11 @@ def get_recommendations(payload: RecommendationRequest, user: dict = Depends(req
     top_n = max(1, min(payload.top_n or 3, 10))  # Clamp between 1–10
 
     try:
+        admin = get_admin_client()
         results = engine.get_recommendations(
             weak_concepts=payload.weak_concepts,
             top_n=top_n,
+            enrolled_course_ids=_enrolled_course_ids(admin, user["id"]),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation engine error: {e}")
@@ -282,7 +334,8 @@ def auto_recommendations(user: dict = Depends(require_role("student"))):
     for wt in weak_topics:
         try:
             results = engine.get_recommendations(
-                weak_concepts=wt.label, top_n=4, include_web=False
+                weak_concepts=wt.label, top_n=4, include_web=False,
+                enrolled_course_ids=_enrolled_course_ids(admin, user["id"]),
             )
             all_recs.extend(_decorate_recommendations(results, wt.label))
         except Exception:
@@ -327,6 +380,23 @@ def get_recommendation_notifications(user: dict = Depends(require_role("student"
         raise HTTPException(status_code=500, detail=f"Could not load recommendations: {e}")
 
     items = getattr(resp, "data", []) or []
+    # Scope stored rows to the student's enrolled courses so legacy messages
+    # (generated before enrollment scoping) can't surface other courses' material.
+    enrolled = set(_enrolled_course_ids(admin, user["id"]))
+    if enrolled and items:
+        material_course = {}
+        try:
+            mresp = with_retry(
+                lambda c: c.table("materials").select("title, course_id").execute()
+            )
+            for m in (getattr(mresp, "data", []) or []):
+                key = (m.get("title") or "").strip().lower()
+                if key and not material_course.get(key):
+                    material_course[key] = m.get("course_id")
+        except Exception:
+            pass
+        items = _scope_notification_items(items, material_course, enrolled)
+
     return {"unread_count": len(items), "items": items}
 
 
@@ -347,3 +417,143 @@ def mark_recommendations_read(user: dict = Depends(require_role("student"))):
 
     updated = len(getattr(resp, "data", []) or [])
     return {"status": "success", "updated": updated}
+
+
+# ── TikTok-style "For You" feed ─────────────────────────────────────────────
+# The feed is personalized: the ranker builds a per-student interest profile
+# (weak topics, engagement, seen/saved/dismissed + impression history), then
+# scores every candidate and re-ranks for diversity and exploration. Profiles
+# are cached briefly so infinite scroll stays cheap without going stale.
+
+_PROFILE_CACHE = {}
+_PROFILE_CACHE_LOCK = threading.Lock()
+
+VALID_FEED_ACTIONS = {"open", "save", "dismiss", "unsave"}
+VALID_FEED_TYPES = {"material", "study_resource", "external"}
+
+
+def _cached_profile(admin, student_id: str) -> feed_ranker.StudentProfile:
+    now = time.time()
+    with _PROFILE_CACHE_LOCK:
+        cached = _PROFILE_CACHE.get(student_id)
+        if cached and now - cached[0] < feed_ranker.PROFILE_TTL_SECONDS:
+            return cached[1]
+    profile = feed_ranker.build_profile(admin, student_id)
+    with _PROFILE_CACHE_LOCK:
+        _PROFILE_CACHE[student_id] = (now, profile)
+    return profile
+
+
+def _serialize_weak_topics(weak_topics) -> list:
+    return [
+        {
+            "topic": topic,
+            "label": TOPIC_LABELS.get(topic, topic.replace("_", " ").title()),
+            "avg_score": avg,
+            "attempts": attempts,
+        }
+        for topic, avg, attempts in weak_topics
+    ]
+
+
+@router.get("/feed")
+def get_feed(
+    cursor: Optional[str] = None,
+    page_size: Optional[int] = None,
+    user: dict = Depends(require_role("student")),
+):
+    """One page of the personalized For You feed. The cursor is opaque and is
+    supplied by the previous page's ``next_cursor``."""
+    size = feed_ranker.FEED_PAGE_DEFAULT
+    if page_size is not None:
+        size = max(1, min(page_size, feed_ranker.FEED_PAGE_MAX))
+
+    admin = get_admin_client()
+    try:
+        profile = _cached_profile(admin, user["id"])
+        page = feed_ranker.rank_feed(admin, profile, page_size=size, cursor=cursor or "")
+    except feed_ranker.FeedError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not build feed: {e}")
+
+    # Record that the page was surfaced so exploration bonuses decay naturally.
+    try:
+        with_retry(
+            lambda c, items=page["items"]: (
+                c.table("feed_interactions")
+                .insert([
+                    {
+                        "student_id": user["id"],
+                        "item_type": it["item_type"],
+                        "item_key": it["item_key"],
+                        "action": "impression",
+                    }
+                    for it in items
+                ])
+                .execute()
+            )
+        )
+    except Exception:
+        pass  # impression logging must never break the feed
+
+    return {
+        "items": page["items"],
+        "next_cursor": page["next_cursor"],
+        "weak_topics": _serialize_weak_topics(page["weak_topics"]),
+    }
+
+
+@router.post("/feed/track")
+def track_feed_interaction(
+    payload: FeedTrackRequest,
+    user: dict = Depends(require_role("student")),
+):
+    """Records Open / Save / Not-for-me. These signals retrain the student's
+    feed live: saves unpin recommendations, dismissals suppress the item, and
+    opens mark it as seen."""
+    item_type = (payload.item_type or "").strip().lower()
+    item_key = (payload.item_key or "").strip()
+    action = (payload.action or "").strip().lower()
+
+    if item_type not in VALID_FEED_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid item_type.")
+    if not item_key:
+        raise HTTPException(status_code=400, detail="item_key is required.")
+    if action not in VALID_FEED_ACTIONS:
+        raise HTTPException(status_code=400, detail="Invalid action.")
+
+    admin = get_admin_client()
+    row = {
+        "student_id": user["id"],
+        "item_type": item_type,
+        "item_key": item_key,
+        "action": action,
+    }
+    # Persist a snapshot on save so live web items (YouTube / Wikipedia) can be
+    # restored on the Saved tab even after they leave the feed pool.
+    if action == "save" and isinstance(payload.payload, dict):
+        row["payload"] = payload.payload
+    try:
+        with_retry(
+            lambda c, row=row: c.table("feed_interactions").insert(row).execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not record interaction: {e}")
+
+    # Bump the cached profile so the very next page reflects the signal.
+    _PROFILE_CACHE.pop(user["id"], None)
+
+    return {"status": "success"}
+
+
+@router.get("/feed/saved")
+def get_saved_feed_items(user: dict = Depends(require_role("student"))):
+    """The student's saved feed items (For You bookmarks)."""
+    admin = get_admin_client()
+    try:
+        profile = _cached_profile(admin, user["id"])
+        items = feed_ranker.saved_items(admin, profile)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not load saved items: {e}")
+    return {"items": items}

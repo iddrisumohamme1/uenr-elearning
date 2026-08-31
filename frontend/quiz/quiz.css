@@ -1,66 +1,67 @@
 /*
    AI COMPREHENSION QUIZ — "THE TEST MOMENT"
    frontend/quiz/quiz.css
-   Follows the reading desk: river-blue dark / paper light, teal instruments,
-   a gold timer warning, and a 10-dot question map that tracks answered MCQs.
+   Follows the reading desk: emerald-green dark / paper light, green
+   instruments, an amber timer warning, and a 10-dot question map that tracks
+   answered MCQs.
 */
 
 /* ── Page-scoped tokens (this stylesheet loads only on quiz pages) ─────── */
 :root {
-    --rd-teal:       #10c4d8;
-    --rd-teal-soft:  rgba(16, 196, 216, 0.12);
-    --rd-gold:       #f6b73a;
+    --rd-teal:       #10b981;
+    --rd-teal-soft:  rgba(16, 185, 129, 0.12);
+    --rd-gold:       #f59e0b;
     --rd-mono:       'IBM Plex Mono', ui-monospace, monospace;
 
-    --bg:           #0a1120;
-    --bg-surface:   #101a2e;
-    --bg-card:      #16233c;
-    --bg-elevated:  #1b2a47;
+    --bg:           #060a12;
+    --bg-surface:   #0b101c;
+    --bg-card:      #101625;
+    --bg-elevated:  #161e30;
 
-    --text-primary:   #eef3fb;
-    --text-secondary: #9fb0c9;
-    --text-muted:     #61748f;
+    --text-primary:   #e6edf7;
+    --text-secondary: #8b95a9;
+    --text-muted:     #5b6478;
 
-    --clr-primary:    #10c4d8;
-    --clr-accent:     #10c4d8;
-    --clr-energy:     #f6b73a;
+    --clr-primary:    #10b981;
+    --clr-accent:     #10b981;
+    --clr-energy:     #f59e0b;
     --clr-success:    #34d399;
-    --clr-warning:    #f6b73a;
+    --clr-warning:    #f59e0b;
     --clr-danger:     #fb7185;
 
-    --primary-soft: rgba(16, 196, 216, 0.12);
+    --primary-soft: rgba(16, 185, 129, 0.12);
     --success-soft: rgba(52, 211, 153, 0.12);
     --danger-soft:  rgba(251, 113, 133, 0.12);
 
-    --border:        rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --border-focus:  rgba(16, 196, 216, 0.55);
+    --border:        rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --border-focus:  rgba(16, 185, 129, 0.5);
 
-    --grad-primary:  linear-gradient(135deg, #10c4d8, #3b82f6);
-    --grad-surface:  linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-    --shadow-glow:   0 0 30px rgba(16, 196, 216, 0.18);
-    --ring:          0 0 0 3px rgba(16, 196, 216, 0.25);
+    --grad-primary:  linear-gradient(135deg, #10b981, #22c55e);
+    --grad-surface:  linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    --shadow-glow:   0 0 30px rgba(16, 185, 129, 0.16);
+    --ring:          0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 [data-theme="light"] {
-    --bg:           #f5f8fc;
+    --bg:           #f4fbf7;
     --bg-surface:   #ffffff;
     --bg-card:      #ffffff;
-    --bg-elevated:  #edf3fa;
+    --bg-elevated:  #e1f3ea;
 
     --text-primary:   #0e1a2b;
-    --text-secondary: #43556f;
-    --text-muted:     #8496ae;
+    --text-secondary: #475569;
+    --text-muted:     #64748b;
 
-    --primary-soft: rgba(16, 196, 216, 0.1);
+    --primary-soft: rgba(16, 185, 129, 0.1);
     --success-soft: rgba(52, 211, 153, 0.12);
     --danger-soft:  rgba(251, 113, 133, 0.1);
 
-    --border:        rgba(15, 40, 90, 0.08);
-    --border-strong: rgba(15, 40, 90, 0.14);
-    --border-focus:  rgba(16, 196, 216, 0.5);
-    --shadow-glow:   0 0 24px rgba(16, 196, 216, 0.14);
-    --ring:          0 0 0 3px rgba(16, 196, 216, 0.18);
+    --border:        rgba(6, 70, 45, 0.08);
+    --border-strong: rgba(6, 70, 45, 0.14);
+    --border-focus:  rgba(16, 185, 129, 0.5);
+    --shadow-glow:   0 0 24px rgba(16, 185, 129, 0.14);
+    --ring:          0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 
 .quiz-page-container { display: flex; min-height: 100vh; }
@@ -384,7 +385,7 @@
 
 .meta-chip-accent {
     color: #261400;
-    background: linear-gradient(135deg, #f6b73a, #f59e0b);
+    background: linear-gradient(135deg, #f59e0b, #f59e0b);
     border-color: transparent;
 }
 
@@ -432,7 +433,7 @@
     padding: var(--s2) var(--s3);
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-left: 3px solid rgba(246, 183, 58, 0.9);
+    border-left: 3px solid rgba(245, 158, 11, 0.9);
     border-radius: var(--r-md, 8px);
     font-size: 0.82rem;
 }

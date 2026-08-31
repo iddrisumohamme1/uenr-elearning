@@ -96,12 +96,12 @@ def generate_resource(payload: ResourceGenerateRequest, user=Depends(require_rol
         _check_course_scope(admin, course_id, user)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch material: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch this material.")
 
     content = quiz_ai.generate_resource(material_text[:30000], payload.resource_type)
     if not content:
-        raise HTTPException(status_code=503, detail="AI resource generation failed. Please try again later.")
+        raise HTTPException(status_code=503, detail="Resources generation failed. Try again later.")
 
     titles = {
         "summary": "Summary",
@@ -128,8 +128,8 @@ def publish_resource(payload: ResourcePublishRequest, user=Depends(require_role(
         _check_course_scope(admin, payload.course_id, user)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to query this course.")
 
     try:
         insert_resp = with_retry(
@@ -142,8 +142,8 @@ def publish_resource(payload: ResourcePublishRequest, user=Depends(require_role(
             }).execute()
         )
         return {"status": "success", "resource": (getattr(insert_resp, "data", []) or [])[0]}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to publish resource: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to publish this resource.")
 
 
 @router.get("/course/{course_id}")
@@ -154,8 +154,8 @@ def get_course_resources(course_id: str, user=Depends(get_current_user)):
         _check_course_scope(admin, course_id, user, allow_student=True)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to query course: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to query this course.")
 
     try:
         resp = with_retry(
@@ -166,8 +166,8 @@ def get_course_resources(course_id: str, user=Depends(get_current_user)):
             .execute()
         )
         return {"course_id": course_id, "resources": getattr(resp, "data", []) or []}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch resources: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch these resources.")
 
 
 @router.delete("/{resource_id}")
@@ -187,11 +187,11 @@ def delete_resource(resource_id: str, user=Depends(require_role("lecturer", "hod
         _check_course_scope(admin, res_data[0]["course_id"], user)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to query resource: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to query this resource.")
 
     try:
         with_retry(lambda c: c.table("study_resources").delete().eq("id", resource_id).execute())
         return {"status": "success", "message": "Resource deleted."}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to delete resource: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to delete this resource.")

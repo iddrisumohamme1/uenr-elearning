@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             groupsEl.innerHTML = groups.map(({ course, assignments }, gi) => `
                     <div class="assign-group" style="animation-delay: ${gi * 80}ms">
                         <div class="group-head">
-                            <h3>${course.title}</h3>
+                            <h3>${escapeHTML(course.title)}</h3>
                             <span class="group-count">${assignments.length} assignment${assignments.length === 1 ? '' : 's'}</span>
                         </div>
                         ${assignments.length ? assignments.map(a => {
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             return `
                             <div class="assign-item${hasQ ? ' assign-item-auto' : ''}">
                                 <div class="assign-item-head">
-                                    <h4>${a.title} ${badge}</h4>
+                                    <h4>${escapeHTML(a.title)} ${badge}</h4>
                                     <span class="assign-status ${cls}">${label}</span>
                                 </div>
                                 <div class="assign-meta">
@@ -298,15 +298,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <span>${hasQ ? (a.submitted ? 'Graded' : 'No due date') : 'Due ' + (a.due_date || 'flexible')}</span>
                                 </div>
                                 ${hasQ && a.submitted ? gradeChip + feedbackSnippet : ''}
-                                ${!hasQ && a.instructions ? `<p class="assign-instructions">${a.instructions}</p>` : ''}
+                                ${!hasQ && a.instructions ? `<p class="assign-instructions">${escapeHTML(a.instructions)}</p>` : ''}
                                 <div class="assign-actions">
                                     ${hasQ
                                         ? (a.submitted
                                             ? `<span class="assign-status ${cls}">${a.on_time ? 'Graded' : 'Completed'}</span>`
-                                            : `<button class="btn-submit" data-auto-id="${a.id}" data-course="${course.title}">Take assignment</button>`)
+                                            : `<button class="btn-submit" data-auto-id="${a.id}" data-course="${escapeHTML(course.title)}">Take assignment</button>`)
                                         : (a.submitted
                                             ? `<span class="assign-status ${cls}">${a.on_time ? 'On time' : 'Late'}</span>`
-                                            : `<button class="btn-submit" data-assign-id="${a.id}" data-course="${course.title}">Submit assignment</button>`)}
+                                            : `<button class="btn-submit" data-assign-id="${a.id}" data-course="${escapeHTML(course.title)}">Submit assignment</button>`)}
                                 </div>
                             </div>`;
                         }).join('') : `

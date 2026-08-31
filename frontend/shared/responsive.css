@@ -100,7 +100,7 @@
     height: 8px;
     border-radius: var(--r-full);
     background: var(--clr-energy);
-    box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
   }
 
   .sidebar-footer {

@@ -1,8 +1,8 @@
 /*
    LECTURER ASSIGNMENTS PAGE LOGIC
    frontend/lecturer/assignments.js
-   Two creation paths: write-your-own (text assignment) or AI-generate
-   (questions from course material, reviewed before assigning to students).
+   Two creation paths: AI-generate (questions from course material, reviewed
+   before assigning to students) or import (upload an existing question file).
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -19,16 +19,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* ── DOM refs ─────────────────────────────────────────────────────── */
     const choiceSection    = document.getElementById('create-choice');
-    const panelWrite       = document.getElementById('panel-write');
     const panelAI          = document.getElementById('panel-ai');
-    const choiceWrite      = document.getElementById('choice-write');
+    const panelImport      = document.getElementById('panel-import');
     const choiceAI         = document.getElementById('choice-ai');
-    const backWrite        = document.getElementById('back-write');
+    const choiceImport     = document.getElementById('choice-import');
     const backAI           = document.getElementById('back-ai');
+    const backImport       = document.getElementById('back-import');
 
-    // Write path
-    const courseSelect     = document.getElementById('course-select');
-    const form             = document.getElementById('assign-form');
     const listEl           = document.getElementById('assign-list');
     const subsModal        = document.getElementById('subs-modal');
     const detailModal      = document.getElementById('sub-detail-modal');
@@ -50,9 +47,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const reviewCreateText = document.getElementById('review-create-text');
     const reviewEditConfig = document.getElementById('review-edit-config');
 
+    // Import path
+    const impCourseSelect = document.getElementById('imp-course-select');
+    const impDropZone     = document.getElementById('imp-drop-zone');
+    const impFileInput    = document.getElementById('imp-file');
+    const impDropLabel    = document.getElementById('imp-drop-label');
+    const impFileError    = document.getElementById('imp-file-error');
+    const impParseBtn     = document.getElementById('imp-parse-btn');
+    const impParseSpinner = document.getElementById('imp-parse-spinner');
+    const impParseText    = document.getElementById('imp-parse-text');
+
     let courseNames = {};
-    let generatedQuestions = [];  // raw from AI
+    let generatedQuestions = [];  // raw from AI / import
     let selectedIndices = new Set();  // indices of selected questions
+    let activeSource = 'ai';  // 'ai' | 'import' — which panel backs the review step
 
     /* ── Helpers ──────────────────────────────────────────────────────── */
     const closeModal = (m) => { if (m) m.hidden = true; };
@@ -65,84 +73,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ── Path switching ───────────────────────────────────────────────── */
     function showChoice() {
         choiceSection.hidden = false;
-        panelWrite.hidden = true;
         panelAI.hidden = true;
-    }
-    function showWrite() {
-        choiceSection.hidden = true;
-        panelWrite.hidden = false;
-        panelAI.hidden = true;
+        panelImport.hidden = true;
     }
     function showAI() {
         choiceSection.hidden = true;
-        panelWrite.hidden = true;
         panelAI.hidden = false;
+        panelImport.hidden = true;
     }
-    choiceWrite.addEventListener('click', showWrite);
+    function showImport() {
+        choiceSection.hidden = true;
+        panelAI.hidden = true;
+        panelImport.hidden = false;
+    }
     choiceAI.addEventListener('click', showAI);
-    backWrite.addEventListener('click', showChoice);
+    choiceImport.addEventListener('click', showImport);
     backAI.addEventListener('click', showChoice);
+    backImport.addEventListener('click', showChoice);
 
     /* ── Load courses ─────────────────────────────────────────────────── */
     async function loadCourses() {
         try {
             const courses = await swrGet('catalog', coursesEndpoint);
             if (!Array.isArray(courses) || !courses.length) {
-                courseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
                 aiCourseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
+                impCourseSelect.innerHTML = '<option value="" disabled>No courses available</option>';
                 return;
             }
             courses.forEach(c => { if (c.id) courseNames[c.id] = c.title; });
-            const opts = courses.map(c => `<option value="${c.id}">${c.title} (${c.code || 'No code'})</option>`).join('');
-            courseSelect.innerHTML = `<option value="" disabled selected>Select a course</option>${opts}`;
+            const opts = courses.map(c => `<option value="${c.id}">${escapeHTML(c.title)} (${escapeHTML(c.code || 'No code')})</option>`).join('');
             aiCourseSelect.innerHTML = `<option value="" disabled selected>Select a course</option>${opts}`;
+            impCourseSelect.innerHTML = `<option value="" disabled selected>Select a course</option>${opts}`;
         } catch (err) {
             console.error('Error loading courses:', err);
-            courseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
             aiCourseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
+            impCourseSelect.innerHTML = '<option value="" disabled>Unable to load courses</option>';
         }
     }
-
-    /* ── Write path: create assignment (unchanged logic) ──────────────── */
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('assign-title').value.trim();
-        const courseId = courseSelect.value;
-        if (!title || !courseId) {
-            showToast('Select a course and enter a title.', 'warning');
-            return;
-        }
-        const payload = {
-            course_id: courseId,
-            title,
-            instructions: document.getElementById('assign-instructions').value.trim() || null,
-            due_date: document.getElementById('assign-due').value || null,
-            week_number: document.getElementById('assign-week').value ? Number(document.getElementById('assign-week').value) : null,
-        };
-        const btn = form.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        try {
-            const res = await authFetch(`${API_BASE}/api/assignments/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (res.ok) {
-                showToast('Assignment created.', 'success');
-                form.reset();
-                invalidateApiCache(`assign:${courseId}`);
-                loadAssignments();
-                showChoice();
-            } else {
-                showToast(data.detail || 'Could not create assignment.', 'error');
-            }
-        } catch (err) {
-            showToast('Could not create assignment.', 'error');
-        } finally {
-            btn.disabled = false;
-        }
-    });
 
     /* ── AI path: generate questions ──────────────────────────────────── */
     aiGenerateBtn.addEventListener('click', async () => {
@@ -178,13 +145,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             generatedQuestions = [];
+            activeSource = 'ai';
             const obj = data.questions?.objective || [];
             const th  = data.questions?.theory || [];
             obj.forEach(q => generatedQuestions.push({ ...q, _type: 'objective' }));
             th.forEach(q  => generatedQuestions.push({ ...q, _type: 'theory' }));
 
             if (!generatedQuestions.length) {
-                showToast('no questions. Try different settings.', 'warning');
+                showToast('No questions were generated. Try different settings.', 'warning');
                 return;
             }
 
@@ -206,6 +174,84 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    /* ── Import path: file picker + parse ───────────────────────────────── */
+    impDropZone.addEventListener('click', () => impFileInput.click());
+    impDropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); impFileInput.click(); }
+    });
+    impDropZone.addEventListener('dragover', (e) => { e.preventDefault(); impDropZone.classList.add('drop-zone--over'); });
+    impDropZone.addEventListener('dragleave', () => impDropZone.classList.remove('drop-zone--over'));
+    impDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        impDropZone.classList.remove('drop-zone--over');
+        if (e.dataTransfer.files.length) impFileInput.files = e.dataTransfer.files;
+        updateImpFileLabel();
+    });
+    impFileInput.addEventListener('change', updateImpFileLabel);
+    function updateImpFileLabel() {
+        const f = impFileInput.files && impFileInput.files[0];
+        impDropLabel.textContent = f ? f.name : 'Drag and drop a question file here';
+        impDropZone.classList.toggle('drop-zone--has-file', Boolean(f));
+    }
+
+    async function parseImported() {
+        const courseId = impCourseSelect.value;
+        const file = impFileInput.files && impFileInput.files[0];
+        if (!courseId) { showToast('Select a course first.', 'warning'); return; }
+        if (!file) { showToast('Choose a question file to import.', 'warning'); return; }
+
+        impParseBtn.disabled = true;
+        impParseSpinner.hidden = false;
+        impParseText.textContent = 'Reading…';
+
+        const fd = new FormData();
+        fd.append('course_id', courseId);
+        fd.append('file', file);
+
+        try {
+            const res = await authFetch(`${API_BASE}/api/assignments/import-file`, {
+                method: 'POST',
+                body: fd,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showToast(data.detail || 'Could not import the questions.', 'error');
+                return;
+            }
+
+            generatedQuestions = [];
+            (data.questions?.objective || []).forEach(q => generatedQuestions.push({ ...q, _type: 'objective' }));
+            (data.questions?.theory || []).forEach(q => generatedQuestions.push({ ...q, _type: 'theory' }));
+
+            if (!generatedQuestions.length) {
+                showToast('No questions were found in this file. Check the format.', 'warning');
+                return;
+            }
+
+            activeSource = 'import';
+            selectedIndices = new Set(generatedQuestions.map((_, i) => i));
+
+            const fromFile = data.source === 'ai' ? 'From file (AI import — verify answer keys): ' : 'From file: ';
+            reviewSource.textContent = fromFile + (data.filename || '');
+            renderReview();
+            panelImport.hidden = true;
+            panelAI.hidden = false;
+            aiStepConfig.hidden = true;
+            aiStepReview.hidden = false;
+            showToast(`${generatedQuestions.length} questions imported. Review and select.`, 'success');
+            if (data.skipped && data.skipped.length) {
+                showToast(`${data.skipped.length} line(s) could not be read — missing answer keys.`, 'warning');
+            }
+        } catch (err) {
+            showToast('Could not import the questions. Try again.', 'error');
+        } finally {
+            impParseBtn.disabled = false;
+            impParseSpinner.hidden = true;
+            impParseText.textContent = 'Parse & review questions';
+        }
+    }
+    impParseBtn.addEventListener('click', parseImported);
+
     /* ── AI path: review UI ───────────────────────────────────────────── */
     function renderReview() {
         const total = generatedQuestions.length;
@@ -226,10 +272,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body = `<div class="q-options">
                     ${(q.options || []).map((opt, oi) => `
                         <div class="q-option${oi === correctIdx ? ' q-option--correct' : ''}">
-                            <span class="q-option-marker">${letters[oi] || oi + 1}</span>
-                            <span>${escapeHTML(opt)}</span>
+                            <label class="q-opt-radio" title="Mark as the correct answer">
+                                <input type="radio" name="correct-${i}" data-correct-qi="${i}" data-oi="${oi}" ${oi === correctIdx ? 'checked' : ''}>
+                                <span class="q-option-marker">${letters[oi] || oi + 1}</span>
+                            </label>
+                            <input class="q-opt-text" type="text" value="${escapeHTML(opt)}" data-opt-qi="${i}" data-oi="${oi}">
                         </div>`).join('')}
-                </div>`;
+                </div>
+                <p class="q-opt-hint">Tip: click a letter to mark the correct answer; edit option text directly.</p>`;
             } else {
                 body = q.suggested_answer_rubric
                     ? `<div class="q-rubric"><strong>Model answer:</strong> ${escapeHTML(q.suggested_answer_rubric)}</div>`
@@ -269,6 +319,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const card = reviewList.querySelector(`[data-qi="${qi}"]`);
                 if (card) card.classList.toggle('q-card--deselected', !cb.checked);
                 reviewCount.textContent = `${selectedIndices.size} of ${generatedQuestions.length} selected`;
+            });
+        });
+
+        // Correct-answer radios
+        reviewList.querySelectorAll('[data-correct-qi]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const qi = Number(radio.dataset.correctQi);
+                const oi = Number(radio.dataset.oi);
+                if (radio.checked && generatedQuestions[qi]) {
+                    generatedQuestions[qi].correct_answer_index = oi;
+                    renderReview();
+                }
+            });
+        });
+
+        // Option text edits
+        reviewList.querySelectorAll('[data-opt-qi]').forEach(inp => {
+            inp.addEventListener('change', () => {
+                const qi = Number(inp.dataset.optQi);
+                const oi = Number(inp.dataset.oi);
+                const q = generatedQuestions[qi];
+                if (!q || !Array.isArray(q.options)) return;
+                q.options[oi] = inp.value.trim() || q.options[oi];
+                inp.value = q.options[oi];
             });
         });
 
@@ -358,14 +432,58 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Back to config
     reviewEditConfig.addEventListener('click', () => {
-        aiStepConfig.hidden = false;
         aiStepReview.hidden = true;
+        if (activeSource === 'import') {
+            panelAI.hidden = true;
+            panelImport.hidden = false;
+        } else {
+            aiStepConfig.hidden = false;
+        }
     });
 
     /* ── AI path: create assignment with selected questions ────────────── */
+    function activeMeta() {
+        const isImport = activeSource === 'import';
+        const courseId = isImport ? impCourseSelect.value : aiCourseSelect.value;
+        const title = (isImport
+            ? document.getElementById('imp-assign-title').value
+            : document.getElementById('ai-assign-title').value).trim();
+        return {
+            courseId,
+            title,
+            instructions: (isImport
+                ? document.getElementById('imp-instructions').value
+                : document.getElementById('ai-instructions').value).trim() || 'Answer all the questions.',
+            dueDate: (isImport
+                ? document.getElementById('imp-due').value
+                : document.getElementById('ai-due').value) || null,
+            weekNum: (isImport
+                ? document.getElementById('imp-week').value
+                : document.getElementById('ai-week').value) ? Number(isImport
+                ? document.getElementById('imp-week').value
+                : document.getElementById('ai-week').value) : null,
+        };
+    }
+
+    function resetSourcePanels() {
+        aiStepConfig.hidden = false;
+        aiStepReview.hidden = true;
+        panelImport.hidden = true;
+        document.getElementById('ai-assign-title').value = '';
+        document.getElementById('ai-topic').value = '';
+        document.getElementById('ai-instructions').value = '';
+        document.getElementById('ai-due').value = '';
+        document.getElementById('ai-week').value = '';
+        document.getElementById('imp-assign-title').value = '';
+        document.getElementById('imp-instructions').value = '';
+        document.getElementById('imp-due').value = '';
+        document.getElementById('imp-week').value = '';
+        impFileInput.value = '';
+        updateImpFileLabel();
+    }
+
     reviewCreateBtn.addEventListener('click', async () => {
-        const courseId = aiCourseSelect.value;
-        const title = document.getElementById('ai-assign-title').value.trim();
+        const { courseId, title, instructions, dueDate, weekNum } = activeMeta();
         if (!courseId || !title) {
             showToast('Select a course and enter a title.', 'warning');
             return;
@@ -395,11 +513,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         const questions = { objective: objQs, theory: thQs };
 
-        const instructions = document.getElementById('ai-instructions').value.trim()
-            || 'Answer all the questions.';
-        const dueDate = document.getElementById('ai-due').value || null;
-        const weekNum = document.getElementById('ai-week').value ? Number(document.getElementById('ai-week').value) : null;
-
         reviewCreateBtn.disabled = true;
         reviewCreateSpinner.hidden = false;
         reviewCreateText.textContent = 'Creating…';
@@ -422,16 +535,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToast('Assignment created.', 'success');
                 invalidateApiCache(`assign:${courseId}`);
                 loadAssignments();
-                // Reset AI flow
+                // Reset both flows
                 generatedQuestions = [];
                 selectedIndices = new Set();
-                aiStepConfig.hidden = false;
-                aiStepReview.hidden = true;
-                document.getElementById('ai-assign-title').value = '';
-                document.getElementById('ai-topic').value = '';
-                document.getElementById('ai-instructions').value = '';
-                document.getElementById('ai-due').value = '';
-                document.getElementById('ai-week').value = '';
+                activeSource = 'ai';
+                resetSourcePanels();
                 showChoice();
             } else {
                 showToast(data.detail || 'Could not create assignment.', 'error');
@@ -504,7 +612,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             : '<span class="text-muted">–</span>';
                         return `
                         <tr class="subs-row" data-student-id="${s.student_id}" tabindex="0" role="button" aria-label="View submission for ${escapeHTML(s.student_name || '')}">
-                            <td><span class="subs-student">${s.student_name || 'Unknown student'}</span></td>
+                            <td><span class="subs-student">${escapeHTML(s.student_name || 'Unknown student')}</span></td>
                             <td><span class="mono-id">${s.student_index ? escapeHTML(s.student_index) : '—'}</span></td>
                             <td class="subs-time">${s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</td>
                             <td>${statusCell(s)}</td>

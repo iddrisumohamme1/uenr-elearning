@@ -9,3 +9,5 @@ httpx
 google-genai
 pypdf
 numpy
+openpyxl
+python-docx

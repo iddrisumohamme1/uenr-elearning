@@ -227,21 +227,52 @@ tbody tr:hover { background: var(--bg-elevated); }
   white-space: nowrap;
 }
 
-/* Student rows (table form) */
-.queue-table { overflow-x: auto; }
-.queue-table table { min-width: 760px; }
-.queue-table th,
-.queue-table td { white-space: nowrap; }
+/* Student cards (grid) */
+.queue-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.75rem;
+}
 
-.attention-row {
+.attention-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast);
   animation: queueRowIn var(--t-base) both;
 }
-tbody .attention-row:nth-child(2) { animation-delay: 50ms; }
-tbody .attention-row:nth-child(3) { animation-delay: 100ms; }
-tbody .attention-row:nth-child(4) { animation-delay: 150ms; }
-tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
+.attention-card:nth-child(2) { animation-delay: 50ms; }
+.attention-card:nth-child(3) { animation-delay: 100ms; }
+.attention-card:nth-child(4) { animation-delay: 150ms; }
+.attention-card:nth-child(5) { animation-delay: 200ms; }
+.attention-card:hover { background: var(--bg-elevated); transform: translateY(-1px); }
 
-.queue-table .student-cell { display: flex; align-items: center; gap: 0.5rem; }
+.attention-card[data-sev="low"]  { border-left-color: var(--clr-danger); }
+.attention-card[data-sev="mod"]  { border-left-color: var(--clr-warning); }
+.attention-card[data-sev="good"] { border-left-color: var(--clr-success); }
+
+.attention-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.attention-card .student-cell { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.attention-name {
+  font-family: 'Space Grotesk', var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .attention-ring {
   width: 10px;
   height: 10px;
@@ -249,16 +280,33 @@ tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
   flex-shrink: 0;
   background: var(--text-muted);
 }
-.attention-row[data-sev="low"] .attention-ring { background: var(--clr-danger); animation: attentionPulse 2.4s ease-in-out infinite; }
-.attention-row[data-sev="mod"] .attention-ring { background: var(--clr-warning); }
-.attention-row[data-sev="good"] .attention-ring { background: var(--clr-success); }
+.attention-card[data-sev="low"] .attention-ring { background: var(--clr-danger); animation: attentionPulse 2.4s ease-in-out infinite; }
+.attention-card[data-sev="mod"] .attention-ring { background: var(--clr-warning); }
+.attention-card[data-sev="good"] .attention-ring { background: var(--clr-success); }
 
-.queue-table .status-cell { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
+.attention-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+}
+.attention-card-meta .status-cell { color: var(--text-muted); }
 .meta-quiz.quiz--low { color: var(--clr-danger); }
 .meta-quiz.quiz--mod { color: var(--clr-warning); }
 .meta-quiz.quiz--good { color: var(--clr-success); }
 .meta-readout { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
 
+.attention-card-foot {
+  display: flex;
+  align-items: center;
+  padding-top: 0.45rem;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+}
 .attention-comp { display: inline-flex; align-items: center; gap: 0.6rem; }
 .comp-meter { display: inline-flex; gap: 3px; }
 .comp-seg {
@@ -269,9 +317,9 @@ tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
   border: 1px solid var(--border);
   transition: background var(--t-fast);
 }
-.attention-row[data-sev="low"] .comp-seg.is-on { background: var(--clr-danger); border-color: transparent; }
-.attention-row[data-sev="mod"] .comp-seg.is-on { background: var(--clr-warning); border-color: transparent; }
-.attention-row[data-sev="good"] .comp-seg.is-on { background: var(--clr-success); border-color: transparent; }
+.attention-card[data-sev="low"] .comp-seg.is-on { background: var(--clr-danger); border-color: transparent; }
+.attention-card[data-sev="mod"] .comp-seg.is-on { background: var(--clr-warning); border-color: transparent; }
+.attention-card[data-sev="good"] .comp-seg.is-on { background: var(--clr-success); border-color: transparent; }
 .comp-label {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.66rem;
@@ -283,7 +331,6 @@ tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
 .comp-label--mod { color: var(--clr-warning); }
 .comp-label--good { color: var(--clr-success); }
 
-.queue-table .col-action { text-align: right; }
 .attention-action { flex-shrink: 0; }
 
 /* States */
@@ -316,19 +363,17 @@ tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
 
 @media (prefers-reduced-motion: reduce) {
   .cohort-dot--low,
-  .attention-row[data-sev="low"] .attention-ring { animation: none; }
-  .attention-row { animation: none; }
+  .attention-card[data-sev="low"] .attention-ring,
+  .attention-card { animation: none; }
 }
 
 @media (max-width: 768px) {
   .attention-head { flex-direction: column; }
   .attention-readout { text-align: left; }
-  .queue-table table { min-width: 640px; }
 }
 @media (max-width: 560px) {
-  /* Attention queue (table scrolls horizontally) */
-  .queue-table { margin: 0 -0.25rem; }
-  .queue-table table { min-width: 560px; }
+  /* Attention queue (cards drop to a single column) */
+  .queue-cards { grid-template-columns: 1fr; }
   .attention-comp { gap: 0.4rem; }
 
   /* Charts + panels */
@@ -343,7 +388,6 @@ tbody .attention-row:nth-child(5) { animation-delay: 200ms; }
 }
 @media (max-width: 400px) {
   .modal-card { padding: 1rem; }
-  .queue-table td { white-space: normal; }
 }
 
 /* ── Dashboard grid: 12-col cockpit spans ──────────────────────────────── */

@@ -3,9 +3,13 @@
    hod-dashboard.css. Desktop renders a data table; small screens render an
    equivalent card grid (see responsive section at the bottom). */
 
-.roster-card { overflow: hidden; }
+/* The roster-card must stay overflow:visible on every width: an overflow that
+   clips or scrolls would trap the sticky toolbar inside it as a scroll
+   container, so it would never pin to the viewport on desktop. */
+.roster-card { overflow: visible; }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────── */
+/* Pins just below the sticky title bar on every screen width. */
 .table-toolbar {
     display: flex;
     align-items: center;
@@ -13,6 +17,14 @@
     gap: 1rem;
     flex-wrap: nowrap;
     margin-bottom: 0.75rem;
+    position: sticky;
+    top: var(--sticky-header-top, 0px);
+    z-index: 20;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg, 0.75rem);
+    box-shadow: var(--shadow-sm, none);
 }
 .filter-wrap {
     display: flex;
@@ -51,7 +63,7 @@
                 border-color var(--t-fast, 150ms ease), box-shadow var(--t-fast, 150ms ease);
 }
 .btn-tool i { font-size: 0.95rem; line-height: 1; }
-.btn-tool:focus-visible { outline: 2px solid var(--clr-primary, #2563eb); outline-offset: 2px; }
+.btn-tool:focus-visible { outline: 2px solid var(--clr-primary, #10b981); outline-offset: 2px; }
 .btn-tool--ghost {
     background: var(--bg-card, #fff);
     color: var(--text-secondary, #4b5563);
@@ -59,16 +71,16 @@
 }
 .btn-tool--ghost:hover {
     color: var(--text-primary, #111827);
-    border-color: var(--clr-primary, #2563eb);
-    background: var(--primary-soft, #eff6ff);
+    border-color: var(--clr-primary, #10b981);
+    background: var(--primary-soft, #d6f5e8);
 }
 .btn-tool--primary {
-    background: var(--clr-primary, #2563eb);
+    background: var(--clr-primary, #10b981);
     color: #fff;
-    border: 1px solid var(--clr-primary, #2563eb);
+    border: 1px solid var(--clr-primary, #10b981);
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
-.btn-tool--primary:hover { background: var(--clr-primary-dark, #1d4ed8); border-color: var(--clr-primary-dark, #1d4ed8); }
+.btn-tool--primary:hover { background: var(--clr-primary-dark, #059669); border-color: var(--clr-primary-dark, #059669); }
 .btn-tool--primary:disabled {
     background: var(--bg-elevated, #f1f5f9);
     color: var(--text-muted, #9ca3af);
@@ -122,7 +134,7 @@
 }
 .qf-btn:hover { color: var(--text-primary, #111827); background: var(--bg-card, #fff); }
 .qf-btn.is-active {
-    background: var(--clr-primary, #2563eb);
+    background: var(--clr-primary, #10b981);
     color: #fff;
     box-shadow: var(--shadow-sm, none);
 }
@@ -148,7 +160,7 @@
 .sort-icon { font-size: 0.7rem; opacity: 0.6; margin-left: 0.2rem; }
 .roster-table .col-check,
 .roster-table td.col-check { width: 40px; text-align: center; }
-.roster-table td.col-check input { accent-color: var(--clr-primary, #2563eb); cursor: pointer; }
+.roster-table td.col-check input { accent-color: var(--clr-primary, #10b981); cursor: pointer; }
 .roster-table td { vertical-align: middle; }
 .mono { font-family: var(--font-mono, monospace); font-size: 0.85em; }
 
@@ -172,7 +184,7 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: var(--clr-primary, #2563eb);
+    background: var(--clr-primary, #10b981);
     color: #fff;
     font-weight: 700;
     font-size: 0.9rem;
@@ -201,7 +213,7 @@
 .roster-row.row-risk:hover td { background: rgba(239, 68, 68, 0.07); }
 
 .btn-msg {
-    background: var(--clr-primary, #2563eb);
+    background: var(--clr-primary, #10b981);
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -222,7 +234,7 @@
 /* ── Profile modal ───────────────────────────────────────────────────── */
 .modal-card--wide { width: min(560px, 94vw); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
-.modal-card textarea.form-input:focus { border-color: var(--clr-primary, #2563eb); box-shadow: 0 0 0 3px var(--primary-soft, #eff6ff); }
+.modal-card textarea.form-input:focus { border-color: var(--clr-primary, #10b981); box-shadow: 0 0 0 3px var(--primary-soft, #d6f5e8); }
 .profile-line { margin: 0.25rem 0; color: var(--text-primary, inherit); }
 .profile-hr { margin: 1rem 0; border: none; border-top: 1px solid var(--border, #e5e7eb); }
 .profile-subhead { margin: 0 0 0.5rem; font-size: 0.95rem; }
@@ -238,6 +250,16 @@
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 0.75rem;
     }
+    /* Loading state: span every grid track so the spinner centres across the
+       whole roster card instead of being pinned in the first column. */
+    .roster-mobile > .loading-wrapper {
+        grid-column: 1 / -1;
+    }
+
+    /* Sticky title bar + toolbar are set at the top of this file (all widths);
+       on tablet just keep compact spacing. */
+    .top-bar { margin-bottom: 1.5rem; padding-bottom: 1rem; }
+
     .table-toolbar { flex-wrap: nowrap; gap: 0.6rem; }
     .filter-wrap { flex-wrap: nowrap; width: auto; gap: 0.5rem; }
     .filter-input { display: none; }
@@ -261,7 +283,7 @@
     }
     .roster-card-m.is-risk { border-left: 3px solid var(--clr-danger, #ef4444); background: rgba(239, 68, 68, 0.03); }
     .rcm-head { display: flex; align-items: center; gap: 0.5rem; }
-    .rcm-head input { accent-color: var(--clr-primary, #2563eb); cursor: pointer; }
+    .rcm-head input { accent-color: var(--clr-primary, #10b981); cursor: pointer; }
     .rcm-meta {
         display: flex;
         align-items: center;

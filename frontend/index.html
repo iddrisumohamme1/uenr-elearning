@@ -11,15 +11,15 @@
     - Comprehension Analysis
     
   Design:
-    Uses a premium dark-mode design system located in ./css/ (relative to this file).
-    Responsive layout for mobile, tablet, and desktop.
+    Uses a dark-mode design system grounded in the UENR identity, located in
+    ./css/ (relative to this file). Responsive layout for mobile, tablet, desktop.
 -->
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="UENR Interactive E-Learning Platform – Real-time engagement tracking, comprehension monitoring, and personalized learning recommendations for students and lecturers." />
+  <meta name="description" content="UENR E-Learning Platform – See learning happen in real time. Engagement tracking, comprehension monitoring, and personalized recommendations for students, lecturers, and departments." />
   <title>UENR E-Learning Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -44,7 +44,8 @@
       </a>
       <ul class="navbar__links" id="nav-links">
         <li><a href="#features" class="navbar__link">Features</a></li>
-        <li><a href="#about" class="navbar__link">About</a></li>
+        <li><a href="#how" class="navbar__link">How it works</a></li>
+        <li><a href="#roles" class="navbar__link">Roles</a></li>
         <li><a href="#contact" class="navbar__link">Contact</a></li>
       </ul>
       <div class="navbar__actions">
@@ -56,46 +57,33 @@
 
   <!-- HERO SECTION -->
   <section class="hero" id="hero">
-    <div class="hero__bg-shapes">
-      <div class="hero__shape hero__shape--1"></div>
-      <div class="hero__shape hero__shape--2"></div>
-      <div class="hero__shape hero__shape--3"></div>
-    </div>
     <div class="hero__container">
+      <!-- Gold engagement pulse: the platform's heartbeat, reading engagement in real time -->
+      <div class="hero__pulse" aria-hidden="true">
+        <div class="hero__pulse-core"></div>
+        <div class="hero__pulse-ring"></div>
+        <div class="hero__pulse-ring hero__pulse-ring--2"></div>
+        <div class="hero__pulse-ring hero__pulse-ring--3"></div>
+      </div>
       <div class="hero__badge" id="hero-badge">
         <span class="hero__badge-dot"></span>
         Real-Time Engagement Monitoring
       </div>
       <h1 class="hero__title">
-        Smarter Learning for<br />
-        <span class="hero__title-gradient">UENR Students</span>
+        Clicks tell you they're present.<br />
+        <span class="hero__title-accent">This tells you they're learning.</span>
       </h1>
-      <p class="hero__subtitle">
+<p class="hero__subtitle">
         An intelligent e-learning platform that tracks your engagement, evaluates comprehension in real-time, and recommends personalized resources to boost your academic performance.
       </p>
       <div class="hero__actions">
         <a href="auth/register.html" class="btn btn--primary btn--lg" id="hero-cta">
-          Start Learning Free
+          Start Learning
           <span class="btn__arrow"><i class="bi bi-arrow-right"></i></span>
         </a>
         <a href="#features" class="btn btn--ghost btn--lg" id="hero-features-btn">Explore Features</a>
       </div>
-      <div class="hero__stats">
-        <div class="hero__stat">
-          <span class="hero__stat-value">3</span>
-          <span class="hero__stat-label">User Roles</span>
-        </div>
-        <div class="hero__stat-divider"></div>
-        <div class="hero__stat">
-          <span class="hero__stat-value">Real-Time</span>
-          <span class="hero__stat-label">Feedback</span>
-        </div>
-        <div class="hero__stat-divider"></div>
-        <div class="hero__stat">
-          <span class="hero__stat-value">AI</span>
-          <span class="hero__stat-label">Recommendations</span>
-        </div>
-      </div>
+      <p class="hero__trust">For every role at UENR &mdash; Students &middot; Lecturers &middot; HODs</p>
     </div>
   </section>
 
@@ -104,46 +92,82 @@
     <div class="features__container">
       <div class="features__header">
         <span class="features__tag">Platform Features</span>
-        <h2 class="features__title">Everything you need to learn effectively</h2>
-        <p class="features__subtitle">Built specifically for UENR, combining behavioral tracking with intelligent learning support.</p>
+        <h2 class="features__title">See learning happen, in real time</h2>
+        <p class="features__subtitle">Attention, comprehension, and recommendations in one place built around the UENR campus.</p>
       </div>
       <div class="features__grid">
         <div class="feature-card" id="feature-engagement">
           <div class="feature-card__icon"><i class="bi bi-bar-chart-fill"></i></div>
-          <h3 class="feature-card__title">Engagement Tracking</h3>
-          <p class="feature-card__desc">Monitors mouse movements, scrolling, clicks, and time-on-page to determine if you are actively learning or idle.</p>
+          <h3 class="feature-card__title">See who's really paying attention</h3>
+          <p class="feature-card__desc">Know when attention drops during a lesson; in real time; so you can step in before anyone falls behind.</p>
         </div>
         <div class="feature-card" id="feature-comprehension">
           <div class="feature-card__icon"><i class="bi bi-lightbulb-fill"></i></div>
-          <h3 class="feature-card__title">Comprehension Analysis</h3>
-          <p class="feature-card__desc">Evaluates understanding through micro-questions, quizzes, and slide revisit patterns after each topic.</p>
+          <h3 class="feature-card__title">Know what actually landed</h3>
+          <p class="feature-card__desc">Questions and slide revisits measure real understanding after every topic; not just time on page.</p>
         </div>
         <div class="feature-card" id="feature-recommendations">
           <div class="feature-card__icon"><i class="bi bi-bullseye"></i></div>
-          <h3 class="feature-card__title">Smart Recommendations</h3>
-          <p class="feature-card__desc">Automatically recommends YouTube tutorials, articles, and study materials for topics you find difficult.</p>
+          <h3 class="feature-card__title">Get help where you're stuck</h3>
+          <p class="feature-card__desc">Struggling with a topic? UENR Learn suggests the videos, articles, and notes that target exactly what you missed.</p>
         </div>
         <div class="feature-card" id="feature-analytics">
           <div class="feature-card__icon"><i class="bi bi-graph-up-arrow"></i></div>
-          <h3 class="feature-card__title">Analytics Dashboard</h3>
-          <p class="feature-card__desc">Lecturers and HODs get real-time dashboards showing student participation, performance, and trends.</p>
+          <h3 class="feature-card__title">Understand your class at a glance</h3>
+          <p class="feature-card__desc">Lecturers and departments get live dashboards of participation, performance, and trends; ready for reports.</p>
         </div>
         <div class="feature-card" id="feature-microquiz">
           <div class="feature-card__icon"><i class="bi bi-question-circle"></i></div>
-          <h3 class="feature-card__title">Micro-Questions</h3>
-          <p class="feature-card__desc">Auto-generated questions after each topic test your understanding and keep you actively engaged.</p>
+          <h3 class="feature-card__title">Stay actively engaged</h3>
+          <p class="feature-card__desc">Generated questions after each topic keep you testing yourself; and keep your teacher informed.</p>
         </div>
         <div class="feature-card" id="feature-notifications">
           <div class="feature-card__icon"><i class="bi bi-bell"></i></div>
-          <h3 class="feature-card__title">Lecturer Notifications</h3>
-          <p class="feature-card__desc">Lecturers receive alerts when students engage with assigned reading materials in real time.</p>
+          <h3 class="feature-card__title">Step in the moment it matters</h3>
+          <p class="feature-card__desc">Lecturers are alerted in real time when students engage with assigned reading, so help arrives while it's still relevant.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS SECTION -->
+  <section class="how" id="how">
+    <div class="how__container">
+      <div class="how__header">
+        <span class="features__tag">How it works</span>
+        <h2 class="features__title">Three steps from study time to insight</h2>
+      </div>
+      <div class="how__grid">
+        <div class="how__step">
+          <div class="how__step-icon">
+            <i class="bi bi-book-half" aria-hidden="true"></i>
+            <span class="how__step-num">1</span>
+          </div>
+          <h3 class="how__step-title">Study the material</h3>
+          <p class="how__step-desc">Lecturers upload slides, notes, and reading. Students open them straight in the platform, on any device.</p>
+        </div>
+        <div class="how__step">
+          <div class="how__step-icon">
+            <i class="bi bi-activity" aria-hidden="true"></i>
+            <span class="how__step-num">2</span>
+          </div>
+          <h3 class="how__step-title">Your engagement is measured</h3>
+          <p class="how__step-desc">Attention and comprehension are tracked in real time as you read, scroll, and answer quiz and assigment.</p>
+        </div>
+        <div class="how__step">
+          <div class="how__step-icon">
+            <i class="bi bi-lightbulb-fill" aria-hidden="true"></i>
+            <span class="how__step-num">3</span>
+          </div>
+          <h3 class="how__step-title">Get insight &amp; recommendations</h3>
+          <p class="how__step-desc">Students get resources for the topics they missed; lecturers and departments see live dashboards of progress.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ROLES SECTION -->
-  <section class="roles" id="about">
+  <section class="roles" id="roles">
     <div class="roles__container">
       <div class="roles__header">
         <span class="features__tag">User Roles</span>
@@ -154,34 +178,34 @@
           <div class="role-card__avatar"><i class="bi bi-mortarboard"></i></div>
           <h3 class="role-card__title">Students</h3>
           <ul class="role-card__list">
-            <li>Access course materials anytime</li>
-            <li>Answer micro-questions after topics</li>
-            <li>Receive personalized recommendations</li>
-            <li>Track your own progress</li>
+            <li>Read course materials </li>
+            <li>Test yourself after every topic</li>
+            <li>Get recommendations for your weak spots</li>
+            <li>Watch your own progress grow</li>
           </ul>
-          <a href="auth/register.html" class="btn btn--primary" id="student-cta">Join as Student</a>
+          <a href="auth/register.html" class="btn btn--primary" id="student-cta">Create Account</a>
         </div>
         <div class="role-card role-card--featured" id="role-lecturer">
           <div class="role-card__avatar"><i class="bi bi-person-video3"></i></div>
           <h3 class="role-card__title">Lecturers</h3>
           <ul class="role-card__list">
-            <li>Upload course materials & slides</li>
-            <li>Monitor student engagement live</li>
-            <li>Assign quizzes and micro-questions</li>
-            <li>Get notified on student activity</li>
+            <li>Upload slides, notes &amp; reading</li>
+            <li>See engagement live, lesson by lesson</li>
+            <li>Set assigment</li>
+            <li>Get alerted as students engage</li>
           </ul>
-          <a href="auth/register.html" class="btn btn--primary" id="lecturer-cta">Join as Lecturer</a>
+          <a href="auth/register.html" class="btn btn--primary" id="lecturer-cta">Create Account</a>
         </div>
         <div class="role-card" id="role-hod">
           <div class="role-card__avatar"><i class="bi bi-buildings"></i></div>
           <h3 class="role-card__title">Heads of Department</h3>
           <ul class="role-card__list">
-            <li>Department-wide analytics</li>
-            <li>Course performance reports</li>
-            <li>Identify struggling students early</li>
-            <li>Academic decision support</li>
+            <li>See department-wide analytics</li>
+            <li>Get course performance reports</li>
+            <li>Spot struggling students early</li>
+            <li>Support decisions with data</li>
           </ul>
-          <a href="auth/login.html" class="btn btn--outline" id="hod-cta">HOD Login</a>
+          <a href="auth/login.html" class="btn btn--outline" id="hod-cta">Log In</a>
         </div>
       </div>
     </div>
@@ -196,6 +220,7 @@
           <span class="navbar__logo-text">UENR <span class="navbar__logo-accent">Learn</span></span>
         </div>
         <p class="footer__tagline">Intelligent E-Learning for University of Energy and Natural Resources</p>
+        <p class="footer__motto">Learn &middot; Engage &middot; Excel</p>
       </div>
       <div class="footer__links">
         <div class="footer__col">
@@ -219,12 +244,12 @@
       </div>
     </div>
     <div class="footer__bottom">
-      <p>© 2025/2026 UENR E-Learning Platform </p>
+      <p>&copy; 2026 UENR E-Learning Platform</p>
     </div>
   </footer>
   <script>
-    // Wake the backend (Render free tier sleeps when idle) so the first login
-    // isn't slowed by a cold start.
+    // Health-check the backend (Render free tier sleeps when idle) so the first
+    // login isn't slowed by a cold start.
     (function () {
       const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:8001'

@@ -85,8 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const CLAMP = 6;
                 grid.innerHTML = courses.map(course => `
                     <div class="stat-card course-click" onclick="window.location.href='../materials/materials.html?id=${course.id}'">
-                        <h4>${course.title}</h4>
-                        <p class="text-muted course-lecturer-name">${course.lecturer_name || 'Unknown Lecturer'}</p>
+                        <h4>${escapeHTML(course.title)}</h4>
+                        <p class="text-muted course-lecturer-name">${escapeHTML(course.lecturer_name || 'Unknown Lecturer')}</p>
                         <div class="progress-track">
                             <div class="progress-fill" style="width: ${course.progress || 0}%"></div>
                         </div>

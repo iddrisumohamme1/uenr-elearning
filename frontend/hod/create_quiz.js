@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             courseSelect.innerHTML = `
                 <option value="" disabled selected>Select a course</option>
                 ${courses.map(c => `
-                    <option value="${c.id}">${c.title} (${c.code || 'No code'})</option>
+                    <option value="${c.id}">${escapeHTML(c.title)} (${escapeHTML(c.code || 'No code')})</option>
                 `).join('')}
             `;
         } catch (err) {
