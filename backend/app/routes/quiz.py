@@ -15,6 +15,8 @@ from app.database import get_admin_client, with_retry
 from app.routes.recommendations import RECOMMEND_THRESHOLD, record_auto_recommendation
 from app.services.material_content import material_text_from_url
 from app.services.quiz_generator import quiz_ai
+from app.services.insight_messages import push_insight_message
+from app.routes.engagement import _run_classification
 
 router = APIRouter(prefix="/api/quiz", tags=["quiz"])
 
@@ -352,6 +354,16 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
         sub_rows = getattr(sub_resp, "data", []) or []
         submission_id = sub_rows[0]["id"] if sub_rows else None
 
+        # Refresh the stored comprehension/engagement classification now that a
+        # fresh quiz score exists, so the dashboard label reflects reality
+        # instead of waiting for the next study session. Never blocks the
+        # student-facing response.
+        if course_id:
+            try:
+                _run_classification(admin, user["id"], course_id)
+            except Exception as e:
+                print(f"[quiz] post-submit re-classify skipped: {e}")
+
         # Auto-recommend study resources when the student underperforms. The
         # query is built from the course title + material title so the semantic
         # search can pull in related material from anywhere in the resource pool.
@@ -401,6 +413,15 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
                 recommended_count = len(created)
             except Exception as e:
                 print(f"[Quiz] Auto-recommendation skipped: {e}")
+
+        # Notify the student in their inbox about this quiz result.
+        try:
+            push_insight_message(
+                admin, user["id"], course_id,
+                kind="quiz", score=percentage, comprehension_level=comp_level,
+            )
+        except Exception as e:
+            print(f"[Quiz] Insight message skipped: {e}")
 
         return {
             "status": "success",
@@ -482,6 +503,15 @@ def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin)
         }).execute()
     )
     insert_rows = getattr(insert_resp, "data", []) or []
+
+    # Notify the student in their inbox about this quiz result.
+    try:
+        push_insight_message(
+            admin, user["id"], course_id,
+            kind="quiz", score=percentage, comprehension_level=comp_level,
+        )
+    except Exception as e:
+        print(f"[Quiz] Insight message skipped: {e}")
 
     return {
         "status": "success",

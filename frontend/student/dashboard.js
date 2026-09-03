@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function setEngagementValue(score) {
         document.getElementById('engagement-value').textContent =
             (score === null || score === undefined) ? '--%' : `${score}%`;
@@ -82,16 +88,58 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
+                // Per-course accent derived from the course code, keeping the
+                // emerald brand alive while giving each card a distinct tile.
+                function accentFor(code, progress) {
+                    if (progress >= 100) return { grad: 'linear-gradient(135deg,#22c55e,#16a34a)', glow: 'rgba(34,197,94,0.4)', ink: 'var(--clr-success)' };
+                    let seed = 0;
+                    const key = String(code || 'UENR');
+                    for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+                    const hue = 150 + (seed % 90);
+                    return {
+                        grad: `linear-gradient(135deg,hsl(${hue},70%,52%),hsl(${hue},72%,40%))`,
+                        glow: `hsla(${hue},70%,52%,0.45)`,
+                        ink: `hsl(${hue},70%,58%)`,
+                    };
+                }
+                function monogramFor(title) {
+                    const words = String(title || '?').trim().split(/\s+/);
+                    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+                    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+                }
+
                 const CLAMP = 6;
-                grid.innerHTML = courses.map(course => `
-                    <div class="stat-card course-click" onclick="window.location.href='../materials/materials.html?id=${course.id}'">
-                        <h4>${escapeHTML(course.title)}</h4>
-                        <p class="text-muted course-lecturer-name">${escapeHTML(course.lecturer_name || 'Unknown Lecturer')}</p>
-                        <div class="progress-track">
-                            <div class="progress-fill" style="width: ${course.progress || 0}%"></div>
-                        </div>
-                    </div>
-                `).join('');
+                grid.innerHTML = courses.map(course => {
+                    const progress = Math.min(100, Math.max(0, course.progress || 0));
+                    const accent = accentFor(course.code, progress);
+                    const done = progress >= 100;
+                    return `
+                        <a class="course-card tappable" href="../materials/materials.html?id=${course.id}"
+                           style="--card-accent:${accent.grad};--card-accent-glow:${accent.glow};--card-accent-ink:${accent.ink};">
+                            <div class="course-card-head">
+                                <span class="course-card-tile" style="background:${accent.grad};box-shadow:0 6px 16px -6px ${accent.glow};">${monogramFor(course.title)}</span>
+                                <span class="course-card-meta">
+                                    <span class="course-card-code">${escapeHTML(course.code || 'UENR')}</span>
+                                    <span class="course-card-lecturer">${escapeHTML(course.lecturer_name || 'Unknown Lecturer')}</span>
+                                </span>
+                            </div>
+                            <h4 class="course-card-title">${escapeHTML(course.title)}</h4>
+                            <span class="course-card-status ${done ? 'is-done' : progress > 0 ? 'is-active' : 'is-fresh'}">
+                                <i class="bi ${done ? 'bi-check-circle-fill' : progress > 0 ? 'bi-arrow-repeat' : 'bi-hourglass-split'}" aria-hidden="true"></i>
+                                ${done ? 'Completed' : progress > 0 ? 'In progress' : 'Not started'}
+                            </span>
+                            <div class="course-card-foot">
+                                <div class="course-card-gauge">
+                                    <div class="course-card-progress-track">
+                                        <div class="course-card-progress-fill" style="width:${progress}%;background:${accent.grad};"></div>
+                                    </div>
+                                    <span class="course-card-pct" style="color:${accent.ink};">${progress}%</span>
+                                </div>
+                                <span class="course-card-go">${done ? 'Review' : 'Continue'}<i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
 
                 if (courses.length <= CLAMP) return;
 

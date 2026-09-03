@@ -26,6 +26,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const publishedList = document.getElementById('published-list');
     const deleteModal = document.getElementById('delete-modal');
     const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
+    const modePreview = document.getElementById('mode-preview');
+    const modeEdit = document.getElementById('mode-edit');
+    const editor = document.getElementById('editor');
+    const editorHint = document.getElementById('editor-hint');
+    const regenBtn = document.getElementById('regen-btn');
 
     const FORMAT_LABELS = {
         summary: 'Summary',
@@ -104,8 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             materialSelect.innerHTML = `
                 <option value="" disabled selected>Select a material</option>
                 ${materials.map(m => {
-                    const org = m.week_number != null ? `Week ${m.week_number}` : m.unit_label ? m.unit_label : 'Full course';
-                    return `<option value="${m.id}">${m.semester ? m.semester + ' · ' : ''}${org} · ${m.title}</option>`;
+                    const org = m.week_number != null ? `Week ${m.week_number}` : m.unit_label ? m.unit_label : '';
+                    const prefix = [m.semester, org].filter(Boolean).join(' · ');
+                    return `<option value="${m.id}">${prefix ? prefix + ' · ' : ''}${m.title}</option>`;
                 }).join('')}
             `;
         } catch (err) {
@@ -152,10 +158,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         pendingResource = null;
     }
 
+    function setMode(mode) {
+        const isPreview = mode === 'preview';
+        modePreview.classList.toggle('is-active', isPreview);
+        modeEdit.classList.toggle('is-active', !isPreview);
+        modePreview.setAttribute('aria-selected', String(isPreview));
+        modeEdit.setAttribute('aria-selected', String(!isPreview));
+        if (isPreview) {
+            previewBody.innerHTML = renderMarkdown(editor.value);
+            previewBody.hidden = false;
+            editor.hidden = true;
+        } else {
+            previewBody.hidden = true;
+            editor.hidden = false;
+            editor.focus();
+        }
+        editorHint.textContent = isPreview
+            ? 'Refine the copy? Switch to Edit to tweak the Markdown before publishing.'
+            : 'Edit the Markdown, then switch back to Preview to see how students will read it.';
+    }
+
     deleteConfirmBtn.addEventListener('click', async () => {
         if (!pendingDeleteId) return;
-        deleteConfirmBtn.disabled = true;
-        deleteConfirmBtn.textContent = 'Removing…';
+        setButtonBusy(deleteConfirmBtn, true);
         try {
             const res = await authFetch(`${API_BASE}/api/resources/${pendingDeleteId}`, { method: 'DELETE' });
             if (res.ok) {
@@ -170,8 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Could not remove resource.', 'error');
         } finally {
             pendingDeleteId = null;
-            deleteConfirmBtn.disabled = false;
-            deleteConfirmBtn.innerHTML = '<i class="bi bi-trash"></i> Remove resource';
+            setButtonBusy(deleteConfirmBtn, false);
         }
     });
 
@@ -203,8 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Select a course and a material first.', 'warning');
             return;
         }
-        generateBtn.disabled = true;
-        generateBtn.textContent = 'Composing…';
+        setButtonBusy(generateBtn, true);
         preview.hidden = true;
         try {
             const res = await authFetch(`${API_BASE}/api/resources/generate`, {
@@ -225,7 +248,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 previewType.textContent = FORMAT_LABELS[data.resource_type] || data.resource_type;
                 previewTitle.textContent = data.title;
                 previewCourse.textContent = selectedCourseName;
-                previewBody.innerHTML = renderMarkdown(data.content_text);
+                const content = data.content_text || '';
+                editor.value = content;
+                previewBody.innerHTML = renderMarkdown(content);
+                setMode('preview');
                 preview.hidden = false;
                 setStage(2);
             } else {
@@ -234,15 +260,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Resources generation failed. Try again later.', 'error');
         } finally {
-            generateBtn.disabled = false;
-            generateBtn.textContent = 'Generate preview';
+            setButtonBusy(generateBtn, false);
         }
+    });
+
+    modePreview.addEventListener('click', () => setMode('preview'));
+    modeEdit.addEventListener('click', () => setMode('edit'));
+
+    editor.addEventListener('input', () => {
+        if (pendingResource) pendingResource.content_text = editor.value;
+    });
+
+    regenBtn.addEventListener('click', () => {
+        if (generateBtn.disabled) return;
+        generateBtn.click();
     });
 
     publishBtn.addEventListener('click', async () => {
         if (!pendingResource) return;
-        publishBtn.disabled = true;
-        publishBtn.textContent = 'Publishing…';
+        setButtonBusy(publishBtn, true);
         try {
             const res = await authFetch(`${API_BASE}/api/resources/publish`, {
                 method: 'POST',
@@ -253,6 +289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToast('Published for students.', 'success');
                 preview.hidden = true;
                 pendingResource = null;
+                setMode('preview');
                 setStage(1);
                 invalidateApiCache(`resources:${selectedCourseId}`);
                 loadPublished(selectedCourseId);
@@ -262,8 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Publishing failed. Try again later.', 'error');
         } finally {
-            publishBtn.disabled = false;
-            publishBtn.textContent = 'Publish for students';
+            setButtonBusy(publishBtn, false);
         }
     });
 

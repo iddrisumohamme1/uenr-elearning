@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('hod').catch(() => null);
     if (!user) return;
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     document.getElementById('dept-subtitle').textContent =
         `Aggregated data across all courses in ${user.department || 'your department'}`;
 

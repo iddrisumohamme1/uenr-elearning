@@ -369,7 +369,7 @@ class RecommendationEngine:
 
     # ── Public API ────────────────────────────────────────────────────────────
     def get_recommendations(self, weak_concepts: str, top_n: int = 3, include_web: bool = True,
-                            enrolled_course_ids=None) -> list:
+                            enrolled_course_ids=None, exclude_materials: bool = False) -> list:
         # Lazy-load the pool + model on first use (idempotent afterwards).
         self._ensure_ready()
         # Pool refresh (if any) runs in the background — the student never waits on it.
@@ -381,14 +381,17 @@ class RecommendationEngine:
         # pool to their world: academic materials only from enrolled courses,
         # curated external links only on the topic this query is about. Live web
         # (YouTube) results are already guided by the weak-concept query, so they
-        # stay as-is.
+        # stay as-is. When `exclude_materials` is set, database course materials
+        # are dropped entirely so only external resources surface.
         allowed = None
         if enrolled_course_ids is not None:
             enrolled = set(enrolled_course_ids)
             target_topic = detect_topic(weak_concepts)
             allowed = [
                 i for i, r in enumerate(self.resources)
-                if (r.get("source") == "material" and r.get("course_id") in enrolled)
+                if (r.get("source") == "material"
+                    and not exclude_materials
+                    and r.get("course_id") in enrolled)
                 or (r.get("source") != "material" and r.get("topic") == target_topic)
             ]
 

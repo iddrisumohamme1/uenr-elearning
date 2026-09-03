@@ -52,22 +52,6 @@
                             <textarea id="description" class="form-input" rows="4" placeholder="Optional brief description"></textarea>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Organization</label>
-                            <div class="org-options" role="radiogroup" aria-label="Material organization">
-                                <label class="org-option"><input type="radio" name="organization" value="week" checked><span>Week by week</span></label>
-                                <label class="org-option"><input type="radio" name="organization" value="unit"><span>Unit / part</span></label>
-                                <label class="org-option"><input type="radio" name="organization" value="full"><span>Whole semester</span></label>
-                            </div>
-                            <div class="org-field" id="org-week-field">
-                                <input type="number" id="week-number" class="form-input" min="1" placeholder="e.g. 3 — the week this material belongs to">
-                            </div>
-                            <div class="org-field" id="org-unit-field" hidden>
-                                <input type="text" id="unit-label" class="form-input" placeholder="e.g. Unit 1 - Introduction, or Part 2">
-                            </div>
-                            <p class="form-hint" id="org-hint">Materials are shown to students grouped under this week, unit, or the whole course.</p>
-                        </div>
-
-                        <div class="form-group">
                             <label class="form-label" for="file">Upload Files</label>
                             <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
                                  aria-describedby="file-hint file-error">
@@ -101,13 +85,14 @@
                         </div>
 
                         <button type="submit" class="btn-auth btn-full" id="upload-submit">
-                            <span id="upload-submit-text">Upload Material</span>
+                            <span class="btn-label" id="upload-submit-text">Upload Material</span>
                             <span class="btn-spinner" id="btn-spinner" hidden></span>
                         </button>
                     </form>
                 </div>
             </section>
 </main>
+    <div id="upload-live" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     </div>
 
     <script src="../shared/sidebar.js"></script>

@@ -276,20 +276,6 @@
   opacity: 0.75;
 }
 
-.btn-auth.btn-loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: var(--r-full);
-  animation: spin 0.7s linear infinite;
-}
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

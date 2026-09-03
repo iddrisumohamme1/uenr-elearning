@@ -114,6 +114,32 @@
     border-top-color: white;
 }
 
+/* ── Button loading: hide the label text while keeping its layout space,
+      and overlay a centered spinner so the button never resizes and the
+      spinner never jumps ──────────────────────────────────────────────── */
+.btn-loading .btn-label {
+    visibility: hidden;
+}
+
+.btn-loading .btn-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: -10px 0 0 -10px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    border-radius: var(--r-full, 50%);
+    animation: spin 0.7s linear infinite;
+}
+
+/* Ensure a hidden button spinner stays hidden even where a page-local
+   `.btn-spinner` rule forces a `display` value. */
+.btn-spinner[hidden] {
+    display: none !important;
+}
+
 /* ── Dark mode shimmer tint ── */
 [data-theme="light"] .skeleton::after {
     background: linear-gradient(

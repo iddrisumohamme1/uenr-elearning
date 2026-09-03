@@ -67,9 +67,28 @@
             </div>
             <p class="text-muted" id="message-course"></p>
             <textarea id="message-content" rows="5" placeholder="Write a short message with feedback or study advice…"></textarea>
+            <input id="message-draft-topic" class="form-input" type="text" placeholder="Optional: AI note/topic (e.g. missed the last two quizzes)">
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="message-draft" class="btn-secondary" type="button"><i class="bi bi-stars"></i> Draft with AI</button>
                 <button id="message-send" class="btn-primary">Send message</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask AI to message a student modal -->
+    <div id="ai-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="ai-to">Ask AI to message student</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="ai-course"></p>
+            <p class="text-muted">The AI assistant will compose a supportive message using this student's engagement and assessment data, plus your note below.</p>
+            <textarea id="ai-topic" rows="3" placeholder="Optional: add a note or topic for the AI to include…"></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="ai-send" class="btn-primary"><i class="bi bi-robot"></i> Ask AI to message</button>
             </div>
         </div>
     </div>
@@ -117,7 +136,7 @@
             <p class="text-muted">This permanently deletes the material and its file, along with student activity tied to it (engagement, downloads, study resources). This cannot be undone.</p>
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="true">Cancel</button>
-                <button id="remove-material-confirm" class="btn-danger"><i class="bi bi-trash"></i> Remove material</button>
+                <button id="remove-material-confirm" class="btn-danger"><span class="btn-label"><i class="bi bi-trash"></i> Remove material</span><span class="btn-spinner" hidden></span></button>
             </div>
         </div>
     </div>

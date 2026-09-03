@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('hod').catch(() => null);
     if (!user) return;
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     const courseList = document.getElementById('hod-course-list');
     const lecturerFilter = document.getElementById('lecturer-filter');
     const courseCount = document.getElementById('course-count');
@@ -24,10 +30,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const confirmAssignLabel = document.getElementById('confirm-assign-label');
     const confirmDeleteLabel = document.getElementById('confirm-delete-label');
 
-    function setPending(btn, spinner, label, busy, text) {
-        btn.disabled = busy;
-        if (spinner) spinner.hidden = !busy;
-        label.textContent = text;
+    function setPending(btn, spinner, label, busy) {
+        setButtonBusy(btn, busy);
     }
 
     let deptCourses = [];

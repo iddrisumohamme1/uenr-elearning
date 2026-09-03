@@ -355,9 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const content = document.getElementById('message-content').value;
         if (!content.trim()) { showToast('Write a message before sending.', 'error'); return; }
         const btn = document.getElementById('message-send');
-        const prev = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Sending…';
+        setButtonBusy(btn, true);
         let okCount = 0;
         try {
             for (const r of messageRecipients) {
@@ -382,8 +380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 closeModal(document.getElementById('message-modal'));
             }
         } finally {
-            btn.disabled = false;
-            btn.textContent = prev;
+            setButtonBusy(btn, false);
         }
     });
 

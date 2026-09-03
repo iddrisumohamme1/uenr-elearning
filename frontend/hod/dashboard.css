@@ -205,6 +205,19 @@
   box-shadow: var(--shadow-glow-lg);
 }
 .btn-sm { padding: 0.75rem 1.25rem; font-size: 0.9rem; white-space: nowrap; }
+
+/* Secondary AI-draft action inside modals: neutral, not the primary gradient. */
+.btn-auth.btn-ghost {
+  background: transparent;
+  color: var(--clr-primary-light, var(--text-secondary));
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+.btn-auth.btn-ghost:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--clr-primary);
+}
 .btn-upload { width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1rem; }
 .btn-full { width: 100%; justify-content: center; }
 .btn-outline {
@@ -249,6 +262,7 @@
 .upload-section { max-width: 700px; }
 .quiz-creation { max-width: 800px; }
 .form-group { margin-bottom: 1.5rem; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-label {
   display: block;
   margin-bottom: 0.5rem;
@@ -258,31 +272,6 @@
 }
 .form-hint { margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-muted); }
 
-/* ── Organization segmented control ─────────────────────────────────────── */
-.org-options { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-.org-option { flex: 1; min-width: 110px; }
-.org-option input { position: absolute; opacity: 0; pointer-events: none; }
-.org-option span {
-  display: block;
-  text-align: center;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
-}
-.org-option span:hover { border-color: var(--clr-primary); color: var(--text-primary); }
-.org-option input:checked + span {
-  color: #fff;
-  background: var(--grad-primary);
-  border-color: transparent;
-  box-shadow: var(--shadow-glow);
-}
-.org-field { margin-top: 0.5rem; }
 .form-input {
   width: 100%;
   padding: 0.85rem 1rem;

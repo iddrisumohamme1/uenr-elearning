@@ -17,6 +17,8 @@ from app.services.grades import letter_grade
 from app.services.material_content import extract_pdf_text, material_text_from_url
 from app.services.question_import import parse_docx, parse_plain_text, parse_xlsx
 from app.services.quiz_generator import quiz_ai
+from app.services.insight_messages import push_insight_message
+from app.routes.engagement import _run_classification
 
 router = APIRouter(prefix="/api/assignments", tags=["assignments"])
 
@@ -725,6 +727,16 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
             "on_time": _is_on_time(submission.get("submitted_at"), assignment.get("due_date")),
             "message": "Assignment submitted.",
         }
+
+        # Refresh the stored comprehension/engagement classification whenever a
+        # graded (scored) assignment lands, so the dashboard label reflects the
+        # new assessment instead of a stale one. Never blocks the response.
+        if submission.get("score") is not None and assignment.get("course_id"):
+            try:
+                _run_classification(admin, user["id"], assignment["course_id"])
+            except Exception as e:
+                print(f"[assignments] post-submit re-classify skipped: {e}")
+
         if has_questions:
             response["score"] = submission.get("score")
             response["letter_grade"] = submission.get("letter_grade")
@@ -769,6 +781,15 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
                         response["recommended_count"] = len(created)
                 except Exception as exc:
                     print(f"[assignments] Auto-recommendation skipped: {exc}")
+
+            # Notify the student in their inbox about the graded assignment.
+            try:
+                push_insight_message(
+                    admin, user["id"], assignment["course_id"],
+                    kind="assignment", score=percentage,
+                )
+            except Exception as e:
+                print(f"[assignments] Insight message skipped: {e}")
         return response
     except HTTPException:
         raise

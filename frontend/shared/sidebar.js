@@ -44,7 +44,6 @@
             { folder: 'student', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
             { folder: 'student', file: 'inbox.html', icon: 'bi-inbox', label: 'Inbox' },
             { folder: 'recommendations', file: 'recommendations.html', icon: 'bi-stars', label: 'Recommendations' },
-            { folder: 'analytics', file: 'analytics.html', icon: 'bi-graph-up-arrow', label: 'Performance' },
             { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
     };

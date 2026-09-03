@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import List
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client, with_retry
+from app.database import get_admin_client, get_storage_client, with_retry
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
@@ -17,6 +17,12 @@ class CourseOut(BaseModel):
     title: str
     lecturer_name: str | None = None
     lecturer_id: str | None = None
+    level: int | None = None
+    semester: str | None = None
+
+
+class CatalogCourseOut(CourseOut):
+    department: str | None = None
 
 
 class EnrollmentRequest(BaseModel):
@@ -29,10 +35,18 @@ class CourseCreateRequest(BaseModel):
     code: str
     description: str | None = None
     lecturer_id: str
+    level: int | None = None
+    semester: str | None = None
 
 
 class CourseUpdateRequest(BaseModel):
     lecturer_id: str | None = None
+    level: int | None = None
+    semester: str | None = None
+
+    class Config:
+        # Allow distinguishing "field absent" from "explicitly null".
+        extra = "forbid"
 
 
 @router.post("/create", response_model=CourseOut)
@@ -70,6 +84,8 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
                 "description": payload.description,
                 "department": user["department"],
                 "lecturer_id": payload.lecturer_id,
+                "level": payload.level,
+                "semester": payload.semester,
             }).execute()
         )
     except Exception as exc:
@@ -83,6 +99,8 @@ def create_course(payload: CourseCreateRequest, user=Depends(require_role("hod")
         title=course.get("title"),
         lecturer_id=payload.lecturer_id,
         lecturer_name=lecturer.get("full_name"),
+        level=payload.level,
+        semester=payload.semester,
     )
 
 
@@ -147,15 +165,29 @@ def update_course_assignment(course_id: str, payload: CourseUpdateRequest, user=
     course = _get_department_course(course_id, user["department"], admin)
     lecturer = _resolve_lecturer(payload.lecturer_id, user["department"], admin) if payload.lecturer_id else None
 
+    # Only update the fields the caller actually provided, so a partial PATCH
+    # never wipes out values the requester didn't mean to touch.
+    updates = {}
+    provided = payload.model_fields_set
+    if "lecturer_id" in provided:
+        updates["lecturer_id"] = payload.lecturer_id
+    if "level" in provided:
+        updates["level"] = payload.level
+    if "semester" in provided:
+        updates["semester"] = payload.semester
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No updatable fields provided.")
+
     try:
         update_response = with_retry(
             lambda c: c.table("courses")
-            .update({"lecturer_id": payload.lecturer_id})
+            .update(updates)
             .eq("id", course_id)
             .execute()
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to update course assignment: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to update course: {exc}")
 
     updated_data = getattr(update_response, "data", []) or []
     updated = updated_data[0] if updated_data else course
@@ -165,6 +197,8 @@ def update_course_assignment(course_id: str, payload: CourseUpdateRequest, user=
         title=updated.get("title"),
         lecturer_id=updated.get("lecturer_id"),
         lecturer_name=lecturer.get("full_name") if lecturer else None,
+        level=updated.get("level"),
+        semester=updated.get("semester"),
     )
 
 
@@ -261,7 +295,7 @@ def delete_course(course_id: str, user=Depends(require_role("hod"))):
             path = content_url.split("/materials/", 1)[-1].split("?")[0]
             if path:
                 try:
-                    admin.storage.from_("materials").remove([path])
+                    get_storage_client().from_("materials").remove([path])
                 except Exception:
                     pass
 
@@ -302,7 +336,7 @@ def list_department_courses(user=Depends(get_current_user)):
     try:
         courses_response = with_retry(
             lambda c: c.table("courses")
-            .select("id, code, title, lecturer_id")
+            .select("id, code, title, lecturer_id, level, semester")
             .eq("department", department)
             .execute()
         )
@@ -317,6 +351,67 @@ def list_department_courses(user=Depends(get_current_user)):
             title=course.get("title"),
             lecturer_id=course.get("lecturer_id"),
             lecturer_name=lecturer_map.get(course.get("lecturer_id")),
+            level=course.get("level"),
+            semester=course.get("semester"),
+        )
+        for course in courses
+    ]
+
+
+@router.get("/catalog", response_model=List[CatalogCourseOut])
+def list_catalog_courses(user=Depends(get_current_user)):
+    """Return the courses available to the logged-in student for browsing.
+
+    Scoped to the student's own department so they only ever see their
+    department's courses (not other departments'). Includes the department,
+    academic level and semester so students can browse by level then semester.
+    Accounts without a configured department (legacy students) see an empty
+    catalogue rather than every course.
+    """
+    department = user.get("department")
+    admin = get_admin_client()
+    if not department:
+        return []
+
+    try:
+        lecturers = with_retry(
+            lambda c: c.table("users")
+            .select("id, full_name")
+            .eq("department", department)
+            .in_("role", ["lecturer", "hod"])
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query lecturers: {exc}")
+
+    lecturer_map = {
+        row["id"]: row["full_name"]
+        for row in (getattr(lecturers, "data", []) or [])
+        if row.get("id")
+    }
+
+    try:
+        courses_response = with_retry(
+            lambda c: c.table("courses")
+            .select("id, code, title, department, lecturer_id, level, semester")
+            .eq("department", department)
+            .order("level", desc=False)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to query courses: {exc}")
+
+    courses = getattr(courses_response, "data", []) or []
+    return [
+        CatalogCourseOut(
+            id=course["id"],
+            code=course.get("code"),
+            title=course.get("title"),
+            department=course.get("department"),
+            lecturer_id=course.get("lecturer_id"),
+            lecturer_name=lecturer_map.get(course.get("lecturer_id")),
+            level=course.get("level"),
+            semester=course.get("semester"),
         )
         for course in courses
     ]
@@ -329,7 +424,7 @@ def list_my_courses(user=Depends(require_role("lecturer", "hod"))):
     try:
         courses_response = with_retry(
             lambda c: c.table("courses")
-            .select("id, code, title, lecturer_id")
+            .select("id, code, title, lecturer_id, level, semester")
             .eq("lecturer_id", user["id"])
             .execute()
         )
@@ -344,6 +439,8 @@ def list_my_courses(user=Depends(require_role("lecturer", "hod"))):
             title=course.get("title"),
             lecturer_id=course.get("lecturer_id"),
             lecturer_name=user.get("full_name"),
+            level=course.get("level"),
+            semester=course.get("semester"),
         )
         for course in courses
     ]

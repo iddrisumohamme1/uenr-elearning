@@ -99,7 +99,7 @@
 
                 <div class="press-actions">
                     <button id="generate-btn" class="btn-auth btn-press">
-                        <i class="bi bi-magic"></i> Generate preview
+                        <span class="btn-label"><i class="bi bi-magic"></i> Generate preview</span><span class="btn-spinner" hidden></span>
                     </button>
                 </div>
 
@@ -111,9 +111,25 @@
                             <h3 id="preview-title">Preview</h3>
                             <p class="text-muted" id="preview-course"></p>
                         </div>
-                        <button id="publish-btn" class="btn-publish"><i class="bi bi-send"></i> Publish for students</button>
+                        <button id="publish-btn" class="btn-publish"><span class="btn-label"><i class="bi bi-send"></i> Publish for students</span><span class="btn-spinner" hidden></span></button>
                     </div>
-                    <div id="preview-body" class="proof-body"></div>
+                    <div class="proof-toolbar">
+                        <div class="proof-tabs" role="tablist" aria-label="Proof mode">
+                            <button id="mode-preview" class="proof-tab is-active" role="tab" aria-selected="true" data-mode="preview">
+                                <i class="bi bi-eye"></i> Preview
+                            </button>
+                            <button id="mode-edit" class="proof-tab" role="tab" aria-selected="false" data-mode="edit">
+                                <i class="bi bi-pencil-square"></i> Edit
+                            </button>
+                        </div>
+                        <button id="regen-btn" class="proof-regen" title="Discard edits and re-generate from the material">
+                            <i class="bi bi-arrow-clockwise"></i> Re-generate
+                        </button>
+                    </div>
+                    <div id="preview-body" class="proof-body" role="tabpanel"></div>
+                    <textarea id="editor" class="proof-editor" hidden spellcheck="false"
+                        aria-label="Resource markdown"></textarea>
+                    <p class="text-muted" id="editor-hint">Edit the Markdown, then preview it before publishing.</p>
                 </div>
             </section>
 
@@ -139,7 +155,7 @@
             <p class="text-muted">This removes the resource immediately. </p>
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="true">Cancel</button>
-                <button id="delete-confirm-btn" class="btn-danger"><i class="bi bi-trash"></i> Remove resource</button>
+                <button id="delete-confirm-btn" class="btn-danger"><span class="btn-label"><i class="bi bi-trash"></i> Remove resource</span><span class="btn-spinner" hidden></span></button>
             </div>
         </div>
     </div>

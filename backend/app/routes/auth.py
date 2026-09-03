@@ -86,8 +86,17 @@ def _classified_failure(
     unauthorized_detail: str = "Invalid email or password",
 ) -> HTTPException:
     """Log the underlying cause (so outages are diagnosable) and classify it."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    hint = ""
+    if "wsaeacces" in text or "access a socket in a way forbidden" in text or "[winerror 10013]" in text:
+        hint = (
+            "  (HINT: the OS blocked the socket itself — usually a security-suite "
+            "per-process block on python.exe outbound connections. Add an "
+            "exclusion for the venv python.exe in AVG / Reason Cybersecurity / "
+            "Windows Defender, then retry.)"
+        )
     print(
-        f"[auth] {context} failed: {type(exc).__name__}: {exc}",
+        f"[auth] {context} failed: {type(exc).__name__}: {exc}{hint}",
         file=sys.stderr,
         flush=True,
     )

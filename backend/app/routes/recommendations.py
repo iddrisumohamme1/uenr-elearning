@@ -24,7 +24,7 @@ WEAK_SCORE_THRESHOLD = 60.0
 
 # A quiz score below this triggers an automatic resource recommendation that is
 # surfaced to the student as a sidebar notification.
-RECOMMEND_THRESHOLD = 60.0
+RECOMMEND_THRESHOLD = 59.0
 
 TOPIC_LABELS = {
     "machine_learning": "Machine Learning",
@@ -136,8 +136,10 @@ def record_auto_recommendation(
     Never raises — a failing recommendation must not break quiz submission.
 
     `include_web` is off by default so the fast path (used right after a quiz)
-    only searches the local pool (every course's materials + curated external
-    resources) and skips the network-bound live YouTube search.
+    only searches the local pool and skips the network-bound live YouTube search.
+    Database course materials are excluded from the surface so auto-recommendations
+    only point to external study resources (videos, articles, curated links) — the
+    student already has the course material they underperformed on.
     """
     try:
         admin = get_admin_client()
@@ -146,6 +148,7 @@ def record_auto_recommendation(
             top_n=top_n,
             include_web=include_web,
             enrolled_course_ids=_enrolled_course_ids(admin, student_id),
+            exclude_materials=True,
         )
     except Exception as e:
         print(f"[Recommendation] Auto-recommendation failed: {e}")

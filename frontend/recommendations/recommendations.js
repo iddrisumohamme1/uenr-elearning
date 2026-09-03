@@ -626,7 +626,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.addEventListener('click', () => openItem(recToItem(recs[idx])));
         });
         // Wire the save-later buttons on each result row.
-        listEl.querySelectorAll('.result-save').forEach(btn => {
+        wireResultSaveButtons(listEl, recs);
+    }
+
+    // Attach the save/unsave handler to every bookmark button in a rendered
+    // result list (search results AND the "Recommended for you" pending panel),
+    // so the recommendations a student is redirected to are always saveable.
+    function wireResultSaveButtons(container, recs) {
+        container.querySelectorAll('.result-save').forEach(btn => {
             btn.addEventListener('click', () => {
                 const key = btn.dataset.resultSave;
                 const rec = recs.find(r => searchTrackShape(r).key === key);
@@ -713,6 +720,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const idx = Number(btn.dataset.openRec);
                     btn.addEventListener('click', () => openItem(recToItem(mapped[idx])));
                 });
+                // Wire the bookmark buttons so each recommended resource (the
+                // ones the student is redirected to after a low score) can be
+                // saved for later.
+                wireResultSaveButtons(pendingListEl, mapped);
             }
             await authFetch(`${API_BASE}/api/recommendations/notifications/read`, { method: 'POST' });
         } catch (err) {

@@ -209,17 +209,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const reading = row.reading_minutes ? `${Math.round(row.reading_minutes)} min` : '—';
         return `
             <article class="attention-card" data-sev="${sev}">
-                <div class="attention-card-head">
-                    <div class="student-cell">
-                        <span class="attention-ring" aria-hidden="true"></span>
-                        <span class="attention-name">${escapeHTML(displayName)}</span>
+                    <div class="attention-card-head">
+                        <div class="student-cell">
+                            <span class="attention-ring" aria-hidden="true"></span>
+                            <span class="attention-name">${escapeHTML(displayName)}</span>
+                        </div>
+                        <div class="attention-actions">
+                            <button class="attention-action btn-ai"
+                                data-name="${escapeHTML(displayName)}"
+                                data-id="${row.student_id}"
+                                data-course="${escapeHTML(courseLabel)}"
+                                data-course-id="${row.course_id}" title="Ask the AI assistant to message this student"><i class="bi bi-robot" aria-hidden="true"></i> Ask AI</button>
+                            <button class="attention-action btn-msg"
+                                data-name="${escapeHTML(displayName)}"
+                                data-id="${row.student_id}"
+                                data-course="${escapeHTML(courseLabel)}"
+                                data-course-id="${row.course_id}"><i class="bi bi-send" aria-hidden="true"></i> Reach out</button>
+                        </div>
                     </div>
-                    <button class="attention-action btn-msg"
-                        data-name="${escapeHTML(displayName)}"
-                        data-id="${row.student_id}"
-                        data-course="${escapeHTML(courseLabel)}"
-                        data-course-id="${row.course_id}"><i class="bi bi-send" aria-hidden="true"></i> Reach out</button>
-                </div>
                 <div class="attention-card-meta">
                     <span class="status-cell">${flagAgeLabel(row.created_at)}</span>
                     <span>${quizReadout(row.latest_quiz_score)}</span>
@@ -246,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('message-to').textContent = `Message ${studentName}`;
         document.getElementById('message-course').textContent = courseLabel || '';
         document.getElementById('message-content').value = '';
+        document.getElementById('message-draft-topic').value = '';
         openModal(messageModal);
         document.getElementById('message-content').focus();
     }
@@ -279,6 +287,83 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Could not send message.', 'error');
         } finally {
             btn.disabled = false;
+        }
+    });
+
+    // ── Draft with AI (seeds the "Reach out" message, HOD sends as self) ────
+    document.getElementById('message-draft').addEventListener('click', async () => {
+        if (!messageRecipient) return;
+        const btn = document.getElementById('message-draft');
+        const topic = (document.getElementById('message-draft-topic').value || '').trim();
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner" style="border-color:currentColor;border-top-color:transparent;"></span>';
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/ai/draft`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_id: messageRecipient.student_id,
+                    course_id: messageRecipient.course_id,
+                    topic,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || 'Could not compose a draft.');
+            const box = document.getElementById('message-content');
+            // Prepend the draft if the HOD already wrote something, else fill it.
+            box.value = box.value.trim()
+                ? `${box.value.trim()}\n\n${data.draft}`
+                : data.draft;
+            showToast('Draft ready — review, edit, then send.', 'success');
+        } catch (err) {
+            showToast(err.message || 'Could not compose a draft.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+
+    // ── Ask AI to message a student ──────────────────────────────────────────
+    const aiModal = document.getElementById('ai-modal');
+    let aiRecipient = null;
+    function openAiModal(studentName, studentId, courseLabel, courseId) {
+        aiRecipient = { student_id: studentId, course_id: courseId };
+        document.getElementById('ai-to').textContent = `Ask AI to message ${studentName}`;
+        document.getElementById('ai-course').textContent = courseLabel || '';
+        document.getElementById('ai-topic').value = '';
+        openModal(aiModal);
+        document.getElementById('ai-topic').focus();
+    }
+    document.getElementById('ai-send').addEventListener('click', async () => {
+        if (!aiRecipient) return;
+        const topic = document.getElementById('ai-topic').value.trim();
+        const btn = document.getElementById('ai-send');
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner" style="border-color:currentColor;border-top-color:transparent;"></span>';
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/ai/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_id: aiRecipient.student_id,
+                    course_id: aiRecipient.course_id,
+                    topic,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showToast('AI message sent to the student.', 'success');
+                closeModal(aiModal);
+            } else {
+                showToast(data.detail || 'Could not send AI message.', 'error');
+            }
+        } catch (err) {
+            showToast('Could not send AI message.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
         }
     });
 
@@ -417,7 +502,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `).join('');
 
                 queueBody.querySelectorAll('.attention-action').forEach(btn => {
-                    btn.addEventListener('click', () => openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, btn.dataset.courseId || null));
+                    btn.addEventListener('click', () => {
+                        if (btn.classList.contains('btn-ai')) {
+                            openAiModal(btn.dataset.name, btn.dataset.id, btn.dataset.course, btn.dataset.courseId || null);
+                        } else {
+                            openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, btn.dataset.courseId || null);
+                        }
+                    });
                 });
             }
         });

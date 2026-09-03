@@ -52,4 +52,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             detailsEl.appendChild(theoryEl);
         }
     }
+
+    // When a low quiz score generated recommendations, show the result briefly
+    // (so the student sees their score) and then automatically move them to the
+    // recommendations page to act on them.
+    if (urlParams.get('redirectRecs') === '1') {
+        const note = document.createElement('p');
+        note.className = 'text-muted';
+        note.style.marginTop = '1rem';
+        note.textContent = 'Taking you to your recommendations...';
+        document.querySelector('.results-card')?.appendChild(note);
+        setTimeout(() => {
+            window.location.href = '../recommendations/recommendations.html';
+        }, 2500);
+    }
 });

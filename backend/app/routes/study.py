@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.security import get_current_user
 from app.database import get_admin_client, with_retry
 from app.services.grades import letter_grade
+from app.routes.engagement import _course_material_comprehension
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -83,7 +84,7 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
 
             logs_resp = with_retry(
                 lambda c, cid=cid: c.table("engagement_logs")
-                .select("time_spent, comprehension_class, created_at")
+                .select("time_spent, comprehension_class, engagement_score, created_at, material_id")
                 .eq("student_id", student_id)
                 .eq("course_id", cid)
                 .gte("created_at", window_start)
@@ -92,21 +93,46 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
             logs = getattr(logs_resp, "data", []) or []
             time_spent_minutes = round(sum(float(l.get("time_spent") or 0) for l in logs) / 60, 1)
 
-            # Comprehension from the student's latest classifications per course
+            # Comprehension of the course, computed from the comprehension of the
+            # individual course materials the student engaged with in this 7-day
+            # window. Each distinct material counts once (not weighted by how
+            # many sessions were logged against it) so a single low-scoring
+            # material doesn't crowd out a well-scored one:
+            #   - a material with a graded assessment (AI quiz / assignment)
+            #     uses its real quiz/assignment comprehension (e.g. 70% ->
+            #     Moderate), never the stale telemetry value;
+            #   - otherwise it uses its latest recorded comprehension class;
+            #   - a material with no classification counts as Low (0).
+            mat_comp = _course_material_comprehension(admin, student_id, cid)
+            latest_cls_by_mid = {}
+            for l in sorted(logs, key=lambda r: str(r.get("created_at") or ""), reverse=True):
+                mid = l.get("material_id")
+                if not mid or mid in latest_cls_by_mid:
+                    continue
+                if l.get("comprehension_class") is not None:
+                    latest_cls_by_mid[mid] = float(l["comprehension_class"])
+            mat_ids = sorted({l.get("material_id") for l in logs if l.get("material_id")})
             comp_class = None
-            all_logs_resp = with_retry(
-                lambda c, cid=cid: c.table("engagement_logs")
-                .select("comprehension_class")
-                .eq("student_id", student_id)
-                .eq("course_id", cid)
-                .not_.is_("comprehension_class", "null")
-                .order("created_at", desc=True)
-                .limit(10)
-                .execute()
-            )
-            comp_logs = getattr(all_logs_resp, "data", []) or []
-            if comp_logs:
-                comp_class = round(sum(float(l["comprehension_class"]) for l in comp_logs) / len(comp_logs), 2)
+            if mat_ids:
+                per_material = [
+                    mat_comp[mid][0] if mid in mat_comp else latest_cls_by_mid.get(mid, 0.0)
+                    for mid in mat_ids
+                ]
+                comp_class = round(sum(per_material) / len(per_material), 2)
+
+            # Duration-weighted average engagement over the study window (this
+            # week) for this course — same window and aggregation the analytics
+            # "This week's engagement" metric uses, so the two stay comparable.
+            engagement_avg = None
+            eng_rows = [l for l in logs if l.get("engagement_score") is not None]
+            if eng_rows:
+                wsum = sum(
+                    float(l["engagement_score"]) * max(float(l.get("time_spent") or 0), 1.0)
+                    for l in eng_rows
+                )
+                wgt = sum(max(float(l.get("time_spent") or 0), 1.0) for l in eng_rows)
+                if wgt:
+                    engagement_avg = round(wsum / wgt)
         except Exception:
             continue
 
@@ -136,6 +162,7 @@ def study_summary(student_id: str, user=Depends(get_current_user)):
             "recommended_minutes": recommended_minutes,
             "study_coverage": study_coverage,
             "comprehension_class": comp_class,
+            "engagement_avg": engagement_avg,
             "warning": warning,
         })
 

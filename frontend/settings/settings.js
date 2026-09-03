@@ -150,14 +150,7 @@
     }
 
     function setSaving(saving) {
-        const btn = $('save-btn');
-        btn.disabled = saving;
-        btn.classList.toggle('btn-loading', saving);
-        if (saving) {
-            btn.innerHTML = '<span class="btn-spinner"></span> Saving…';
-        } else {
-            btn.innerHTML = '<i class="bi bi-check2-circle"></i> Save changes';
-        }
+        setButtonBusy($('save-btn'), saving);
     }
 
     async function onSave(e) {
@@ -242,7 +235,7 @@
         const overlay = wrap.querySelector('.id-avatar-overlay');
         wrap.classList.toggle('uploading', uploading);
         overlay.innerHTML = uploading
-            ? '<span class="spinner"></span><span>Uploading</span>'
+            ? '<span class="spinner"></span>'
             : '<i class="bi bi-camera-fill"></i><span>Change</span>';
     }
 

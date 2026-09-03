@@ -35,9 +35,9 @@ INTERACTION_FEATURES = ["failures", "absences", "G1", "G2", "G3", "freetime"]   
 
 # ── Class label maps ──────────────────────────────────────────────────────────
 ENGAGEMENT_LABELS = {
-    0: "At-Risk with Low Comprehension",
-    1: "Moderately Engaged",
-    2: "Highly Engaged with Good Comprehension",
+    0: "At-Risk",
+    1: "Moderate",
+    2: "Highly Engaged",
 }
 COMPREHENSION_LABELS = {
     0: "Low Comprehension",

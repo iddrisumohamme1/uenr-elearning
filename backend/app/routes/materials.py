@@ -12,7 +12,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import StreamingResponse
 
 from app.core.security import get_current_user, require_role
-from app.database import get_admin_client, with_retry
+from app.database import (
+    MATERIAL_MAX_BYTES,
+    get_admin_client,
+    get_storage_client,
+    upload_blob,
+    with_retry,
+)
 from app.schemas.materials import CourseMaterialsResponse, MaterialOut
 from app.services.doc_converter import convert_to_pdf, is_office_file
 
@@ -101,6 +107,20 @@ def upload_material(
     file_name = Path(file.filename).name
     storage_path = f"{course_id}/{uuid4().hex}-{file_name}"
 
+    # Read once into memory so the size check, storage upload, and the optional
+    # PDF conversion all share the same bytes (avoids re-reading the stream).
+    file.file.seek(0)
+    file_bytes = file.file.read()
+
+    if len(file_bytes) > MATERIAL_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"File exceeds the {MATERIAL_MAX_BYTES // (1024 * 1024)} MB upload "
+                "limit. Compress it or split it and try again."
+            ),
+        )
+
     try:
         # Create the public storage bucket only if it does not already exist.
         try:
@@ -111,15 +131,13 @@ def upload_material(
         raise HTTPException(status_code=500, detail=f"Failed to verify storage bucket: {exc}")
 
     try:
-        def upload_file(client):
-            bucket = client.storage.from_(BUCKET_NAME)
-            file.file.seek(0)
-            file_bytes = file.file.read()
-            bucket.upload(storage_path, file_bytes)
-            return bucket.get_public_url(storage_path)
-
-        public_url = with_retry(upload_file)
+        # Standard upload for small files, TUS resumable (6 MB chunks) above
+        # the threshold so large files survive mid-upload connection drops.
+        upload_blob(BUCKET_NAME, storage_path, file_bytes, file.content_type or "application/octet-stream")
+        public_url = get_storage_client().from_(BUCKET_NAME).get_public_url(storage_path)
     except Exception as exc:
+        # If the file upload failed, there is nothing to delete reasonably (the
+        # route has not created any DB record yet): surfaces the real error.
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {exc}")
 
     # Office documents get a PDF twin so the app can render them natively
@@ -127,18 +145,12 @@ def upload_material(
     # leaves render_url NULL and the embedded-viewer fallback stays in place.
     render_url: str | None = None
     if is_office_file(file_name):
-        file.file.seek(0)
-        file_bytes = file.file.read()
         pdf_bytes = convert_to_pdf(file_bytes, file_name)
         if pdf_bytes:
             try:
-                def upload_pdf_twin(client):
-                    bucket = client.storage.from_(BUCKET_NAME)
-                    pdf_path = f"{Path(storage_path).stem}.pdf"
-                    bucket.upload(pdf_path, pdf_bytes, {"content-type": "application/pdf"})
-                    return bucket.get_public_url(pdf_path)
-
-                render_url = with_retry(upload_pdf_twin)
+                pdf_path = f"{Path(storage_path).stem}.pdf"
+                upload_blob(BUCKET_NAME, pdf_path, pdf_bytes, "application/pdf")
+                render_url = get_storage_client().from_(BUCKET_NAME).get_public_url(pdf_path)
             except Exception as exc:
                 print(f"[materials] Converted-PDF upload failed for '{file_name}': {exc}")
 
@@ -269,7 +281,7 @@ def delete_material(material_id: str, user=Depends(require_role("lecturer", "hod
             path = url.split("/materials/", 1)[-1].split("?")[0]
             if path:
                 try:
-                    admin.storage.from_(BUCKET_NAME).remove([path])
+                    get_storage_client().from_(BUCKET_NAME).remove([path])
                 except Exception:
                     cleanup_success = False
 
@@ -362,7 +374,7 @@ def _validate_supabase_url(url: str) -> str:
 
 
 @router.get("/proxy")
-def proxy_material(url: str, request: Request, user=Depends(get_current_user)):
+def proxy_material(url: str, request: Request):
     """
     Proxies a Supabase storage file so iframes can load it without
     being blocked by X-Frame-Options / CORS headers from Supabase.

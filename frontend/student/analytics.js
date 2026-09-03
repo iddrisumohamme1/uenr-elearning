@@ -1,7 +1,8 @@
 /* 
-   ANALYTICS MODULE LOGIC
-   frontend/analytics/analytics.js
+   ANALYTICS MODULE LOGIC (merged into the student progress page)
+   frontend/student/analytics.js
    Loads engagement analytics + AI quiz results (incl. theory) for a student.
+   Session/avatar wiring is handled by progress.js on the same page.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -9,8 +10,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
 
     document.getElementById('user-avatar').textContent = (user.full_name || 'U').charAt(0).toUpperCase();
-    attachLogout('logout-btn');
-    initProfilePopup();
 
     const loadingEl = document.getElementById('loading-state');
     const errorEl = document.getElementById('error-state');
@@ -352,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const summary = qdata.summary || {};
 
         if (summary.count) {
-            document.getElementById('quiz-avg').textContent = `${summary.average}%`;
+            document.getElementById('quiz-avg-analytics').textContent = `${summary.average}%`;
             document.getElementById('quiz-count').textContent = summary.count;
             document.getElementById('quiz-best').textContent = `${summary.best}%`;
         }

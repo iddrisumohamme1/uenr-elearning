@@ -9,6 +9,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initProfilePopup();
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     const courseSelectorEl = document.getElementById('course-selector');
     const quizAreaEl = document.getElementById('quiz-area');
 
@@ -142,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let finalScore = null;
         let correct = 0;
         let total = currentQuiz.questions.length;
+        let recRedirect = false;
 
         try {
             const res = await authFetch(`${API_BASE}/api/quiz/submit`, {
@@ -159,6 +166,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 correct = data.correct ?? 0;
                 total = data.total ?? total;
             }
+            // If the backend generated recommendations for a low score, show the
+            // results first, then automatically move the student to the
+            // recommendations page so they can act on them.
+            const hasRecs = (data?.recommended_count || 0) > 0;
+            if (hasRecs) recRedirect = true;
         } catch (err) {
             console.error('Submission error:', err);
             showToast('Failed to submit quiz. Please try again.', 'error');
@@ -171,7 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         disarmLeaveGuard();
-        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${correct}&total=${total}`;
+        const recsParam = recRedirect ? '&redirectRecs=1' : '';
+        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${correct}&total=${total}${recsParam}`;
     }
 
     loadCourses();

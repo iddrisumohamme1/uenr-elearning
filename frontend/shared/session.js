@@ -254,3 +254,26 @@ function ghanaGreeting(firstName = '') {
 }
 
 document.addEventListener('DOMContentLoaded', initNavBadges);
+
+/**
+ * Toggle a button's busy (loading) state.
+ *
+ * Expects the button to contain a persistent label element carrying the text
+ * (`.btn-label`) and a spinner element (`.btn-spinner`, hidden by default).
+ * While busy the label text is made invisible with `visibility:hidden` — it
+ * still occupies its layout space, so the button keeps its exact size and the
+ * centered spinner (overlaid via `.btn-loading .btn-spinner`) never moves.
+ * On completion the original label/state is restored.
+ *
+ * @param {HTMLButtonElement} btn
+ * @param {boolean} busy
+ */
+function setButtonBusy(btn, busy) {
+    if (!btn) return;
+    btn.disabled = Boolean(busy);
+    btn.classList.toggle('btn-loading', busy);
+    const label = btn.querySelector('.btn-label');
+    const spinner = btn.querySelector('.btn-spinner');
+    if (label) label.style.visibility = busy ? 'hidden' : '';
+    if (spinner) spinner.hidden = !busy;
+}

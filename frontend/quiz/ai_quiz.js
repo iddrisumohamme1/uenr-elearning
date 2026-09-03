@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initProfilePopup();
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const courseId = urlParams.get('course_id');
     const materialId = urlParams.get('material_id');
@@ -183,8 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function submitQuiz() {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Submitting...';
+        setButtonBusy(submitBtn, true);
 
         const theoryInputs = document.querySelectorAll('.theory-input');
         const theoryAnswers = Array.from(theoryInputs).map(t => t.value.trim());
@@ -203,11 +208,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const title = titleParam || 'AI Comprehension Quiz';
             const unanswered = result.unanswered_theory ?? 0;
             disarmLeaveGuard();
-            window.location.href = `../results/results.html?score=${Math.round(result.score)}&quiz=${encodeURIComponent(title)}&correct=${result.correct}&total=${result.total}&theory=${result.theory_avg ?? ''}&unanswered=${unanswered}`;
+            // Show the results page first, then automatically move the student
+            // to the recommendations page when a low score generated resources.
+            const recsParam = (result.recommended_count || 0) > 0 ? '&redirectRecs=1' : '';
+            window.location.href = `../results/results.html?score=${Math.round(result.score)}&quiz=${encodeURIComponent(title)}&correct=${result.correct}&total=${result.total}&theory=${result.theory_avg ?? ''}&unanswered=${unanswered}${recsParam}`;
         } catch (err) {
             console.error('Submit error:', err);
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Retry';
+            setButtonBusy(submitBtn, false);
+            submitBtn.querySelector('.btn-label').textContent = 'Retry';
             document.getElementById('progress-text').textContent = 'Submission failed. Please try again.';
         }
     }

@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.core.security import get_current_user, invalidate_user_cache, require_role
-from app.database import get_admin_client, with_retry
+from app.database import get_admin_client, get_storage_client, with_retry
 from app.schemas.auth import ProfileUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -169,14 +169,13 @@ def upload_avatar(
     storage_path = f"{user['id']}/{uuid4().hex}-{file_name}"
 
     try:
-        admin.storage.create_bucket(AVATAR_BUCKET, options={"public": True})
+        get_storage_client().create_bucket(AVATAR_BUCKET, options={"public": True})
     except Exception as exc:
         if "already exists" not in str(exc).lower():
             raise HTTPException(status_code=500, detail=f"Failed to verify storage bucket: {exc}")
 
     try:
-        bucket = admin.storage.from_(AVATAR_BUCKET)
-        file.file.seek(0)
+        bucket = get_storage_client().from_(AVATAR_BUCKET)
         bucket.upload(storage_path, file_bytes)
         public_url = bucket.get_public_url(storage_path)
     except Exception as exc:

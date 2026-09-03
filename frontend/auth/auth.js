@@ -116,8 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             isSubmitting = true;
-            btn.classList.add('btn-loading');
-            btn.textContent = 'Signing in...';
+            setButtonBusy(btn, true);
 
             try {
                 const response = await fetch(`${API_BASE}/api/auth/login`, {
@@ -138,15 +137,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     showToast('Login failed: ' + (data.detail || 'Invalid credentials'), 'error');
                     isSubmitting = false;
-                    btn.classList.remove('btn-loading');
-                    btn.textContent = 'Sign In';
+                    setButtonBusy(btn, false);
                 }
             } catch (err) {
                 console.error('Login error:', err);
                 showToast('Server connection failed.', 'error');
                 isSubmitting = false;
-                btn.classList.remove('btn-loading');
-                btn.textContent = 'Sign In';
+                setButtonBusy(btn, false);
             }
         });
     }
@@ -202,8 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             isSubmitting = true;
-            btn.classList.add('btn-loading');
-            btn.textContent = 'Creating account...';
+            setButtonBusy(btn, true);
 
             try {
                 const response = await fetch(`${API_BASE}/api/auth/register`, {
@@ -260,15 +256,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         : 'Registration failed: ' + detail;
                     showToast(message, 'error');
                     isSubmitting = false;
-                    btn.classList.remove('btn-loading');
-                    btn.textContent = 'Create Account';
+                    setButtonBusy(btn, false);
                 }
             } catch (err) {
                 console.error('Registration error:', err);
                 showToast('Server connection failed.', 'error');
                 isSubmitting = false;
-                btn.classList.remove('btn-loading');
-                btn.textContent = 'Create Account';
+                setButtonBusy(btn, false);
             }
         });
     }

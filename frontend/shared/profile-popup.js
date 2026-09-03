@@ -50,7 +50,7 @@ function initProfilePopup() {
                 <button class="profile-logout-btn" id="profile-logout-btn">Logout</button>
 
                 <div class="profile-status" id="profile-status"></div>
-                <button class="profile-save-btn" id="profile-save-btn" style="display:none">Save Photo</button>
+                <button class="profile-save-btn" id="profile-save-btn" style="display:none"><span class="btn-label">Save Photo</span><span class="btn-spinner" hidden></span></button>
             </div>
         </div>
     `;
@@ -129,8 +129,7 @@ function initProfilePopup() {
     // Save photo
     saveBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Uploading...';
+        setButtonBusy(saveBtn, true);
         const statusEl = document.getElementById('profile-status');
         statusEl.textContent = '';
         statusEl.className = 'profile-status';
@@ -165,8 +164,7 @@ function initProfilePopup() {
             statusEl.textContent = msg.length > 48 ? msg.slice(0, 48).trimEnd() + '…' : msg;
             statusEl.className = 'profile-status error';
         } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Photo';
+            setButtonBusy(saveBtn, false);
         }
     });
 }

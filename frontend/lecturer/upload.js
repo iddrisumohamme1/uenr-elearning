@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
     const token = getToken();
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     /* ── DOM refs ─────────────────────────────────────────────────────── */
     const courseSelect   = document.getElementById('course-select');
     const form           = document.getElementById('upload-form');
@@ -26,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressText   = document.getElementById('upload-progress-text');
     const submitBtn      = document.getElementById('upload-submit');
     const submitText     = document.getElementById('upload-submit-text');
-    const btnSpinner     = document.getElementById('btn-spinner');
     const liveRegion     = document.getElementById('upload-live');
 
     const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -47,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
 
     /* ── Helpers ──────────────────────────────────────────────────────── */
-    function announce(msg) { liveRegion.textContent = msg; }
+    function announce(msg) { if (liveRegion) liveRegion.textContent = msg; }
 
     function formatBytes(bytes) {
         if (bytes < 1024) return bytes + ' B';
@@ -74,23 +79,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function titleFromFilename(name) {
         // Remove extension, replace underscores/dots/hyphens with spaces, title-case
         return name.replace(/\.[^.]+$/, '').replace(/[_.\-]+/g, ' ').replace(/\s+/g, ' ').trim();
-    }
-
-    /* ── Organization radios ──────────────────────────────────────────── */
-    function setupOrganization() {
-        const radios = document.querySelectorAll('input[name="organization"]');
-        const weekField = document.getElementById('org-week-field');
-        const unitField = document.getElementById('org-unit-field');
-        const hint = document.getElementById('org-hint');
-        const apply = (value) => {
-            weekField.hidden = value !== 'week';
-            unitField.hidden = value !== 'unit';
-            if (value === 'week') hint.textContent = 'Materials are shown to students grouped under this week.';
-            else if (value === 'unit') hint.textContent = 'Materials are shown to students grouped under this unit / part.';
-            else hint.textContent = 'Materials are shown to students as whole-semester content (no week grouping).';
-        };
-        radios.forEach(r => r.addEventListener('change', () => apply(r.value)));
-        apply(document.querySelector('input[name="organization"]:checked')?.value || 'week');
     }
 
     /* ── Courses ──────────────────────────────────────────────────────── */
@@ -297,21 +285,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const title       = document.getElementById('title').value.trim();
         const description = document.getElementById('description').value.trim();
-        const weekNumber  = document.getElementById('week-number').value.trim();
-        const unitLabel   = document.getElementById('unit-label').value.trim();
-        const organization = document.querySelector('input[name="organization"]:checked')?.value || 'week';
         const courseId    = courseSelect.value;
 
         if (!courseId) {
             showToast('Select a course.', 'warning');
-            return;
-        }
-        if (organization === 'week' && !weekNumber) {
-            showToast('Enter the week number for this material.', 'warning');
-            return;
-        }
-        if (organization === 'unit' && !unitLabel) {
-            showToast('Enter a unit / part label for this material.', 'warning');
             return;
         }
 
@@ -320,11 +297,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         let failed = 0;
 
         isUploading = true;
-        submitBtn.disabled = true;
-        btnSpinner.hidden = false;
+        setButtonBusy(submitBtn, true);
         progressWrap.hidden = false;
         progressFill.style.width = '0%';
         progressFill.classList.remove('upload-progress__bar-fill--done');
+
+        showToast(`Uploading ${total} file${total !== 1 ? 's' : ''}…`, 'info', { duration: 3000 });
 
         for (let i = 0; i < pending.length; i++) {
             const entry = pending[i];
@@ -346,8 +324,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('title', fileTitle);
             formData.append('description', description);
             formData.append('course_id', courseId);
-            if (organization === 'week') formData.append('week_number', weekNumber);
-            if (organization === 'unit') formData.append('unit_label', unitLabel);
             formData.append('file', entry.file);
 
             const { ok, data } = await uploadFile(entry, formData);
@@ -368,8 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         progressFill.classList.add('upload-progress__bar-fill--done');
 
         isUploading = false;
-        submitBtn.disabled = false;
-        btnSpinner.hidden = true;
+        setButtonBusy(submitBtn, false);
 
         // Invalidate cache once for the course
         invalidateApiCache(`course-materials:${courseId}`);
@@ -410,5 +385,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* ── Init ─────────────────────────────────────────────────────────── */
     await loadCourses();
-    setupOrganization();
 });

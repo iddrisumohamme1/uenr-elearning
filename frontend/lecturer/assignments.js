@@ -123,9 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const numTheory = Number(document.getElementById('ai-num-theory').value) || 2;
         const difficulty = document.getElementById('ai-difficulty').value || 'medium';
 
-        aiGenerateBtn.disabled = true;
-        aiGenSpinner.hidden = false;
-        aiGenText.textContent = 'Generating…';
+        setButtonBusy(aiGenerateBtn, true);
 
         try {
             const res = await authFetch(`${API_BASE}/api/assignments/generate-questions`, {
@@ -168,9 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Could not generate questions.', 'error');
         } finally {
-            aiGenerateBtn.disabled = false;
-            aiGenSpinner.hidden = true;
-            aiGenText.textContent = 'Generate questions';
+            setButtonBusy(aiGenerateBtn, false);
         }
     });
 
@@ -200,9 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!courseId) { showToast('Select a course first.', 'warning'); return; }
         if (!file) { showToast('Choose a question file to import.', 'warning'); return; }
 
-        impParseBtn.disabled = true;
-        impParseSpinner.hidden = false;
-        impParseText.textContent = 'Reading…';
+        setButtonBusy(impParseBtn, true);
 
         const fd = new FormData();
         fd.append('course_id', courseId);
@@ -245,9 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Could not import the questions. Try again.', 'error');
         } finally {
-            impParseBtn.disabled = false;
-            impParseSpinner.hidden = true;
-            impParseText.textContent = 'Parse & review questions';
+            setButtonBusy(impParseBtn, false);
         }
     }
     impParseBtn.addEventListener('click', parseImported);
@@ -513,9 +505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         const questions = { objective: objQs, theory: thQs };
 
-        reviewCreateBtn.disabled = true;
-        reviewCreateSpinner.hidden = false;
-        reviewCreateText.textContent = 'Creating…';
+        setButtonBusy(reviewCreateBtn, true);
 
         try {
             const res = await authFetch(`${API_BASE}/api/assignments/create`, {
@@ -547,9 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch {
             showToast('Could not create assignment.', 'error');
         } finally {
-            reviewCreateBtn.disabled = false;
-            reviewCreateSpinner.hidden = true;
-            reviewCreateText.textContent = 'Create assignment';
+            setButtonBusy(reviewCreateBtn, false);
         }
     });
 

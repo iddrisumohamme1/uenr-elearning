@@ -529,8 +529,10 @@
 .comp-label--good { color: var(--clr-success); }
 
 .attention-action { flex-shrink: 0; }
+.attention-actions { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 
-.btn-msg {
+.btn-msg,
+.btn-ai {
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
@@ -544,6 +546,8 @@
   white-space: nowrap;
 }
 .btn-msg:hover { color: #fff; background: var(--grad-primary); border-color: transparent; }
+.btn-ai { color: var(--clr-accent); display: inline-flex; align-items: center; gap: 0.35rem; }
+.btn-ai:hover { color: #fff; background: var(--clr-accent); border-color: transparent; }
 
 /* States */
 .queue-empty {
@@ -839,4 +843,200 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOD — DEPARTMENT LEDGER IDENTITY
+   The HOD view is governance, not a monitor. Editorial serif display,
+   hairline rules and a restrained gold ledger accent separate it sharply
+   from the Lecturer's live pulse instrument. Scoped to the dashboard page
+   via body.role-hod so department_courses/students keep the shared base.
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.role-hod {
+  --id-gold:       #d9b675;
+  --id-gold-ink:   #d9b675;
+  --id-gold-soft:  rgba(217, 182, 117, 0.14);
+  --id-rule:       rgba(217, 182, 117, 0.30);
+  --id-serif:      'Fraunces', 'Georgia', serif;
+}
+body.role-hod[data-theme="light"] {
+  --id-gold:       #8a6a1f;
+  --id-gold-ink:   #6e5316;
+  --id-gold-soft:  rgba(138, 106, 31, 0.12);
+  --id-rule:       rgba(122, 92, 26, 0.22);
+}
+
+/* ── Top bar: quiet, formal ─────────────────────────────────────────────── */
+body.role-hod .page-eyebrow::before {
+  background: var(--id-gold);
+  box-shadow: none;
+  animation: none;
+}
+body.role-hod .page-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.2em;
+  color: var(--id-gold-ink);
+}
+body.role-hod .top-bar h1,
+body.role-hod .title-row h1 {
+  font-family: var(--id-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* ── Health index card: governance band, not a glowing instrument ───────── */
+body.role-hod .pulse-card {
+  background: var(--bg-card);
+  background-image: var(--grad-surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+body.role-hod .pulse-heading { position: relative; padding-left: 0.95rem; }
+body.role-hod .pulse-heading::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.12rem;
+  bottom: 0.12rem;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--id-gold);
+}
+body.role-hod .pulse-label {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.16em;
+  color: var(--id-gold-ink);
+}
+body.role-hod .pulse-score {
+  font-family: var(--id-serif);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+body.role-hod .pulse-score .pulse-unit {
+  font-family: var(--id-serif);
+  font-style: italic;
+  color: var(--id-gold-ink);
+}
+body.role-hod .pulse-readout { background: var(--bg-elevated); }
+body.role-hod .pulse-readout-num {
+  font-family: 'Space Grotesk', var(--font-display);
+  font-weight: 600;
+}
+body.role-hod .pulse-readout-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+/* The segmented bar becomes a 6px ledger "ruler" with hairlines. */
+body.role-hod .pulse-bar {
+  height: 6px;
+  margin-top: 1.5rem;
+  border-radius: 2px;
+  background-color: var(--bg-elevated);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 6px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+body.role-hod .pulse-seg--engaged { background: linear-gradient(90deg, #10b981, #22c55e); }
+body.role-hod .pulse-seg + .pulse-seg { border-left: 1px solid var(--bg-card); }
+body.role-hod .pulse-legend { gap: 1.25rem; }
+body.role-hod .pulse-legend-item {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+body.role-hod .pulse-legend-item b { font-weight: 600; }
+body.role-hod .pulse-caption,
+body.role-hod .pulse-hint {
+  font-family: var(--id-serif);
+  font-style: italic;
+  color: var(--text-muted);
+}
+body.role-hod .pulse-caption { font-size: 0.98rem; }
+
+/* ── Stat tiles: flat ledger readouts ───────────────────────────────────── */
+body.role-hod .stat-card { border-radius: var(--r-md); padding: 1.5rem 1.5rem 1.6rem; }
+body.role-hod .stat-card::before { height: 1px; background: var(--id-rule); opacity: 1; }
+body.role-hod .stat-card:hover { transform: none; }
+body.role-hod .stat-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+body.role-hod .stat-card .stat-value,
+body.role-hod .stat-tile .stat-value {
+  font-family: 'Space Grotesk', var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ── Panels: ledger headers with hairline rules ─────────────────────────── */
+body.role-hod .chart-card,
+body.role-hod .at-risk-panel.attention-board,
+body.role-hod .panel-card {
+  border-radius: var(--r-lg);
+  background: var(--bg-card);
+}
+body.role-hod .panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+body.role-hod .panel-head h3 {
+  font-family: var(--id-serif);
+  font-size: 1.18rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+body.role-hod .panel-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Attention board: restrained formal triage ──────────────────────────── */
+body.role-hod .attention-eyebrow { color: var(--id-gold-ink); letter-spacing: 0.16em; }
+body.role-hod .attention-count {
+  font-family: var(--id-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+body.role-hod .attention-count-label,
+body.role-hod .attention-count-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+body.role-hod .attention-count-sub { text-transform: none; letter-spacing: 0.04em; }
+body.role-hod .cohort-strip { border-radius: var(--r-md); }
+body.role-hod .cohort-dot--low { box-shadow: none; animation: none; }
+body.role-hod .attention-card[data-sev="low"] .attention-ring { animation: none; }
+body.role-hod .attention-card { border-radius: var(--r-md); }
+body.role-hod .queue-course-code { color: var(--id-gold-ink); }
+body.role-hod .attention-name { font-weight: 600; }
+
+/* ── Course-wise metrics: engagement ledger rows ────────────────────────── */
+body.role-hod .metric-name {
+  font-family: 'Space Grotesk', var(--font-display);
+  font-weight: 600;
+}
+body.role-hod .metric-bar { height: 5px; border-radius: 2px; }
+body.role-hod .metric-meta { font-size: 0.6rem; }
+
+/* ── My Classes rows ────────────────────────────────────────────────────── */
+body.role-hod .my-class-item { padding: 1rem 0.1rem; }
+body.role-hod .my-class-head .student-cell { font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.role-hod .pulse-heading::before,
+  body.role-hod .cohort-dot--low,
+  body.role-hod .attention-card[data-sev="low"] .attention-ring,
+  body.role-hod .attention-card { animation: none; }
 }

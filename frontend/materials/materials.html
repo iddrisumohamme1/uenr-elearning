@@ -60,9 +60,6 @@
             <aside class="viewer-sidebar" id="viewer-sidebar">
                 <div class="sidebar-section">
                     <h3 class="sidebar-eyebrow">Contents</h3>
-                    <select id="semester-filter" class="semester-filter" data-dropdown data-dropdown-size="sm">
-                        <option value="all">All semesters</option>
-                    </select>
                     <div id="material-list" class="topic-list">
                         <!-- Material list loaded here -->
                     </div>
@@ -77,6 +74,7 @@
                         <span id="reading-time">00:00</span>
                         <span class="text-muted">reading</span>
                     </p>
+
                     <div class="session-hl-row">
                         <span id="hl-count">0 highlights</span>
                         <button id="hl-clear-btn" type="button" title="Remove all highlights on this material" style="display:none">Clear all</button>
@@ -116,7 +114,7 @@
             <p class="text-muted hl-clear-note">Every highlight you saved on this material will be deleted. This cannot be undone.</p>
             <div class="hl-clear-actions">
                 <button id="hl-cancel-btn" type="button">Keep them</button>
-                <button id="hl-confirm-btn" type="button" class="is-danger">Delete all</button>
+                <button id="hl-confirm-btn" type="button" class="is-danger"><span class="btn-label">Delete all</span><span class="btn-spinner" hidden></span></button>
             </div>
         </div>
     </div>

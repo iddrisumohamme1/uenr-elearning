@@ -101,19 +101,27 @@ def course_summary(course_id: str, user=Depends(get_current_user)):
     good_comp  = sum(1 for v in comp_latest.values() if v[1] == 2)
     student_ids = set(eng_latest) | set(comp_latest)
 
+    # A course can have raw engagement rows (heartbeat ticks) with NULL
+    # classes but no genuine Two-Tower classification yet — in that case the
+    # per-class split has no denominator. Fall back to the number of unique
+    # students seen (never zero here) so percentages stay meaningful instead
+    # of raising a ZeroDivisionError.
+    eng_denom   = total or (len(student_ids) or 1)
+    comp_denom  = comp_total or (len(student_ids) or 1)
+
     return {
         "course_id": course_id,
         "total_logs": len(logs),
         "unique_students": len(student_ids),
         "engagement": {
-            "at_risk":   {"count": at_risk,  "pct": round(at_risk  / total * 100, 1)},
-            "moderate":  {"count": moderate, "pct": round(moderate / total * 100, 1)},
-            "highly_engaged": {"count": high,"pct": round(high     / total * 100, 1)},
+            "at_risk":   {"count": at_risk,  "pct": round(at_risk  / eng_denom * 100, 1)},
+            "moderate":  {"count": moderate, "pct": round(moderate / eng_denom * 100, 1)},
+            "highly_engaged": {"count": high,"pct": round(high     / eng_denom * 100, 1)},
         },
         "comprehension": {
-            "low":      {"count": low_comp,  "pct": round(low_comp  / comp_total * 100, 1)},
-            "moderate": {"count": mod_comp,  "pct": round(mod_comp  / comp_total * 100, 1)},
-            "good":     {"count": good_comp, "pct": round(good_comp / comp_total * 100, 1)},
+            "low":      {"count": low_comp,  "pct": round(low_comp  / comp_denom * 100, 1)},
+            "moderate": {"count": mod_comp,  "pct": round(mod_comp  / comp_denom * 100, 1)},
+            "good":     {"count": good_comp, "pct": round(good_comp / comp_denom * 100, 1)},
         },
     }
 

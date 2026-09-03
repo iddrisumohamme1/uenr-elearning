@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const materialsBody = document.getElementById('materials-body');
     const removeMaterialModal = document.getElementById('remove-material-modal');
     const removeMaterialConfirm = document.getElementById('remove-material-confirm');
+    const aiModal = document.getElementById('ai-modal');
     let messageRecipient = null;
     let activeCourseId = null;
     let pendingMaterialId = null;
@@ -36,12 +37,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.addEventListener('click', () => closeModal(btn.closest('.modal')))
     );
     [messageModal, studentsModal, materialsModal, removeMaterialModal].forEach(m => m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
+    if (aiModal) aiModal.addEventListener('click', (e) => { if (e.target === aiModal) closeModal(aiModal); });
 
     function openMessage(studentName, studentId, courseLabel, courseId) {
         messageRecipient = { student_id: studentId, course_id: courseId };
         document.getElementById('message-to').textContent = `Message ${studentName}`;
         document.getElementById('message-course').textContent = courseLabel || '';
         document.getElementById('message-content').value = '';
+        document.getElementById('message-draft-topic').value = '';
         messageModal.hidden = false;
         document.getElementById('message-content').focus();
     }
@@ -78,6 +81,81 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // ── Draft with AI (seeds the "Reach out" message, lecturer sends as self) ──
+    document.getElementById('message-draft').addEventListener('click', async () => {
+        if (!messageRecipient) return;
+        const btn = document.getElementById('message-draft');
+        const topic = (document.getElementById('message-draft-topic').value || '').trim();
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner" style="border-color:currentColor;border-top-color:transparent;"></span>';
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/ai/draft`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_id: messageRecipient.student_id,
+                    course_id: messageRecipient.course_id,
+                    topic,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || 'Could not compose a draft.');
+            const box = document.getElementById('message-content');
+            box.value = box.value.trim()
+                ? `${box.value.trim()}\n\n${data.draft}`
+                : data.draft;
+            showToast('Draft ready — review, edit, then send.', 'success');
+        } catch (err) {
+            showToast(err.message || 'Could not compose a draft.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+
+    // ── Ask AI to message a student ──────────────────────────────────────────
+    let aiRecipient = null;
+    function openAiModal(studentName, studentId, courseLabel, courseId) {
+        aiRecipient = { student_id: studentId, course_id: courseId };
+        document.getElementById('ai-to').textContent = `Ask AI to message ${studentName}`;
+        document.getElementById('ai-course').textContent = courseLabel || '';
+        document.getElementById('ai-topic').value = '';
+        aiModal.hidden = false;
+        document.getElementById('ai-topic').focus();
+    }
+    document.getElementById('ai-send').addEventListener('click', async () => {
+        if (!aiRecipient) return;
+        const topic = document.getElementById('ai-topic').value.trim();
+        const btn = document.getElementById('ai-send');
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner" style="border-color:currentColor;border-top-color:transparent;"></span>';
+        try {
+            const res = await authFetch(`${API_BASE}/api/messages/ai/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_id: aiRecipient.student_id,
+                    course_id: aiRecipient.course_id,
+                    topic,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showToast('AI message sent to the student.', 'success');
+                closeModal(aiModal);
+            } else {
+                showToast(data.detail || 'Could not send AI message.', 'error');
+            }
+        } catch (err) {
+            showToast('Could not send AI message.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+
     function escapeHTML(s) {
         return String(s ?? '').replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -102,13 +180,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="student-name">${escapeHTML(s.full_name || 'Unknown student')}</span>
                         <span class="student-email">${escapeHTML(s.email || '')}</span>
                     </div>
-                    <button class="btn-msg" data-name="${escapeHTML(s.full_name || 'Student')}" data-id="${s.student_id}" data-course="${escapeHTML(courseLabel)}">Message</button>
+                    <div class="student-row-actions">
+                        <button class="btn-ai" data-name="${escapeHTML(s.full_name || 'Student')}" data-id="${s.student_id}" data-course="${escapeHTML(courseLabel)}">Ask AI</button>
+                        <button class="btn-msg" data-name="${escapeHTML(s.full_name || 'Student')}" data-id="${s.student_id}" data-course="${escapeHTML(courseLabel)}">Message</button>
+                    </div>
                 </div>
             `).join('');
             body.querySelectorAll('.btn-msg').forEach(btn => {
                 btn.addEventListener('click', () => {
                     closeModal(studentsModal);
                     openMessage(btn.dataset.name, btn.dataset.id, btn.dataset.course, courseId);
+                });
+            });
+            body.querySelectorAll('.btn-ai').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeModal(studentsModal);
+                    openAiModal(btn.dataset.name, btn.dataset.id, btn.dataset.course, courseId);
                 });
             });
         } catch (err) {
@@ -121,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (m.week_number != null) return `Week ${m.week_number}`;
         if (m.unit_label) return m.unit_label;
         if (m.semester) return m.semester;
-        return 'Full course';
+        return '';
     }
 
     async function openMaterials(courseId, courseLabel) {
@@ -141,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="material-row">
                     <div class="material-info">
                         <span class="material-title"><i class="bi bi-file-earmark-text"></i> ${escapeHTML(m.title)}</span>
-                        <span class="material-meta">${escapeHTML(formatOrg(m))}${m.created_at ? ' · ' + new Date(m.created_at).toLocaleDateString() : ''}</span>
+                        <span class="material-meta">${formatOrg(m) ? escapeHTML(formatOrg(m)) + ' · ' : ''}${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</span>
                     </div>
                     <button class="btn-material-remove" data-id="${m.id}" data-title="${escapeHTML(m.title)}" aria-label="Remove ${escapeHTML(m.title)}"><i class="bi bi-trash"></i> Remove</button>
                 </div>
@@ -165,8 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     removeMaterialConfirm.addEventListener('click', async () => {
         if (!pendingMaterialId) return;
         const btn = removeMaterialConfirm;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="btn-spinner"></span> Removing…';
+        setButtonBusy(btn, true);
         try {
             const res = await authFetch(`${API_BASE}/api/materials/${pendingMaterialId}`, { method: 'DELETE' });
             if (res.ok) {
@@ -183,8 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             pendingMaterialId = null;
             pendingMaterialTitle = '';
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-trash"></i> Remove material';
+            setButtonBusy(btn, false);
         }
     });
 

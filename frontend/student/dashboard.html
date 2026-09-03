@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
-<body>
+<body class="role-student">
     <div class="dashboard-container">
         <!-- Sidebar -->
         <aside class="sidebar" id="app-sidebar"></aside>
@@ -24,28 +24,39 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
-                <h1 id="welcome-text">Welcome, Student</h1>
-                <div class="user-profile">
-                    <div class="avatar">S</div>
+                <div class="top-bar-title">
+                    <p class="page-eyebrow">My Learning Space</p>
+                    <div class="title-row">
+                        <h1 id="welcome-text">Welcome, Student</h1>
+                        <div class="user-profile">
+                            <div class="avatar">S</div>
+                        </div>
+                    </div>
+                    <p class="top-bar-sub">A little progress each day adds up to big results.</p>
                 </div>
             </header>
 
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-card stat-card--energy">
+                    <span class="stat-icon"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></span>
                     <h3>This Week's Engagement</h3>
                     <p class="stat-value" id="engagement-value">--%</p>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card stat-card--courses">
+                    <span class="stat-icon"><i class="bi bi-book-open" aria-hidden="true"></i></span>
                     <h3>Courses Enrolled</h3>
                     <p class="stat-value" id="courses-count">0</p>
                 </div>
-                <div class="stat-card">
-                    <h3>Completed Topics</h3>
+                <div class="stat-card stat-card--done">
+                    <span class="stat-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+                    <h3>Completed Courses</h3>
                     <p class="stat-value" id="completed-count">0</p>
                 </div>
-                <div class="stat-card course-click" onclick="window.location.href='progress.html'">
-                    <h3>Grade</h3>
+                <div class="stat-card stat-card--grade course-click" onclick="window.location.href='progress.html'">
+                    <span class="stat-icon"><i class="bi bi-fire" aria-hidden="true"></i></span>
+                    <h3>Predicted Grade</h3>
                     <p class="stat-value" id="predicted-grade">–</p>
+                    <span class="stat-hint">tap to open the grade dial</span>
                 </div>
             </div>
 
@@ -56,7 +67,10 @@
             </div>
 
             <section class="recent-activity">
-                <h2>Continue Learning</h2>
+                <div class="section-heading">
+                    <h2>Continue Learning</h2>
+                    <p class="section-sub text-muted">Pick up where you left off.</p>
+                </div>
                 <div id="course-grid" class="course-grid">
                     <!-- Dynamic courses will be loaded here -->
                     <div class="loading-wrapper loading-full" style="grid-column: 1 / -1;">

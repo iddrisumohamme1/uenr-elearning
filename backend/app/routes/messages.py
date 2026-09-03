@@ -7,6 +7,15 @@ from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
+from app.services.insight_messages import (
+    push_ai_staff_message,
+    push_ai_reply,
+    push_insight_message,
+    compose_ai_staff_draft,
+    _ai_assistant_id,
+    _insert_ai_message,
+    _student_has_activity,
+)
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
@@ -14,6 +23,15 @@ class MessageRequest(BaseModel):
     recipient_id: str
     course_id: Optional[str] = None
     content: str
+
+class AIStaffMessageRequest(BaseModel):
+    recipient_id: str
+    course_id: Optional[str] = None
+    topic: Optional[str] = ""
+
+class AIReplyRequest(BaseModel):
+    course_id: Optional[str] = None
+    message: str
 
 @router.post("/send")
 def send_message(payload: MessageRequest, user=Depends(require_role("lecturer", "hod"))):
@@ -33,6 +51,85 @@ def send_message(payload: MessageRequest, user=Depends(require_role("lecturer", 
 
     return {"status": "success", "message": "Message sent successfully."}
 
+@router.post("/ai/draft")
+def ai_staff_draft(payload: AIStaffMessageRequest, user=Depends(require_role("lecturer", "hod"))):
+    """
+    Return an AI-composed, HOD/lecturer-voiced outreach draft for the "Reach
+    out" dialog (no DB write, no cooldown). The staff member edits it and
+    sends it as themselves via POST /api/messages/send.
+    """
+    if payload.recipient_id == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot draft a message to yourself.")
+    draft = compose_ai_staff_draft(
+        get_admin_client(),
+        payload.recipient_id,
+        payload.course_id,
+        payload.topic or "",
+    )
+    if not draft:
+        raise HTTPException(status_code=500, detail="Could not compose a draft.")
+    return {"draft": draft}
+
+@router.post("/ai/send")
+def ai_send_message(payload: AIStaffMessageRequest, user=Depends(require_role("lecturer", "hod"))):
+    """
+    Lecturer/HOD asks the AI Insight Assistant to message a specific student.
+    The AI composes a data-grounded message (recent study + assessment standing
+    + profile) plus the instructor's optional topic/note and delivers it.
+    """
+    if payload.recipient_id == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot ask the AI to message yourself.")
+    try:
+        sent = push_ai_staff_message(
+            get_admin_client(),
+            payload.recipient_id,
+            payload.course_id,
+            payload.topic or "",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to compose AI message: {exc}")
+    if not sent:
+        raise HTTPException(status_code=409, detail="AI message skipped (recent message exists for this student/course or sender unavailable).")
+    return {"status": "success", "message": "AI message sent to the student."}
+
+@router.post("/ai/reply")
+def ai_reply(payload: AIReplyRequest, user=Depends(require_role("student"))):
+    """
+    Student replies to the AI assistant in the inbox. Their message is stored,
+    then a contextual AI reply is composed (data-grounded, best-effort LLM)
+    and delivered back as the AI assistant.
+    """
+    admin = get_admin_client()
+    sender_id = _ai_assistant_id(admin)
+    if not sender_id:
+        raise HTTPException(status_code=404, detail="AI assistant is not available.")
+    if not payload.message or not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    # Store the student's message first.
+    try:
+        with_retry(lambda c: c.table("messages").insert({
+            "sender_id": user["id"],
+            "recipient_id": sender_id,
+            "course_id": payload.course_id,
+            "content": payload.message.strip(),
+        }).execute())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to send your message: {exc}")
+
+    # Compose and deliver the AI reply.
+    try:
+        reply = push_ai_reply(admin, user["id"], payload.course_id, payload.message.strip())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to compose AI reply: {exc}")
+    if not reply:
+        raise HTTPException(status_code=500, detail="AI could not compose a reply.")
+
+    inserted = _insert_ai_message(admin, sender_id, user["id"], payload.course_id, reply)
+    if not inserted:
+        raise HTTPException(status_code=500, detail="Failed to deliver AI reply.")
+    return {"status": "success", "reply": reply}
+
 @router.get("/inbox")
 def get_inbox(user=Depends(get_current_user)):
     """
@@ -42,7 +139,7 @@ def get_inbox(user=Depends(get_current_user)):
     try:
         resp = with_retry(
             lambda c: c.table("messages")
-            .select("id, sender_id, recipient_id, course_id, content, is_read, created_at, users!sender_id(full_name)")
+            .select("id, sender_id, recipient_id, course_id, content, is_read, created_at, users!sender_id(full_name, role)")
             .eq("recipient_id", user["id"])
             .order("created_at", desc=True)
             .execute()
@@ -51,6 +148,51 @@ def get_inbox(user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch inbox: {exc}")
 
     return getattr(resp, "data", [])
+
+
+DAILY_INSIGHT_MINUTES = 24 * 60
+
+
+@router.post("/insight-on-open")
+def insight_on_open(user=Depends(require_role("student"))):
+    """
+    Lazy daily AI generation: when the student opens their inbox, generate a
+    data-grounded AI insight message for each enrolled course with prior
+    activity that has not received one in the last 24h. Non-blocking and
+    defensive — a failure here never breaks the inbox load.
+    """
+    admin = get_admin_client()
+    student_id = user["id"]
+    generated = 0
+
+    try:
+        enroll_resp = with_retry(
+            lambda c: c.table("enrollments")
+            .select("course_id")
+            .eq("student_id", student_id)
+            .execute()
+        )
+        course_ids = [e["course_id"] for e in (enroll_resp.data or []) if e.get("course_id")]
+    except Exception as exc:
+        print(f"[messages] insight-on-open enrollments error: {exc}")
+        return {"generated": 0}
+
+    for cid in course_ids:
+        try:
+            if not _student_has_activity(admin, student_id, cid):
+                continue
+            sent = push_insight_message(
+                admin, student_id, cid,
+                kind="daily",
+                latest=None,
+                window_minutes=DAILY_INSIGHT_MINUTES,
+            )
+            if sent:
+                generated += 1
+        except Exception as exc:
+            print(f"[messages] insight-on-open generation error for {cid}: {exc}")
+
+    return {"generated": generated}
 
 
 @router.get("/unread-count")

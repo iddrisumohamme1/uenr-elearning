@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Available Courses - UENR E-Learning</title>
+    <title>My Courses - UENR E-Learning</title>
     <link rel="stylesheet" href="../shared/variables.css">
     <link rel="stylesheet" href="../shared/reset.css">
     <link rel="stylesheet" href="../shared/typography.css">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="courses.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
@@ -23,22 +23,31 @@
         <main class="courses-content">
             <header class="top-bar">
                 <div class="top-bar-title">
-                    <h1>Course Catalog</h1>
-                    <p class="text-muted">Browse and enroll in available courses at UENR</p>
-                </div>
-                <div class="user-profile">
-                    <div class="avatar" id="user-avatar">U</div>
+                    <p class="page-eyebrow">Your enrolment record</p>
+                    <div class="title-row">
+                        <h1>My Courses</h1>
+                        <div class="user-profile">
+                            <div class="avatar" id="user-avatar">U</div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <div class="search-bar">
                 <i class="bi bi-search search-icon" aria-hidden="true"></i>
-                <input type="text" id="course-search" placeholder="Search by course name or lecturer...">
+                <input type="text" id="course-search" placeholder="Search by course code, title, or lecturer...">
             </div>
 
             <div class="tab-bar">
                 <button class="tab-btn active" data-tab="enrolled">Enrolled Courses <span class="tab-count">0</span></button>
                 <button class="tab-btn" data-tab="all">All Courses <span class="tab-count">0</span></button>
+            </div>
+
+            <!-- Level -> Semester -> courses drill-down (All Courses tab) -->
+            <div id="browse-nav" class="browse-nav" hidden>
+                <button type="button" id="browse-back" class="browse-back" hidden><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
+                <div id="browse-trail" class="browse-trail"></div>
+                <div id="browse-choices" class="browse-choices"></div>
             </div>
 
             <div id="courses-grid" class="courses-grid">
@@ -62,7 +71,7 @@
             </p>
             <div class="modal-actions">
                 <button type="button" class="btn-ghost" data-close>Cancel</button>
-                <button type="button" class="btn-danger-confirm" id="confirm-unenroll-btn">Unenroll</button>
+                <button type="button" class="btn-danger-confirm" id="confirm-unenroll-btn"><span class="btn-label">Unenroll</span><span class="btn-spinner" hidden></span></button>
             </div>
         </div>
     </div>

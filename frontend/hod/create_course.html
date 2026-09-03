@@ -47,6 +47,26 @@
                     <label class="form-label">Description</label>
                     <textarea id="course-description" class="form-input" rows="4" placeholder="Describe the course learning outcomes..."></textarea>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Level</label>
+                        <select id="course-level" class="form-input" data-dropdown>
+                            <option value="" disabled selected>Select level</option>
+                            <option value="100">Level 100</option>
+                            <option value="200">Level 200</option>
+                            <option value="300">Level 300</option>
+                            <option value="400">Level 400</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Semester</label>
+                        <select id="course-semester" class="form-input" data-dropdown>
+                            <option value="" disabled selected>Select semester</option>
+                            <option value="First">First Semester</option>
+                            <option value="Second">Second Semester</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label class="form-label">Assign Lecturer</label>
                     <select id="lecturer-select" class="form-input" data-dropdown required>
@@ -55,7 +75,7 @@
                 </div>
                 <button type="submit" class="btn-auth">
                     <span class="btn-spinner" id="btn-spinner" hidden></span>
-                    <span id="btn-text">Create Course</span>
+                    <span class="btn-label" id="btn-text">Create Course</span>
                 </button>
             </form>
         </main>

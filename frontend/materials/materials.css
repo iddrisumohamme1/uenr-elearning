@@ -275,7 +275,8 @@
 
 .hl-row-del:hover { color: #fff; background: var(--clr-danger, #ef4444); }
 
-/* Quiet AI-insight pill — never alarming, full label lives in the tooltip */
+/* Quiet AI-insight pill — never alarming; click to open the full AI insight
+   in the inbox where the student can message the assistant. */
 .ai-insight-chip {
     display: inline-flex;
     align-items: center;
@@ -287,7 +288,20 @@
     border: 1px dashed var(--border-strong);
     border-radius: var(--r-full);
     white-space: nowrap;
-    cursor: default;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    transition: border-color var(--t-fast), color var(--t-fast);
+}
+
+.ai-insight-chip:hover {
+    border-color: var(--clr-accent, #3b82f6);
+    color: var(--clr-accent, #3b82f6);
+}
+.ai-insight-chip:focus-visible {
+    outline: 2px solid var(--clr-accent, #3b82f6);
+    outline-offset: 2px;
 }
 
 .ai-insight-chip[data-tone="high"] {
@@ -495,10 +509,6 @@
     margin-bottom: var(--s3);
 }
 
-.semester-filter {
-    width: 100%;
-}
-
 .topic-list {
     display: flex;
     flex-direction: column;
@@ -524,45 +534,8 @@
     color: var(--text-muted);
     margin: 0.3rem 0 0;
     line-height: 1.4;
-}
-
-/* Semester + week/unit structure */
-.semester-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s2);
-}
-
-.semester-label {
-    font-family: var(--rd-mono);
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    padding: var(--s2) 0;
-    border-bottom: 1px solid var(--border);
-    margin-top: var(--s2);
-}
-
-.week-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s2);
-}
-
-.week-label {
-    font-family: var(--rd-mono);
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--rd-teal);
-    margin-top: var(--s2);
-    padding: var(--s1) var(--s3);
-    background: var(--rd-teal-soft);
-    border-radius: var(--r-full);
-    width: fit-content;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 /* Material rows */
@@ -601,11 +574,17 @@
 
 .material-item strong {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--s2);
     font-size: 0.82rem;
     font-weight: 600;
     line-height: 1.35;
+}
+
+.material-item strong .material-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .file-tag {

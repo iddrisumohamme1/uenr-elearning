@@ -18,14 +18,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
-<body>
+<body class="role-lecturer">
     <div class="dashboard-container">
         <aside class="sidebar" id="app-sidebar"></aside>
 
         <main class="main-content">
             <header class="top-bar">
                 <div class="top-bar-title">
-                    <p class="page-eyebrow">Class Pulse</p>
+                    <p class="page-eyebrow">Class Pulse <span class="live-tag" title="Live classroom signal"><i class="bi bi-broadcast" aria-hidden="true"></i>LIVE</span></p>
                     <div class="title-row">
                         <h1 id="welcome-text"></h1>
                         <div class="user-profile">
@@ -122,9 +122,28 @@
             </div>
             <p class="text-muted" id="message-course"></p>
             <textarea id="message-content" rows="5" placeholder="Write a short message with feedback or study advice…"></textarea>
+            <input id="message-draft-topic" class="form-input" type="text" placeholder="Optional: AI note/topic (e.g. missed the last two quizzes)">
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="message-draft" class="btn-secondary" type="button"><i class="bi bi-stars"></i> Draft with AI</button>
                 <button id="message-send" class="btn-primary">Send message</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask AI to message a student modal -->
+    <div id="ai-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="ai-to">Ask AI to message student</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="ai-course"></p>
+            <p class="text-muted">The AI assistant will compose a supportive message using this student's engagement and assessment data, plus your note below.</p>
+            <textarea id="ai-topic" rows="3" placeholder="Optional: add a note or topic for the AI to include…"></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="true">Cancel</button>
+                <button id="ai-send" class="btn-primary"><i class="bi bi-robot"></i> Ask AI to message</button>
             </div>
         </div>
     </div>

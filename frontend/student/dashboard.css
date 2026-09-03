@@ -118,12 +118,12 @@
 
 .course-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--s6);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--s5);
     margin-top: var(--s6);
 }
 /* Clamp to first 6 courses; JS toggles .clamped on/off */
-.course-grid.clamped .course-click:nth-child(n+7) { display: none; }
+.course-grid.clamped .course-card:nth-child(n+7) { display: none; }
 .course-grid.clamped .show-all-btn { display: block; }
 .course-grid .show-all-btn { display: none; }
 
@@ -146,39 +146,152 @@
     border-color: var(--clr-primary);
 }
 
-/* Stagger animation for course cards beyond the first 3 */
-.course-click:nth-child(n+4) { animation-delay: 210ms; }
-
-/* Sidebar footer / logout button defined in shared/sidebar.css */
-
-/* Progress track for course cards */
-.progress-track {
-    margin-top: var(--s4);
+/* ── Continue Learning course cards ─────────────────────────────────────── */
+.course-grid .course-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--s5);
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
     background: var(--bg-card);
-    height: 5px;
-    border-radius: 5px;
+    background-image: var(--grad-surface);
+    color: var(--text-primary);
+    text-decoration: none;
+    position: relative;
     overflow: hidden;
+    transition: transform var(--t-base), box-shadow var(--t-base), border-color var(--t-base);
 }
-.progress-fill {
-    background: var(--clr-primary);
-    height: 100%;
-    border-radius: 5px;
-    transition: width 0.5s ease;
+.course-grid .course-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--grad-primary));
+    opacity: 0.9;
 }
-
-/* Course cards: allow titles to breathe — overflow hidden is only needed
-   for the stat cards' gradient-strip trick above. */
-.course-grid .course-click { overflow: visible; }
-.course-click h4 {
+.course-grid .course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
+}
+.course-grid .course-card-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-bottom: var(--s4);
+}
+.course-card-tile {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: var(--r-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+    background: var(--card-accent, var(--grad-primary));
+}
+.course-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+.course-card-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--clr-primary-light);
+    background: var(--primary-soft);
+    border: 1px solid var(--border);
+    padding: 0.14rem 0.5rem;
+    border-radius: var(--r-sm);
+    width: fit-content;
+}
+.course-card-lecturer {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.course-card-title {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.35;
+    line-height: 1.3;
     font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: var(--s3);
 }
-.course-click { cursor: pointer; }
-.course-lecturer-name { font-size: 0.8rem; margin-top: 0.15rem; }
+.course-card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.24rem 0.6rem;
+    margin-bottom: var(--s4);
+    border-radius: var(--r-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--border);
+    width: fit-content;
+}
+.course-card-status i { font-size: 0.78rem; }
+.course-card-status.is-fresh { color: var(--text-secondary); background: var(--bg-elevated); }
+.course-card-status.is-active { color: var(--clr-primary-light); background: var(--primary-soft); border-color: rgba(16,185,129,0.3); }
+.course-card-status.is-done { color: var(--clr-success); background: var(--success-soft); border-color: rgba(34,197,94,0.3); }
+
+.course-card-foot {
+    margin-top: auto;
+    padding-top: var(--s3);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+}
+.course-card-gauge {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.course-card-progress-track {
+    background: var(--bg-elevated);
+    height: 5px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.course-card-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.6s ease;
+}
+.course-card-pct {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.course-card-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--clr-primary-light);
+    white-space: nowrap;
+}
+.course-card-go .bi { font-size: 0.9rem; }
 
 /* Study-time warning strip */
 .study-warning {
@@ -212,7 +325,160 @@
     .stats-grid { grid-template-columns: 1fr; }
     .course-grid { grid-template-columns: 1fr; gap: var(--s4); }
     /* Clamp to 4 on mobile to avoid page overload */
-    .course-grid.clamped .course-click:nth-child(n+5) { display: none; }
+    .course-grid.clamped .course-card:nth-child(n+5) { display: none; }
 }
 
 /* Responsive behaviour is handled centrally in shared/responsive.css */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ROLE-STUDENT — LEARNING COMPANION IDENTITY
+   Warm, rounded, encouraging. Scoped to student/dashboard.html via
+   body.role-student so progress/study_resources keep the shared base.
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.role-student .top-bar {
+    align-items: flex-start;
+}
+body.role-student .top-bar-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+}
+body.role-student .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    width: 100%;
+}
+body.role-student .title-row h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 3.2vw, 2.3rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+body.role-student .page-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--clr-accent);
+}
+body.role-student .top-bar-sub {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* ── Stats: warm bubble tiles, one tint per metric ──────────────────────── */
+body.role-student .stat-card--energy { --tint: rgba(16, 185, 129, 0.10); --tint-strong: rgba(16, 185, 129, 0.45); --ink: #34d399; --icon-bg: linear-gradient(135deg, #10b981, #047857); }
+body.role-student .stat-card--courses{ --tint: rgba(45, 212, 191, 0.10); --tint-strong: rgba(45, 212, 191, 0.45); --ink: #2dd4bf; --icon-bg: linear-gradient(135deg, #14b8a6, #0f766e); }
+body.role-student .stat-card--done   { --tint: rgba(163, 230, 53, 0.09); --tint-strong: rgba(163, 230, 53, 0.4);  --ink: #a3e635; --icon-bg: linear-gradient(135deg, #84cc16, #3f6212); }
+body.role-student .stat-card--grade  { --tint: rgba(251, 191, 36, 0.11); --tint-strong: rgba(251, 191, 36, 0.45); --ink: #fbbf24; --icon-bg: linear-gradient(135deg, #f59e0b, #b45309); }
+
+body.role-student .stats-grid { gap: 1.25rem; margin-bottom: 2rem; }
+body.role-student .stat-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 1.4rem 1.45rem 1.5rem;
+    border-radius: var(--r-xl);
+    background: var(--bg-card);
+    background-image:
+        radial-gradient(circle at 100% 0%, var(--tint, rgba(16, 185, 129, 0.08)) 0%, transparent 65%),
+        var(--grad-surface);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-base), box-shadow var(--t-base), border-color var(--t-base);
+}
+body.role-student .stat-card::before { content: none; }
+body.role-student .stat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--tint-strong, var(--border-strong));
+    box-shadow: var(--shadow-lg);
+}
+body.role-student .stat-card h3 { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; }
+body.role-student .stat-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 1rem;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: #fff;
+    background: var(--icon-bg);
+    box-shadow: 0 10px 20px -10px var(--tint-strong, rgba(16, 185, 129, 0.5));
+}
+body.role-student .stat-value {
+    font-size: clamp(1.7rem, 3vw, 2.15rem);
+    font-weight: 800;
+    color: var(--ink, var(--clr-primary));
+    margin-top: 0.35rem;
+    font-family: var(--font-display);
+}
+body.role-student .stat-hint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    margin-top: 0.45rem;
+}
+body.role-student .course-click { cursor: pointer; }
+
+/* ── Study warning: a friendly nudge, not a system alarm ────────────────── */
+body.role-student .study-warning {
+    gap: 0.9rem;
+    margin-bottom: 2rem;
+    padding: 0.95rem 1.15rem;
+    border-radius: var(--r-xl);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: linear-gradient(90deg, var(--warning-soft), transparent);
+}
+body.role-student .study-warning i { font-size: 1.15rem; }
+
+/* ── Continue Learning ──────────────────────────────────────────────────── */
+body.role-student .recent-activity .section-heading { margin-top: 1.25rem; }
+body.role-student .section-heading h2 {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+body.role-student .section-sub { font-size: 0.85rem; margin-top: 0.2rem; }
+body.role-student .course-grid { margin-top: 1.5rem; gap: var(--s5); }
+body.role-student .course-grid .course-card {
+    border-radius: var(--r-2xl);
+    padding: 1.4rem;
+    box-shadow: var(--shadow-sm);
+    background: var(--bg-card);
+    background-image: var(--grad-surface);
+}
+body.role-student .course-grid .course-card::before { height: 3px; opacity: 0.9; }
+body.role-student .course-grid .course-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--card-accent-ink, var(--border-strong));
+    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.55);
+}
+body.role-student .course-card-tile {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+    font-size: 1.15rem;
+}
+body.role-student .course-card-code {
+    font-family: ui-monospace, 'Cascadia Mono', monospace;
+}
+body.role-student .course-card-status {
+    font-size: 0.72rem;
+    border-radius: var(--r-full);
+}
+body.role-student .course-card-progress-track {
+    height: 7px;
+    border-radius: var(--r-full);
+    background: var(--bg-elevated);
+}
+body.role-student .course-card-progress-fill { border-radius: var(--r-full); }
+body.role-student .course-card-pct {
+    font-family: var(--font-display);
+    font-size: 0.82rem;
+    font-weight: 800;
+}

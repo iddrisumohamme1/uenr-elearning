@@ -13,8 +13,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachLogout('logout-btn');
     initProfilePopup();
 
+    function escapeHTML(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     const ARC_LENGTH = 283; // π·r for r=90
-    const state = { courses: [], overall: {}, selected: 'overall' };
+    const state = { courses: [], overall: {}, selected: 'overall', materialsCache: {} };
 
     const dialGrade = document.getElementById('dialGrade');
     const dialPct = document.getElementById('dialPct');
@@ -183,8 +192,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="ledger-row ${state.selected === c.course_id ? 'active' : ''}" data-id="${c.course_id}" style="animation-delay: ${i * 60}ms" role="button" tabindex="0" aria-label="Focus gauge on ${c.course_title}">
                 <span class="ledger-grade">${c.predicted_grade || '–'}</span>
                 <div class="ledger-head">
-                    <h3>${c.course_title}</h3>
-                    <span class="ledger-code">${c.course_code || ''} · ${c.weeks_covered > 0 ? `${c.weeks_covered} week${c.weeks_covered === 1 ? '' : 's'} of materials` : (c.materials_count > 0 ? 'Full-semester materials' : 'No materials yet')}</span>
+                    <h3>${escapeHTML(c.course_title)}</h3>
+                    <span class="ledger-code">${escapeHTML(c.course_code || '')} · ${c.weeks_covered > 0 ? `${c.weeks_covered} week${c.weeks_covered === 1 ? '' : 's'} of materials` : (c.materials_count > 0 ? 'Full-semester materials' : 'No materials yet')}</span>
                 </div>
                 <div class="ledger-body">
                     <div class="ledger-bar-label">
@@ -196,13 +205,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span>${c.materials_count} materials</span>
                         <span>Quiz ${c.quiz_avg != null ? c.quiz_avg + '%' : 'n/a'}</span>
                         <span>Assignments ${c.assignments_submitted}/${c.assignments_total}${c.assignments_total ? ` (${onTime} on time)` : ''}${assignAvg}</span>
-                        <span>${attText}</span>
+                        <span>${escapeHTML(attText)}</span>
                     </div>
                     <div class="ledger-warning ${warnClass}">
                         <i class="bi ${warnIcon}"></i>
-                        <span>${warningHtml}</span>
+                        <span>${escapeHTML(warningHtml)}</span>
                     </div>
                 </div>
+                <span class="ledger-chevron"><i class="bi bi-chevron-down"></i> Course materials</span>
+                <div class="ledger-materials" id="materials-${c.course_id}" hidden></div>
             </div>`;
         }).join('');
 
@@ -212,14 +223,188 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderDial();
         };
         ledger.querySelectorAll('.ledger-row').forEach(row => {
-            row.addEventListener('click', () => focus(row.dataset.id));
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.ledger-material-row')) return; // handled separately
+                focus(row.dataset.id);
+                toggleCourseMaterials(row.dataset.id, row);
+            });
             row.addEventListener('keydown', e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     focus(row.dataset.id);
+                    toggleCourseMaterials(row.dataset.id, row);
                 }
             });
         });
+    }
+
+    // -- Course-material dropdown + per-material popup -----------------------
+    function collapseCourseMaterials() {
+        document.querySelectorAll('.ledger-row.open').forEach(row => {
+            row.classList.remove('open');
+            const box = row.querySelector('.ledger-materials');
+            if (box) box.hidden = true;
+        });
+    }
+
+    async function toggleCourseMaterials(courseId, row) {
+        const box = document.getElementById(`materials-${courseId}`);
+        if (!box) return;
+
+        if (!row.classList.contains('open')) {
+            // Collapse any other open dropdown, then open this one.
+            collapseCourseMaterials();
+            row.classList.add('open');
+            box.hidden = false;
+            if (!state.materialsCache[courseId]) {
+                box.innerHTML = '<div class="ledger-materials-loading"><span class="spinner"></span> Loading materials...</div>';
+                try {
+                    const res = await authFetch(`${API_BASE}/api/materials/course/${encodeURIComponent(courseId)}`);
+                    if (!res.ok) throw new Error('failed');
+                    const data = await res.json();
+                    const materials = data.materials || [];
+                    state.materialsCache[courseId] = materials;
+                    renderMaterialsDropdown(box, courseId, materials);
+                } catch (err) {
+                    console.error('Failed to load course materials:', err);
+                    box.innerHTML = '<p class="ledger-materials-empty">Could not load materials for this course.</p>';
+                }
+            } else {
+                renderMaterialsDropdown(box, courseId, state.materialsCache[courseId]);
+            }
+        } else {
+            row.classList.remove('open');
+            box.hidden = true;
+        }
+    }
+
+    function renderMaterialsDropdown(box, courseId, materials) {
+        if (!materials || !materials.length) {
+            box.innerHTML = '<p class="ledger-materials-empty">No course materials published yet.</p>';
+            return;
+        }
+        const course = state.courses.find(c => c.course_id === courseId);
+        const courseCode = course ? course.course_code : '';
+        box.innerHTML = `
+            <span class="ledger-materials-head">${escapeHTML(courseCode || 'Course')} materials (${materials.length})</span>
+            ${materials.map(m => {
+                const tag = m.unit_label
+                    ? `Unit ${escapeHTML(m.unit_label)}`
+                    : (m.week_number != null ? `Week ${m.week_number}` : (m.semester ? `Sem ${escapeHTML(m.semester)}` : ''));
+                return `
+                <button type="button" class="ledger-material-row" data-material-id="${m.id}" data-material-title="${escapeHTML(m.title)}">
+                    <span class="ledger-material-tags">
+                        <span class="ledger-material-title">${escapeHTML(m.title)}</span>
+                        ${tag ? `<span class="ledger-material-tag">${tag}</span>` : ''}
+                    </span>
+                    <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+                </button>`;
+            }).join('')}
+        `;
+        box.querySelectorAll('.ledger-material-row').forEach(btn => {
+            btn.addEventListener('click', () => {
+                openMaterialModal(courseCode || courseId, courseId, btn.dataset.materialId, btn.dataset.materialTitle);
+            });
+        });
+    }
+
+    // Grade-based tone for the per-material quiz/assignment values.
+    function gradeTone(value) {
+        if (value == null) return '';
+        if (value >= 75) return 'is-high';
+        if (value >= 50) return 'is-mid';
+        return 'is-low';
+    }
+
+    // Small in-memory caches for the student's quiz results and a course's
+    // assignments so the popup doesn't re-fetch on every material click.
+    const quizCache = { loaded: false, data: null };
+    const assignmentCache = {};
+
+    async function openMaterialModal(courseLabel, courseId, materialId, materialTitle) {
+        const modal = document.getElementById('material-modal');
+        const titleEl = document.getElementById('material-modal-title');
+        const subEl = document.getElementById('material-modal-sub');
+        const quizEl = document.getElementById('pm-quiz');
+        const assignEl = document.getElementById('pm-assignment');
+        const noteEl = document.getElementById('pm-note');
+        if (!modal || !quizEl || !assignEl) return;
+
+        titleEl.textContent = materialTitle || 'Course material';
+        subEl.textContent = `${courseLabel || 'Course'} · quiz & assignment`;
+        quizEl.textContent = '—';
+        assignEl.textContent = '—';
+        quizEl.className = 'progress-modal-value';
+        assignEl.className = 'progress-modal-value';
+        noteEl.textContent = 'Loading your quiz and assignment results for this material...';
+        modal.hidden = false;
+
+        try {
+            const quizR = await loadStudentQuizzes();
+            const assignR = await loadCourseAssignments(courseId);
+
+            const quizResults = (quizR.results || []).filter(r => r.material_id === materialId);
+            const assignRows = (assignR.assignments || []).filter(a => a.source_material_id === materialId);
+
+            // Quiz cell: average score + attempt count
+            if (quizResults.length) {
+                const scores = quizResults.map(r => r.score).filter(s => s != null);
+                const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+                quizEl.textContent = avg != null
+                    ? `${avg}% · ${quizResults.length} quiz${quizResults.length === 1 ? '' : 'zes'}`
+                    : `${quizResults.length} quiz${quizResults.length === 1 ? '' : 'zes'}`;
+                quizEl.classList.add(gradeTone(avg));
+            } else {
+                quizEl.textContent = 'n/a';
+                quizEl.classList.add('is-mid');
+            }
+
+            // Assignment cell: submitted/total + average score
+            if (assignRows.length) {
+                const submitted = assignRows.filter(a => a.submitted).length;
+                const scored = assignRows.map(a => a.score).filter(s => s != null);
+                const avg = scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : null;
+                assignEl.textContent = avg != null
+                    ? `${submitted}/${assignRows.length} · ${avg}%`
+                    : `${submitted}/${assignRows.length}`;
+                assignEl.classList.add(gradeTone(avg));
+            } else {
+                assignEl.textContent = 'n/a';
+                assignEl.classList.add('is-mid');
+            }
+
+            if (!quizResults.length && !assignRows.length) {
+                noteEl.textContent = "No quizzes or assignments recorded for this material yet. Take the comprehension check or download the material to start.";
+            } else if (!quizResults.length) {
+                noteEl.textContent = `${assignRows.length} assignment${assignRows.length === 1 ? '' : 's'} for this material. No quiz taken on it yet.`;
+            } else if (!assignRows.length) {
+                noteEl.textContent = `${quizResults.length} quiz attempt${quizResults.length === 1 ? '' : 's'} on this material. No assignment linked to it.`;
+            } else {
+                noteEl.textContent = `Your quiz and assignment performance for this material.`;
+            }
+        } catch (err) {
+            console.error('Failed to load material quiz/assignment progress:', err);
+            quizEl.textContent = '—';
+            assignEl.textContent = '—';
+            noteEl.textContent = 'Could not load this material\'s results. Please try again.';
+        }
+    }
+
+    async function loadStudentQuizzes() {
+        if (quizCache.loaded) return quizCache.data;
+        const res = await authFetch(`${API_BASE}/api/quiz/student/${encodeURIComponent(user.id)}`);
+        if (!res.ok) throw new Error('failed');
+        quizCache.data = await res.json();
+        quizCache.loaded = true;
+        return quizCache.data;
+    }
+
+    async function loadCourseAssignments(courseId) {
+        if (assignmentCache[courseId]) return assignmentCache[courseId];
+        const res = await authFetch(`${API_BASE}/api/assignments/course/${encodeURIComponent(courseId)}`);
+        if (!res.ok) throw new Error('failed');
+        assignmentCache[courseId] = await res.json();
+        return assignmentCache[courseId];
     }
 
     // -- Hero readings + warnings -------------------------------------------
@@ -346,6 +531,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             attendanceLoaded = true;
             loadAttendance();
         }
+    });
+
+    // -- Material modal close wiring ----------------------------------------
+    const materialModal = document.getElementById('material-modal');
+    if (materialModal) {
+        materialModal.querySelectorAll('[data-close="true"]').forEach(btn => {
+            btn.addEventListener('click', () => { materialModal.hidden = true; });
+        });
+        materialModal.addEventListener('click', e => {
+            if (e.target === materialModal) materialModal.hidden = true;
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !materialModal.hidden) materialModal.hidden = true;
+        });
+    }
+
+    // -- Tab switching (Progress / Analytics) --------------------------------
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+            document.querySelectorAll('.tab-panel').forEach(p => p.hidden = p.dataset.panel !== btn.dataset.tab);
+        });
     });
 
     // -- Load data ------------------------------------------------------------

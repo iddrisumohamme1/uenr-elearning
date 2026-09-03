@@ -80,18 +80,38 @@ def get_student_courses(student_id: str, user=Depends(get_current_user)):
                 except Exception:
                     pass
 
-            # Count engagement logs as rough progress
+            # Progress = fraction of the course's materials the student has
+            # actually read. A material counts as completed once the student
+            # has logged at least 60 seconds of reading (time_spent, in
+            # seconds) against it — matching the reader's active-reading gate
+            # — so merely opening it isn't enough to mark it done.
             try:
+                mats_resp = with_retry(
+                    lambda c, cid=cid: c.table("materials")
+                    .select("id")
+                    .eq("course_id", cid)
+                    .execute()
+                )
+                total_materials = len(getattr(mats_resp, "data", []) or [])
+
                 logs_resp = with_retry(
                     lambda c, cid=cid: c.table("engagement_logs")
-                    .select("id")
+                    .select("material_id, time_spent")
                     .eq("student_id", student_id)
                     .eq("course_id", cid)
                     .execute()
                 )
-                log_count = len(getattr(logs_resp, "data", []) or [])
-                # Simple heuristic: each material engagement is ~20% progress
-                progress = min(100, log_count * 20)
+                spent_by_material = {}
+                for l in (getattr(logs_resp, "data", []) or []):
+                    mid = l.get("material_id")
+                    if not mid:
+                        continue
+                    spent_by_material[mid] = spent_by_material.get(mid, 0) + int(l.get("time_spent") or 0)
+
+                completed_materials = sum(
+                    1 for secs in spent_by_material.values() if secs >= 60
+                )
+                progress = round(completed_materials / total_materials * 100) if total_materials else 0
             except Exception:
                 progress = 0
 
@@ -148,18 +168,44 @@ def get_student_stats(student_id: str, user=Depends(get_current_user)):
     except Exception:
         engagement_score = 0
 
-    # Completed topics: count distinct materials the student has engaged with
-    try:
-        materials_resp = with_retry(
-            lambda c: c.table("engagement_logs")
-            .select("material_id")
-            .eq("student_id", student_id)
-            .execute()
-        )
-        material_ids = {l.get("material_id") for l in (getattr(materials_resp, "data", []) or []) if l.get("material_id")}
-        completed_topics = len(material_ids)
-    except Exception:
-        completed_topics = 0
+    # Completed courses: count enrolled courses where the student has finished
+    # every material (each read for at least 60s of time_spent), matching the
+    # course-progress completion gate so this agrees with the enrolled-course
+    # cards. Merely opening a material is not enough to complete it.
+    completed_topics = 0
+    for cid in enrollments:
+        try:
+            cid = cid.get("course_id") if isinstance(cid, dict) else cid
+            if not cid:
+                continue
+            mats_resp = with_retry(
+                lambda c, cid=cid: c.table("materials")
+                .select("id")
+                .eq("course_id", cid)
+                .execute()
+            )
+            total_materials = len(getattr(mats_resp, "data", []) or [])
+            if not total_materials:
+                continue
+
+            logs_resp = with_retry(
+                lambda c, cid=cid: c.table("engagement_logs")
+                .select("material_id, time_spent")
+                .eq("student_id", student_id)
+                .eq("course_id", cid)
+                .execute()
+            )
+            spent_by_material = {}
+            for l in (getattr(logs_resp, "data", []) or []):
+                mid = l.get("material_id")
+                if not mid:
+                    continue
+                spent_by_material[mid] = spent_by_material.get(mid, 0) + int(l.get("time_spent") or 0)
+            completed_materials = sum(1 for secs in spent_by_material.values() if secs >= 60)
+            if completed_materials >= total_materials:
+                completed_topics += 1
+        except Exception:
+            continue
 
     return StudentStats(
         engagement_score=engagement_score,

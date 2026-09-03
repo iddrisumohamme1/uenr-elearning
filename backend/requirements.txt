@@ -11,3 +11,4 @@ pypdf
 numpy
 openpyxl
 python-docx
+tuspy>=1.1.0

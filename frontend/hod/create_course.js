@@ -7,16 +7,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('hod').catch(() => null);
     if (!user) return;
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     const lecturerSelect = document.getElementById('lecturer-select');
     const form = document.getElementById('create-course-form');
     const submitBtn = document.getElementById('btn-text').parentElement;
-    const btnSpinner = document.getElementById('btn-spinner');
-    const btnText = document.getElementById('btn-text');
 
     function setSubmitting(submitting) {
-        submitBtn.disabled = submitting;
-        btnSpinner.hidden = !submitting;
-        btnText.textContent = submitting ? 'Creating…' : 'Create Course';
+        setButtonBusy(submitBtn, submitting);
     }
 
     attachLogout('logout-btn');
@@ -45,6 +47,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const code = document.getElementById('course-code').value.trim();
         const description = document.getElementById('course-description').value.trim();
         const lecturerId = lecturerSelect.value;
+        const level = document.getElementById('course-level').value ? Number(document.getElementById('course-level').value) : null;
+        const semester = document.getElementById('course-semester').value || null;
 
         if (!title || !code || !lecturerId) {
             showToast('Please complete the course title, code, and lecturer selection.', 'warning');
@@ -56,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await authFetch(`${API_BASE}/api/courses/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, code, description, lecturer_id: lecturerId })
+                body: JSON.stringify({ title, code, description, lecturer_id: lecturerId, level, semester })
             });
 
             const data = await response.json();

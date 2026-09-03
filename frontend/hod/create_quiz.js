@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
     const token = getToken();
 
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     document.getElementById('dept-name').textContent = user.department || 'Department';
     document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
 

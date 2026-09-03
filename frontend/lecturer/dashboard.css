@@ -174,31 +174,6 @@ td { padding: 1.2rem 2rem; border-top: 1px solid var(--border); }
 .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-secondary); font-size: 0.9rem; }
 .form-hint { margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-muted); }
 
-/* ── Organization segmented control ─────────────────────────────────────── */
-.org-options { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-.org-option { flex: 1; min-width: 110px; }
-.org-option input { position: absolute; opacity: 0; pointer-events: none; }
-.org-option span {
-  display: block;
-  text-align: center;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
-}
-.org-option span:hover { border-color: var(--clr-primary); color: var(--text-primary); }
-.org-option input:checked + span {
-  color: #fff;
-  background: var(--grad-primary);
-  border-color: transparent;
-  box-shadow: var(--shadow-glow);
-}
-.org-field { margin-top: 0.5rem; }
 .form-input {
   width: 100%;
   padding: 0.85rem 1rem;
@@ -320,6 +295,23 @@ select.form-input option { background: var(--bg-surface); color: var(--text-prim
   white-space: nowrap;
 }
 .btn-msg:hover { color: #fff; background: var(--grad-primary); border-color: transparent; }
+.btn-ai {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--clr-accent);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.btn-ai:hover { color: #fff; background: var(--clr-accent); border-color: transparent; }
 
 .course-list { margin-top: 2.5rem; }
 
@@ -399,6 +391,7 @@ select.form-input option { background: var(--bg-surface); color: var(--text-prim
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
 }
+.student-row-actions { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 .student-row:last-child { border-bottom: none; }
 .student-name { display: block; font-weight: 600; font-size: 0.9rem; }
 .student-email { font-size: 0.78rem; color: var(--text-muted); }

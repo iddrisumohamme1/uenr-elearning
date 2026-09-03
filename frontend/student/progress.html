@@ -22,104 +22,310 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h1>My Progress</h1>
+                <div class="top-bar-title">
+                    <h1>My Progress</h1>
+                    <p class="text-muted">Effort in, grade out — plus your learning analytics</p>
+                </div>
                 <div class="user-profile">
-                    <div class="avatar">S</div>
+                    <div class="avatar" id="user-avatar">S</div>
                 </div>
             </header>
 
-            <!-- Energy panel: effort in, grade out -->
-            <section class="progress-hero">
-                <!-- Output: projected-grade gauge -->
-                <div class="panel output-panel">
-                    <p class="panel-eyebrow" id="dialEyebrow">Semester projection</p>
-                    <div class="gauge-wrap">
-                        <svg class="gauge-svg" viewBox="0 0 240 150" aria-hidden="true">
-                            <defs>
-                                <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stop-color="#3b82f6"/>
-                                    <stop offset="100%" stop-color="#06b6d4"/>
-                                </linearGradient>
-                            </defs>
-                            <g id="gaugeTicks"></g>
-                            <path id="dialTrack" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="14" stroke-linecap="round"/>
-                            <path id="dialArc" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="url(#dialGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283 283" stroke-dashoffset="283" style="transition: stroke-dashoffset .6s ease"/>
-                            <circle id="dialNeedle" r="8" fill="#fbbf24" stroke="#0a0f1e" stroke-width="3" cx="30" cy="130" style="transition: all .6s ease"/>
-                            <text id="dialGrade" x="120" y="92" text-anchor="middle" class="dial-grade">–</text>
-                            <text id="dialPct" x="120" y="118" text-anchor="middle" class="dial-pct">–</text>
-                        </svg>
-                        <p class="dial-delta" id="dialDelta" hidden></p>
-                    </div>
-                    <div id="dialCourses" class="dial-courses"></div>
-                </div>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="progress" type="button">My Progress</button>
+                <button class="tab-btn" data-tab="analytics" type="button">Analytics</button>
+            </div>
 
-                <!-- Input: study effort + readings -->
-                <div class="panel input-panel">
-                    <div class="lever-block" id="leverWrap" hidden>
-                        <p class="panel-eyebrow">Energy in</p>
-                        <div class="lever-row">
-                            <span id="leverLabel">Weekly study time</span>
-                            <output id="leverVal">–</output>
+            <!-- ── Progress tab: forecast + effort ────────────────────────────── -->
+            <section class="tab-panel" id="panel-progress" data-panel="progress">
+                <!-- Energy panel: effort in, grade out -->
+                <section class="progress-hero">
+                    <!-- Output: projected-grade gauge -->
+                    <div class="panel output-panel">
+                        <p class="panel-eyebrow" id="dialEyebrow">Semester projection</p>
+                        <div class="gauge-wrap">
+                            <svg class="gauge-svg" viewBox="0 0 240 150" aria-hidden="true">
+                                <defs>
+                                    <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stop-color="#3b82f6"/>
+                                        <stop offset="100%" stop-color="#06b6d4"/>
+                                    </linearGradient>
+                                </defs>
+                                <g id="gaugeTicks"></g>
+                                <path id="dialTrack" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="14" stroke-linecap="round"/>
+                                <path id="dialArc" d="M 30 130 A 90 90 0 0 1 210 130" fill="none" stroke="url(#dialGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283 283" stroke-dashoffset="283" style="transition: stroke-dashoffset .6s ease"/>
+                                <circle id="dialNeedle" r="8" fill="#fbbf24" stroke="#0a0f1e" stroke-width="3" cx="30" cy="130" style="transition: all .6s ease"/>
+                                <text id="dialGrade" x="120" y="92" text-anchor="middle" class="dial-grade">–</text>
+                                <text id="dialPct" x="120" y="118" text-anchor="middle" class="dial-pct">–</text>
+                            </svg>
+                            <p class="dial-delta" id="dialDelta" hidden></p>
                         </div>
-                        <input type="range" id="studyLever" min="0" max="100" value="0" aria-label="Adjust your weekly study time">
-                        <p class="lever-note" id="leverNote"></p>
+                        <div id="dialCourses" class="dial-courses"></div>
                     </div>
 
-                    <div class="readouts">
-                        <div class="readout">
-                            <span class="readout-label">Quiz average</span>
-                            <span class="readout-value" id="quiz-avg">–</span>
+                    <!-- Input: study effort + readings -->
+                    <div class="panel input-panel">
+                        <div class="lever-block" id="leverWrap" hidden>
+                            <p class="panel-eyebrow">Energy in</p>
+                            <div class="lever-row">
+                                <span id="leverLabel">Weekly study time</span>
+                                <output id="leverVal">–</output>
+                            </div>
+                            <input type="range" id="studyLever" min="0" max="100" value="0" aria-label="Adjust your weekly study time">
+                            <p class="lever-note" id="leverNote"></p>
                         </div>
-                        <div class="readout readout--attendance">
-                            <span class="readout-label">Attendance</span>
-                            <span class="readout-value" id="attendance-rate">–</span>
-                            <span class="readout-note" id="attendance-note" hidden>sessions attended</span>
+
+                        <div class="readouts">
+                            <div class="readout">
+                                <span class="readout-label">Quiz average</span>
+                                <span class="readout-value" id="quiz-avg">–</span>
+                            </div>
+                            <div class="readout readout--attendance">
+                                <span class="readout-label">Attendance</span>
+                                <span class="readout-value" id="attendance-rate">–</span>
+                                <span class="readout-note" id="attendance-note" hidden>sessions attended</span>
+                            </div>
+                            <div class="readout">
+                                <span class="readout-label">Study warnings</span>
+                                <span class="readout-value" id="warning-count">–</span>
+                            </div>
                         </div>
-                        <div class="readout">
-                            <span class="readout-label">Study warnings</span>
-                            <span class="readout-value" id="warning-count">–</span>
+
+                        <div id="warning-strip" class="warning-strip" hidden></div>
+                    </div>
+                </section>
+
+                <!-- Per-course ledger -->
+                <section class="course-section">
+                    <div class="section-head">
+                        <h2>Course channels</h2>
+                        <p class="text-muted">Weekly study time, quiz and assignment performance per course. Click a row to focus the gauge.</p>
+                    </div>
+                    <div id="course-ledger" class="course-ledger">
+                        <div class="loading-wrapper loading-full">
+                            <div class="spinner"></div>
+                            <p>Loading your progress...</p>
                         </div>
                     </div>
+                </section>
 
-                    <div id="warning-strip" class="warning-strip" hidden></div>
-                </div>
+                <!-- Attendance self-log (collapsed) -->
+                <section class="course-section attendance-section">
+                    <div class="section-head attendance-head">
+                        <div>
+                            <h2>Attendance</h2>
+                            <p class="text-muted">Self-report today's attendance so your lecturer can see who was present.</p>
+                        </div>
+                        <button type="button" id="attend-toggle" class="attend-toggle" aria-expanded="false">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                            <span>Mark today's attendance</span>
+                        </button>
+                    </div>
+                    <div id="attendance-log" class="attend-list" hidden></div>
+                </section>
             </section>
 
-            <!-- Per-course ledger -->
-            <section class="course-section">
-                <div class="section-head">
-                    <h2>Course channels</h2>
-                    <p class="text-muted">Weekly study time, quiz and assignment performance per course. Click a row to focus the gauge.</p>
+            <!-- ── Analytics tab: what the data says ──────────────────────────── -->
+            <section class="tab-panel" id="panel-analytics" data-panel="analytics" hidden>
+                <div id="loading-state" class="loading-wrapper loading-full">
+                    <div class="spinner"></div>
+                    <p>Loading analytics...</p>
                 </div>
-                <div id="course-ledger" class="course-ledger">
-                    <div class="loading-wrapper loading-full">
-                        <div class="spinner"></div>
-                        <p>Loading your progress...</p>
-                    </div>
-                </div>
-            </section>
 
-            <!-- Attendance self-log (collapsed) -->
-            <section class="course-section attendance-section">
-                <div class="section-head attendance-head">
-                    <div>
-                        <h2>Attendance</h2>
-                        <p class="text-muted">Self-report today's attendance so your lecturer can see who was present.</p>
-                    </div>
-                    <button type="button" id="attend-toggle" class="attend-toggle" aria-expanded="false">
-                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                        <span>Mark today's attendance</span>
-                    </button>
+                <div id="error-state" class="error-state" style="display:none">
+                    <p id="error-message">Unable to load analytics.</p>
                 </div>
-                <div id="attendance-log" class="attend-list" hidden></div>
+
+                <div id="analytics-body" style="display:none">
+                    <!-- Signature: Study Rhythm hero band -->
+                    <section class="rhythm-band" aria-labelledby="rhythm-title">
+                        <div class="rhythm-head">
+                            <div>
+                                <p class="eyebrow">Study rhythm</p>
+                                <h2 id="rhythm-title">Your last two weeks</h2>
+                            </div>
+                            <div class="rhythm-total">
+                                <span class="rhythm-numeral" id="rhythm-total">0m</span>
+                                <span class="text-muted" id="chart-caption">Loading your study history…</span>
+                            </div>
+                        </div>
+                        <div class="act-chart" id="act-chart" role="img"
+                             aria-label="Bar chart of your study minutes for each of the last 14 days"></div>
+                    </section>
+
+                    <div class="chips-grid">
+                        <div class="stat-card">
+                            <p class="stat-label">This week's engagement</p>
+                            <p class="stat-value"><span id="wk-engagement">--</span>
+                                <span class="trend-chip" id="trend-chip" style="display:none"></span></p>
+                            <p class="stat-hint">Score out of 100, built from reading time, scrolling, highlights and video watching</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="stat-label">Materials explored</p>
+                            <p class="stat-value" id="materials-count">0</p>
+                            <p class="stat-hint">Distinct materials you have opened</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="stat-label">Total study time</p>
+                            <p class="stat-value" id="time-spent">0m</p>
+                            <p class="stat-hint">All tracked sessions combined</p>
+                        </div>
+                    </div>
+
+                    <!-- Learning profile: engagement + comprehension at a glance -->
+                    <section class="chart-card profile-card" id="profile-card" style="display:none">
+                        <p class="eyebrow">Profile</p>
+                        <h3>Your Learning Profile</h3>
+                        <p class="text-muted profile-sub">An overview of how you're doing across your courses.</p>
+                        <div class="profile-grid">
+                            <div class="profile-item">
+                                <span class="profile-label">Engagement level</span>
+                                <span class="lvl-badge" id="profile-engagement">--</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">Comprehension level</span>
+                                <span class="lvl-badge" id="profile-comprehension">--</span>
+                            </div>
+                        </div>
+                        <p class="text-muted profile-updated" id="profile-updated"></p>
+                    </section>
+
+                    <!-- By-course engagement & comprehension -->
+                    <section class="chart-card course-engagement-section" id="course-eng-card" style="display:none">
+                        <p class="eyebrow">By course</p>
+                        <h3>Course Engagement & Comprehension</h3>
+                        <p class="text-muted course-eng-sub">How engaged you are and how well you're grasping each course — expand a course for material-level detail.</p>
+                        <div id="course-eng-list"></div>
+                    </section>
+
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <p class="eyebrow">Quality</p>
+                            <h3>Study Session Quality</h3>
+                            <p class="text-muted dist-subtext" id="dist-subtext">How your study sessions rank, from first login to now.</p>
+                            <div class="engagement-bars" id="engagement-bars">
+                                <div class="bar-row">
+                                    <span class="bar-label">High</span>
+                                    <div class="bar-track"><div class="bar-fill bar-success" id="bar-high" style="width:0%"></div></div>
+                                    <span class="bar-pct" id="pct-high">0%</span>
+                                </div>
+                                <div class="bar-row">
+                                    <span class="bar-label">Medium</span>
+                                    <div class="bar-track"><div class="bar-fill bar-warning" id="bar-med" style="width:0%"></div></div>
+                                    <span class="bar-pct" id="pct-med">0%</span>
+                                </div>
+                                <div class="bar-row">
+                                    <span class="bar-label">Low</span>
+                                    <div class="bar-track"><div class="bar-fill bar-danger" id="bar-low" style="width:0%"></div></div>
+                                    <span class="bar-pct" id="pct-low">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <p class="eyebrow">Sessions</p>
+                            <h3>Recent Sessions</h3>
+                            <div id="activity-list" class="activity-list">
+                                <p class="text-muted">No study sessions recorded yet.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quiz Performance -->
+                    <section class="quiz-performance">
+                        <div class="quiz-perf-head">
+                            <h3>Quiz Performance</h3>
+                        </div>
+                        <div class="stats-grid quiz-stats">
+                            <div class="stat-card">
+                                <h3>Quiz Average</h3>
+                                <p class="stat-value" id="quiz-avg-analytics">--</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Quizzes Taken</h3>
+                                <p class="stat-value" id="quiz-count">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Best Score</h3>
+                                <p class="stat-value" id="quiz-best">--</p>
+                            </div>
+                        </div>
+                        <div id="quiz-history" class="quiz-history">
+                            <p class="text-muted">Loading quiz results...</p>
+                        </div>
+                    </section>
+
+                    <!-- Assignment Performance -->
+                    <section class="quiz-performance">
+                        <div class="quiz-perf-head">
+                            <h3>Assignment Performance</h3>
+                            <p class="text-muted">Grades from assignments</p>
+                        </div>
+                        <div class="stats-grid quiz-stats">
+                            <div class="stat-card">
+                                <h3>Assignment Average</h3>
+                                <p class="stat-value" id="assign-avg">--</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Submitted</h3>
+                                <p class="stat-value" id="assign-submitted">0/0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>On Time</h3>
+                                <p class="stat-value" id="assign-ontime">--</p>
+                            </div>
+                        </div>
+                        <div id="assignment-history" class="quiz-history">
+                            <p class="text-muted">Loading assignment results...</p>
+                        </div>
+                    </section>
+
+                    <section class="behavioral-insights">
+                        <p class="eyebrow">Insights</p>
+                        <h3>What your data suggests</h3>
+                        <div class="insight-card">
+                            <span class="insight-icon"><i class="bi bi-lightbulb-fill"></i></span>
+                            <ul id="insight-list" class="insight-list">
+                                <li>Loading insights...</li>
+                            </ul>
+                        </div>
+                    </section>
+                </div>
             </section>
         </main>
     </div>
+
+    <!-- Per-material engagement & comprehension popup -->
+    <div id="material-modal" class="modal" hidden>
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 id="material-modal-title">Material</h3>
+                <button class="modal-close" data-close="true" aria-label="Close">&times;</button>
+            </div>
+            <p class="text-muted" id="material-modal-sub"></p>
+            <div class="progress-modal-grid">
+                <div class="progress-modal-cell">
+                    <span class="progress-modal-label">Quiz</span>
+                    <span class="progress-modal-value" id="pm-quiz">—</span>
+                </div>
+                <div class="progress-modal-cell">
+                    <span class="progress-modal-label">Assignment</span>
+                    <span class="progress-modal-value" id="pm-assignment">—</span>
+                </div>
+            </div>
+            <p class="progress-modal-note" id="pm-note"></p>
+            <div class="modal-actions">
+                <button type="button" class="progress-modal-close" data-close="true">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../shared/sidebar.js"></script>
     <script src="../shared/api-cache.js"></script>
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
     <script src="progress.js"></script>
+    <script src="analytics.js"></script>
 </body>
 </html>

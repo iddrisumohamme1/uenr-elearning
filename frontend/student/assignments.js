@@ -110,11 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function submitAuto() {
         if (!activeAuto) return;
         const btn = document.getElementById('auto-submit-btn');
-        const spinner = document.getElementById('auto-submit-spinner');
-        const btnText = document.getElementById('auto-submit-btn-text');
-        btn.disabled = true;
-        spinner.hidden = false;
-        btnText.textContent = 'Grading…';
+        setButtonBusy(btn, true);
         try {
             const questions = activeAuto.questions || {};
             const objective = (questions.objective || []).map((q, i) => {
@@ -123,9 +119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             if (objective.some(v => v === -1)) {
                 showToast('Answer all objective questions before submitting.', 'error');
-                btn.disabled = false;
-                spinner.hidden = true;
-                btnText.textContent = 'Submit for grading';
                 return;
             }
             const theory = [];
@@ -179,6 +172,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (recs.length) {
                     clearRecommendationBadge();
                     authFetch(`${API_BASE}/api/recommendations/notifications/read`, { method: 'POST' }).catch(() => {});
+                    const redirectNote = document.createElement('p');
+                    redirectNote.className = 'text-muted auto-recs-note';
+                    redirectNote.style.marginTop = '1rem';
+                    redirectNote.textContent = 'Taking you to your Recommendations page...';
+                    document.getElementById('auto-questions').appendChild(redirectNote);
+                    setTimeout(() => {
+                        autoModal.hidden = true;
+                        if (lastAutoGraded) loadAssignments();
+                        activeAuto = null;
+                        window.location.href = '../recommendations/recommendations.html';
+                    }, 2500);
                 }
             } else {
                 showToast(data.detail || 'Could not submit your assignment.', 'error');
@@ -186,9 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Could not submit your assignment.', 'error');
         } finally {
-            btn.disabled = false;
-            spinner.hidden = true;
-            btnText.textContent = 'Submit for grading';
+            setButtonBusy(btn, false);
         }
     }
 
@@ -216,11 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const btn = document.getElementById('submit-btn');
-        const spinner = document.getElementById('submit-spinner');
-        const btnText = document.getElementById('submit-btn-text');
-        btn.disabled = true;
-        spinner.hidden = false;
-        btnText.textContent = 'Submitting…';
+        setButtonBusy(btn, true);
         try {
             const res = await authFetch(`${API_BASE}/api/assignments/submit`, {
                 method: 'POST',
@@ -244,9 +242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showToast('Could not submit your assignment.', 'error');
         } finally {
-            btn.disabled = false;
-            spinner.hidden = true;
-            btnText.textContent = 'Submit assignment';
+            setButtonBusy(btn, false);
         }
     }
     document.getElementById('submit-btn').addEventListener('click', submitActive);

@@ -15,11 +15,11 @@
     <link rel="stylesheet" href="../shared/dropdown.css">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="hod-dashboard.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="../shared/theme.js"></script>
 </head>
-<body>
+<body class="role-hod">
     <div class="dashboard-container">
         <aside class="sidebar" id="app-sidebar"></aside>
 
@@ -39,7 +39,7 @@
             <section class="pulse-card fade-in-up" aria-label="Department engagement summary">
                 <div class="pulse-head">
                     <div class="pulse-heading">
-                        <span class="pulse-label">Department Pulse</span>
+                        <span class="pulse-label">Department Health Index</span>
                         <div class="pulse-score">
                             <span id="dept-pulse-score">--</span><span class="pulse-unit">%</span>
                         </div>
@@ -152,9 +152,33 @@
                         <label class="form-label" for="message-content">Message</label>
                         <textarea id="message-content" rows="5" class="form-input" placeholder="Write a short message with feedback or study advice…"></textarea>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label" for="message-draft-topic">AI note/topic (optional)</label>
+                        <input id="message-draft-topic" class="form-input" placeholder="e.g. 'You missed the last two quizzes' — the AI will weave this in">
+                    </div>
                     <div class="modal-actions">
                         <button class="btn-auth btn-sm" data-close-modal="message-modal">Cancel</button>
+                        <button class="btn-auth btn-sm btn-ghost" id="message-draft" type="button"><i class="bi bi-sparkles" aria-hidden="true"></i> Draft with AI</button>
                         <button class="btn-auth btn-sm" id="message-send">Send message</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="ai-modal" hidden>
+                <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ai-to">
+                    <div class="modal-head">
+                        <h3 id="ai-to">Ask AI to message student</h3>
+                        <button class="modal-close" data-close-modal="ai-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <p class="modal-body text-muted" id="ai-course"></p>
+                    <p class="modal-body text-muted">The AI assistant will compose a supportive message using this student's engagement and assessment data, plus your note below.</p>
+                    <div class="form-group">
+                        <label class="form-label" for="ai-topic">Note or topic (optional)</label>
+                        <textarea id="ai-topic" rows="3" class="form-input" placeholder="Optional: add a note or topic for the AI to include…"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-auth btn-sm" data-close-modal="ai-modal">Cancel</button>
+                        <button class="btn-auth btn-sm" id="ai-send"><i class="bi bi-robot"></i> Ask AI to message</button>
                     </div>
                 </div>
             </div>

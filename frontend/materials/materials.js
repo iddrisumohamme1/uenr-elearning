@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const queryParams = new URLSearchParams(window.location.search);
     const courseId = queryParams.get('id');
+    const deepLinkMaterialId = queryParams.get('material_id');
     if (courseId && window.aiTutor) aiTutor.setCourse(courseId); // pre-ground the tutor in this course
     const materialList = document.getElementById('material-list');
     const contentViewer = document.getElementById('content-viewer');
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let classificationSent = false;
     let activeSeconds = 0;
     let activeSinceClassify = 0;   // active seconds accrued since the last classification
+    let materialOpenSeconds = 0;   // wall-clock seconds since this material opened (idle or not)
 
     function detectTopic(title) {
         const t = (title || '').toLowerCase();
@@ -91,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         classificationSent = false;
         activeSeconds = 0;
         activeSinceClassify = 0;
+        materialOpenSeconds = 0;
         updateStatus('Active');
         hideAiInsight();
         setSessionHint('');
@@ -98,12 +101,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Best-effort final classification for the session that just ended. Fires
-    // only after a real session has been classified and enough fresh active
-    // time has accrued since the last call to be worthwhile. keepalive lets the
+    // on session close to refresh an already-classified session, and also
+    // performs the FIRST classification for sessions that never accumulated
+    // 60 active seconds (e.g. long-but-passive reading) as long as the
+    // material was open for a meaningful amount of time. keepalive lets the
     // request survive page unload; failures are silently ignored.
     function finalRefresh() {
-        if (!courseId || !classificationSent) return;
-        if (activeSinceClassify < 60) return;
+        if (!courseId) return;
+        if (classificationSent) {
+            if (activeSinceClassify < 60) return;
+        } else if (materialOpenSeconds < 60) {
+            return;
+        }
         const body = JSON.stringify({
             student_id: user.id,
             course_id: courseId,
@@ -145,10 +154,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!chip) return;
         const eng = INSIGHT_COPY[result.engagement_class] || INSIGHT_COPY[1];
         const comp = COMPREHENSION_COPY[result.comprehension_class] ?? '';
-        chip.textContent = `✦ ${eng.text}${comp ? ' · ' + comp : ''}`;
+        chip.textContent = `✦ ${eng.text}${comp ? ' · ' + comp : ''} · AI insight`;
+        chip.setAttribute('role', 'link');
+        chip.setAttribute('tabindex', '0');
+        chip.title = 'Open this AI insight in your inbox, where you can message the assistant.';
         chip.dataset.tone = eng.tone;
-        chip.title = `${result.engagement_label}${result.comprehension_label ? ' — ' + result.comprehension_label : ''} (AI prediction)`;
         chip.style.display = 'inline-flex';
+        if (!chip.dataset.bound) {
+            chip.dataset.bound = 'true';
+            const openInbox = () => { window.location.href = '../student/inbox.html'; };
+            chip.addEventListener('click', openInbox);
+            chip.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInbox(); } });
+        }
     }
 
     function hideAiInsight() {
@@ -157,81 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderMaterials(materials) {
-        const semesterGroups = new Map();
-        (materials || []).forEach(material => {
-            const semester = material.semester || 'Unassigned';
-            if (!semesterGroups.has(semester)) semesterGroups.set(semester, []);
-            semesterGroups.get(semester).push(material);
-        });
-
-        const semesterKeys = [...semesterGroups.keys()].sort((a, b) => {
-            if (a === 'Unassigned') return 1;
-            if (b === 'Unassigned') return -1;
-            return a.localeCompare(b);
-        });
-
-        const filter = document.getElementById('semester-filter');
-        if (filter) {
-            const current = filter.value;
-            filter.innerHTML = `<option value="all">All semesters</option>` +
-                semesterKeys.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-            filter.value = semesterKeys.includes(current) ? current : 'all';
-        }
-
-        const renderWeekGroups = (items) => {
-            const groups = new Map();
-            items.forEach(material => {
-                let key = 'other';
-                if (material.week_number != null) key = `week-${material.week_number}`;
-                else if (material.unit_label) key = `unit-${material.unit_label}`;
-                if (!groups.has(key)) groups.set(key, []);
-                groups.get(key).push(material);
-            });
-
-            const sortedKeys = [...groups.keys()].sort((a, b) => {
-                if (a === 'other') return 1;
-                if (b === 'other') return -1;
-                const aIsWeek = a.startsWith('week-');
-                const bIsWeek = b.startsWith('week-');
-                if (aIsWeek !== bIsWeek) return aIsWeek ? -1 : 1;
-                if (aIsWeek) return Number(a.slice(5)) - Number(b.slice(5));
-                return a.localeCompare(b);
-            });
-
-            const groupLabel = (key) => {
-                if (key === 'other') return 'Full course';
-                if (key.startsWith('week-')) return `Week ${key.slice(5)}`;
-                return key.slice(5);
-            };
-
-            return sortedKeys.map(key => `
-                <div class="week-group">
-                    <div class="week-label">${groupLabel(key)}</div>
-                    ${groups.get(key).map(material => `
-                        <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-render-url="${material.render_url || ''}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
-                            <strong><span class="file-tag">${fileTag(material)}</span>${escapeHtml(material.title)}</strong>
-                            <p class="material-desc">${escapeHtml(material.description || material.content_type || 'Material')}</p>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-        };
-
-        materialList.innerHTML = semesterKeys.map(semester => `
-            <div class="semester-group" data-semester="${escapeHtml(semester)}">
-                <div class="semester-label">${escapeHtml(semester)}</div>
-                ${renderWeekGroups(semesterGroups.get(semester))}
+        // Flattened list: show every material in the course as one plain list,
+        // preserving the backend's ordering (semester, then week/unit).
+        materialList.innerHTML = (materials || []).map(material => `
+            <div class="topic-item material-item" data-id="${material.id}" data-url="${material.content_url}" data-render-url="${material.render_url || ''}" data-type="${material.content_type || ''}" data-week="${material.week_number != null ? material.week_number : ''}" data-semester="${material.semester || ''}">
+                <strong><span class="file-tag">${fileTag(material)}</span><span class="material-title">${escapeHtml(material.title)}</span></strong>
+                ${material.description ? `<p class="material-desc">${escapeHtml(material.description)}</p>` : ''}
             </div>
         `).join('');
-
-        if (filter) {
-            filter.onchange = () => {
-                const value = filter.value;
-                document.querySelectorAll('.semester-group').forEach(group => {
-                    group.style.display = (value === 'all' || group.dataset.semester === value) ? '' : 'none';
-                });
-            };
-        }
 
         document.querySelectorAll('.material-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -381,6 +331,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if ((data.materials || []).length === 0) {
                     materialList.innerHTML = '<div class="topic-item">No materials available yet.</div>';
                     if (contentPlaceholder) contentPlaceholder.innerHTML = '<p class="content-empty">Materials will appear here once uploaded.</p>';
+                } else if (deepLinkMaterialId) {
+                    // Deep link from elsewhere (e.g. the Performance page): auto-open
+                    // the requested material once the list has rendered.
+                    const target = materialList.querySelector(`.material-item[data-id="${deepLinkMaterialId}"]`);
+                    if (target) target.click();
                 }
             });
         } catch (err) {
@@ -483,10 +438,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             activeSinceClassify += 5;
         }
 
-        // Two-Tower classification: fires once 60s of real engagement accrues,
-        // then re-fires every 5 minutes of active study so the prediction stays
-        // fresh against recent quiz/attendance changes.
-        if (selectedMaterial && !isIdle && (activeSinceClassify >= 300 || (!classificationSent && activeSeconds >= 60))) {
+        if (selectedMaterial) {
+            materialOpenSeconds += 5;
+        }
+
+        // Two-Tower classification: re-fires every 5 minutes of ACTIVE study so
+        // the prediction stays fresh against recent quiz/attendance changes.
+        // The first classification unlocks earlier - 60 active seconds OR a few
+        // minutes of the material being open - so long-but-passive reading (or
+        // a mostly-idle tab) still gets labelled instead of never classifying.
+        if (selectedMaterial && !isIdle && activeSinceClassify >= 300) {
+            classifyEngagement();
+        } else if (selectedMaterial && !classificationSent && (activeSeconds >= 60 || materialOpenSeconds >= 300)) {
             classifyEngagement();
         }
     }, 5000);
@@ -1636,8 +1599,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     hlConfirmBtn.addEventListener('click', async () => {
         if (!selectedMaterial) return;
-        hlConfirmBtn.disabled = true;
-        hlConfirmBtn.textContent = 'Deleting…';
+        setButtonBusy(hlConfirmBtn, true);
         try {
             const res = await authFetch(`${API_BASE}/api/highlights/material/${encodeURIComponent(selectedMaterial.id)}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Clear failed');
@@ -1653,8 +1615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Highlight clear failed:', err);
             if (typeof showToast === 'function') showToast('Could not clear highlights.', 'error');
         } finally {
-            hlConfirmBtn.disabled = false;
-            hlConfirmBtn.textContent = 'Delete all';
+            setButtonBusy(hlConfirmBtn, false);
         }
     });
 
