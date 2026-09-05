@@ -201,6 +201,39 @@
   font-size: 0.76rem;
   color: var(--text-muted);
 }
+.material-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.btn-material-view,
+.btn-material-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-2, var(--bg-card));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.btn-material-view:hover {
+  background: var(--clr-primary-deep, #065f46);
+  border-color: var(--clr-primary-deep, #065f46);
+  color: #fff;
+}
+.btn-material-dl:hover {
+  background: var(--clr-primary);
+  border-color: var(--clr-primary);
+  color: #fff;
+}
 .btn-material-remove {
   display: inline-flex;
   align-items: center;

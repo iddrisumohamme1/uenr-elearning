@@ -211,6 +211,71 @@
 .course-action--assign:hover { background: var(--primary-soft); }
 .course-action--danger { color: var(--clr-danger); }
 .course-action--danger:hover { background: var(--danger-soft); border-color: var(--clr-danger); }
+.course-action--materials { color: var(--clr-primary-light); border-color: var(--border-focus); }
+.course-action--materials:hover { background: var(--primary-soft); border-color: var(--clr-primary); }
+
+/* - Materials modal --------------------------------------------------------- */
+.modal-card--wide { width: min(720px, 94vw); max-width: 720px; }
+.materials-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.75rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.mat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.mat-row:last-child { border-bottom: none; }
+.mat-info { min-width: 0; }
+.mat-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mat-title i { color: var(--clr-primary-light); flex-shrink: 0; }
+.mat-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+.mat-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+.mat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.mat-btn--view:hover {
+  background: var(--clr-primary-deep, #065f46);
+  border-color: var(--clr-primary-deep, #065f46);
+  color: #fff;
+}
+.mat-btn--dl:hover {
+  background: var(--clr-primary);
+  border-color: var(--clr-primary);
+  color: #fff;
+}
 
 /* - Modal ------------------------------------------------------------------ */
 .modal-overlay {

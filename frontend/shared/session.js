@@ -185,10 +185,22 @@ function addNavBadge(link, count) {
 
 async function initNavBadges() {
     const user = getCurrentUser();
-    if (!user || user.role !== 'student') return;
+    if (!user) return;
 
     const navLinks = Array.from(document.querySelectorAll('.nav-link'));
     const findLink = hrefPart => navLinks.find(a => (a.getAttribute('href') || '').includes(hrefPart));
+
+    // Unread messages → badge on the Inbox link (students, lecturers and HODs).
+    const inboxLink = findLink('inbox.html');
+    if (inboxLink && !inboxLink.querySelector('.nav-badge')) {
+        swrGet('nav-unread', `${API_BASE}/api/messages/unread-count`, data => {
+            if (data.unread_count > 0) addNavBadge(inboxLink, data.unread_count);
+        }, { forceRefresh: true }).catch(err => console.error('[session] Inbox badge check failed:', err));
+    }
+
+    // The remaining badges are student-only.
+    if (user.role !== 'student') return;
+
     const onRecPage = window.location.pathname.includes('recommendations.html');
 
     // "My Progress" is meaningless before the student enrols in anything —
@@ -198,14 +210,6 @@ async function initNavBadges() {
         swrGet('nav-stats', `${API_BASE}/api/students/${user.id}/stats`, stats => {
             if (!stats.enrolled_courses) progressLink.style.display = 'none';
         }, { forceRefresh: true }).catch(err => console.error('[session] Progress link check failed:', err));
-    }
-
-    // Unread messages → badge on the Inbox link.
-    const inboxLink = findLink('inbox.html');
-    if (inboxLink && !inboxLink.querySelector('.nav-badge')) {
-        swrGet('nav-unread', `${API_BASE}/api/messages/unread-count`, data => {
-            if (data.unread_count > 0) addNavBadge(inboxLink, data.unread_count);
-        }, { forceRefresh: true }).catch(err => console.error('[session] Inbox badge check failed:', err));
     }
 
     // Pending recommendations → badge on the Recommendations link (skipped on

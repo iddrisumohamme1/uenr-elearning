@@ -479,10 +479,51 @@ def compose_ai_staff_draft(admin, recipient_id, course_id, topic=""):
         return ""
 
 
+def _conversation_history(admin, sender_id, student_id, course_id, limit=12):
+    """The recent student <-> AI exchange for a course, oldest first, so the
+    model can continue an existing conversation instead of treating every
+    reply as the first turn. Rows are returned as (role, text) where role is
+    "user" (the student) or "assistant" (the AI sender). Older messages beyond
+    ``limit`` are dropped to keep the prompt bounded."""
+    try:
+        resp = with_retry(
+            lambda c: c.table("messages")
+            .select("sender_id, content")
+            .or_(f"sender_id.eq.{sender_id},sender_id.eq.{student_id}")
+            .eq("course_id", course_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        rows = getattr(resp, "data", []) or []
+    except Exception as exc:
+        print(f"[insight] conversation history error: {exc}")
+        return []
+
+    exchanged = []
+    for row in reversed(rows):  # oldest -> newest
+        if row.get("sender_id") == sender_id:
+            role = "assistant"
+            text = row.get("content") or ""
+        elif row.get("sender_id") == student_id:
+            role = "user"
+            text = row.get("content") or ""
+        else:
+            continue
+        text = " ".join(text.split())
+        if text:
+            exchanged.append((role, text[:500]))
+    return exchanged
+
+
 def push_ai_reply(admin, student_id, course_id, student_message):
     """Compose a contextual AI reply to the student's question in the inbox.
     Returns the reply text ("" on failure). Uses the data builder plus a
-    best-effort LLM enhancement (falls back to the data-driven template)."""
+    best-effort LLM enhancement (falls back to the data-driven template).
+
+    Unlike a first-turn response, this builds the prompt from the prior
+    conversation (student <-> AI) for the course, so follow-up questions
+    reference earlier exchanges instead of being answered in isolation."""
     sender_id = _ai_assistant_id(admin)
     if not sender_id:
         return ""
@@ -503,6 +544,9 @@ def push_ai_reply(admin, student_id, course_id, student_message):
         + "Which topic would you like help with? I can point you to the material or a practice quiz."
     )
 
+    # Reconstruct the earlier turns of this conversation so replies are coherent.
+    history = _conversation_history(admin, sender_id, student_id, course_id)
+
     # Best-effort LLM enhancement for a natural, targeted response.
     try:
         from app.services.quiz_generator import quiz_ai
@@ -511,14 +555,27 @@ def push_ai_reply(admin, student_id, course_id, student_message):
             f"assignment average {grade_avg}% (n={len(summary['assign_grades'])}); "
             f"recent materials: {materials}; profile: {profile_line}. "
         )
+
+        history_block = ""
+        if history:
+            lines = [f"{role}: {text}" for role, text in history]
+            history_block = (
+                "Earlier in this conversation the student and you (assistant) exchanged:\n"
+                + "\n".join(lines)
+                + "\n\n"
+            )
+
         prompt = (
             "You are a friendly learning assistant inside a university e-learning platform. "
-            "A student asked:\n"
-            f"\"{student_message}\"\n\n"
+            "A student has been chatting with you in their inbox about a course, and has just sent a new message.\n\n"
+            f"{history_block}"
+            "Use the earlier conversation for context: acknowledge or build on what was already "
+            "discussed, avoid repeating yourself, and directly address the student's latest message.\n\n"
+            f"Latest student message:\n\"{student_message}\"\n\n"
             f"Known facts about this student's course: {facts}\n"
             "Answer helpfully, concisely (3-5 sentences), reference their actual numbers where relevant, "
             "and end by offering a concrete next step (re-reading a material or trying a quiz). "
-            "Do NOT invent scores that are not provided."
+            "Do NOT invent scores that are not provided. Do not claim the student asked something they did not."
         )
         return (quiz_ai._complete(prompt) or "").strip() or template
     except Exception as exc:

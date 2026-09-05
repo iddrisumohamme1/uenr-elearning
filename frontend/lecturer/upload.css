@@ -5,6 +5,11 @@
    Loads after dashboard.css — reuses .stat-card, .form-group, .form-input, .btn-auth.
 */
 
+/* ── Form card: let the custom dropdown escape its bounds ────────────────
+   dashboard.css sets .stat-card { overflow: hidden }; the searchable course
+   dropdown must open below the card without being clipped behind the label. */
+.upload-section .stat-card { overflow: visible; }
+
 /* ── Visually hidden (screen-reader only) ────────────────────────────── */
 .sr-only {
   position: absolute;

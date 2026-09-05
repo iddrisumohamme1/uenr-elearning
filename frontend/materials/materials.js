@@ -55,6 +55,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeSinceClassify = 0;   // active seconds accrued since the last classification
     let materialOpenSeconds = 0;   // wall-clock seconds since this material opened (idle or not)
 
+    // Native media elements (<img>/<video>/<iframe>, PDF.js) cannot send the
+    // Authorization header, so they authenticate with a short-lived,
+    // material-scoped token fetched via authFetch and appended as ?vt=.
+    const viewTokenCache = {}; // materialId -> { token, expiresAt }
+
+    async function fetchViewToken(materialId) {
+        const res = await authFetch(`${API_BASE}/api/materials/view-token/${encodeURIComponent(materialId)}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Failed to authorize material');
+        }
+        return res.json();
+    }
+
+    async function signedViewUrl(materialId, baseUrl) {
+        let entry = viewTokenCache[materialId];
+        const now = Date.now();
+        if (!entry || now >= entry.expiresAt - 30000) {
+            const data = await fetchViewToken(materialId);
+            entry = { token: data.token, expiresAt: (data.expires_at || 0) * 1000 };
+            viewTokenCache[materialId] = entry;
+        }
+        return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}vt=${encodeURIComponent(entry.token)}`;
+    }
+
     function detectTopic(title) {
         const t = (title || '').toLowerCase();
         if (t.match(/database|sql|dbms|relational|mongo/)) return 'databases';
@@ -184,7 +209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `).join('');
 
         document.querySelectorAll('.material-item').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', async () => {
                 selectedMaterial = {
                     id: item.dataset.id,
                     url: item.dataset.url,
@@ -211,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // while downloads keep using the original file.
                 const renderUrl = item.dataset.renderUrl || '';
                 const fileUrl = item.dataset.url;
-                const proxyUrl = `${API_BASE}/api/materials/proxy?url=${encodeURIComponent(renderUrl || fileUrl)}`;
+                const viewBase = `${API_BASE}/api/materials/view/${selectedMaterial.id}${renderUrl ? '?variant=render' : ''}`;
                 const lowerUrl = (renderUrl || fileUrl).toLowerCase();
 
                 // Content rendered directly in the document (video, image, PDF.js
@@ -233,6 +258,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     setSessionHint('Tip — select any passage to highlight it.');
                 } else {
                     setSessionHint('Highlighting is available on PDF materials.');
+                }
+
+                // Native elements authenticate with a material-scoped view token.
+                let proxyUrl;
+                try {
+                    proxyUrl = await signedViewUrl(selectedMaterial.id, viewBase);
+                } catch (err) {
+                    console.error(err);
+                    target.innerHTML = '<div class="content-empty">Unable to open this material. Please refresh and try again.</div>';
+                    return;
                 }
 
                 // Video files: native <video> player. Starts paused (browsers
@@ -264,9 +299,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (renderToken === pdfRenderToken) fetchSavedHighlights();
                     });
                 }
-                // Office docs (ppt, doc, xlsx): Google Docs viewer on desktop.
-                // On phones the cross-origin iframe swallows touch events and
-                // can't be scrolled, so hand off to the device viewer instead.
+                // Office docs handled earlier (PDF twin, or mobile device
+                // hand-off). When no PDF twin exists on desktop, fall back to
+                // an inline iframe of the view endpoint.
                 else if (lowerUrl.match(/\.(ppt|pptx|doc|docx|xls|xlsx|odp|ods|odt)$/)) {
                     const ext = lowerUrl.split('.').pop().toUpperCase();
                     if (window.matchMedia('(max-width: 768px)').matches) {
@@ -284,14 +319,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         });
                         target.querySelector('.office-dl-btn').addEventListener('click', downloadMaterial);
                     } else {
-                        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-                        target.innerHTML = `
-                            <div class="material-viewer-card">
-                                <div class="material-viewer-header">
-                                    <span class="file-badge">${ext}</span>
-                                </div>
-                                <iframe src="${viewerUrl}" class="office-viewer-iframe"></iframe>
-                            </div>`;
+                        const iframe = document.createElement('iframe');
+                        iframe.className = 'office-viewer-iframe';
+                        iframe.style.display = 'none';
+                        iframe.onload = () => { iframe.style.display = 'block'; };
+                        target.innerHTML = '';
+                        target.appendChild(iframe);
+                        iframe.src = proxyUrl;
                     }
                 }
                 // Everything else: try iframe with proxy
@@ -969,6 +1003,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (token !== pdfRenderToken) return;
 
             const baseViewport = page.getViewport({ scale: 1 });
+            if (!contentViewer.clientWidth) return;   // not laid out yet — observer re-queues when visible
             const cssScale = (contentViewer.clientWidth / baseViewport.width) * pdfZoom;
             const dpr = window.devicePixelRatio || 1;
             const viewport = page.getViewport({ scale: Math.min(4, cssScale * dpr) });
@@ -999,9 +1034,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 info.textLayerDiv = tl;
             }
             tl.innerHTML = '';
-            // PDF.js v3 sizes its text spans from this variable; without it,
+            // PDF.js sizes its text spans from this variable; it must equal the
+            // CSS viewport scale exactly, otherwise the v4 check warns and
             // selection strips render misaligned with the printed page.
-            tl.style.setProperty('--scale-factor', String(cssScale));
+            tl.style.setProperty('--scale-factor', String(cssViewport.scale));
             await lib.renderTextLayer({
                 textContentSource: textContent,
                 container: tl,

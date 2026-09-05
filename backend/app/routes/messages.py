@@ -33,6 +33,77 @@ class AIReplyRequest(BaseModel):
     course_id: Optional[str] = None
     message: str
 
+class StudentReplyRequest(BaseModel):
+    recipient_id: str
+    course_id: Optional[str] = None
+    content: str
+
+@router.post("/reply")
+def student_reply(payload: StudentReplyRequest, user=Depends(require_role("student"))):
+    """
+    A student replies to the lecturer/HOD who messaged them about a course.
+
+    Students may ONLY reply to a staff member who has already messaged them in
+    that course (reply-to-sender), which prevents messaging arbitrary staff or
+    spamming a department. The recipient must be a real lecturer/HOD — never
+    the AI assistant and never another student.
+    """
+    admin = get_admin_client()
+    content = (payload.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    if payload.recipient_id == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot reply to yourself.")
+
+    # The recipient must be a lecturer or HOD (not the AI assistant, not a student).
+    try:
+        rec = with_retry(
+            lambda c: c.table("users")
+            .select("id, role")
+            .eq("id", payload.recipient_id)
+            .limit(1)
+            .execute()
+        )
+        rec_rows = getattr(rec, "data", []) or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to validate recipient: {exc}")
+    if not rec_rows:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if rec_rows[0].get("role") not in ("lecturer", "hod"):
+        raise HTTPException(status_code=403, detail="You can only reply to a lecturer or HOD.")
+
+    # Reply-to-sender scope: the staff member must have messaged this student in
+    # this course already.
+    if payload.course_id:
+        try:
+            prior = with_retry(
+                lambda c: c.table("messages")
+                .select("id")
+                .eq("sender_id", payload.recipient_id)
+                .eq("recipient_id", user["id"])
+                .eq("course_id", payload.course_id)
+                .limit(1)
+                .execute()
+            )
+            has_prior = bool(getattr(prior, "data", []) or [])
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to check reply permission: {exc}")
+        if not has_prior:
+            raise HTTPException(status_code=403, detail="You can only reply to a message this staff member sent you.")
+
+    try:
+        with_retry(lambda c: c.table("messages").insert({
+            "sender_id": user["id"],
+            "recipient_id": payload.recipient_id,
+            "course_id": payload.course_id,
+            "content": content,
+        }).execute())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to send your reply: {exc}")
+
+    return {"status": "success", "message": "Reply sent."}
+
 @router.post("/send")
 def send_message(payload: MessageRequest, user=Depends(require_role("lecturer", "hod"))):
     """
@@ -134,20 +205,28 @@ def ai_reply(payload: AIReplyRequest, user=Depends(require_role("student"))):
 def get_inbox(user=Depends(get_current_user)):
     """
     Retrieve messages for the logged-in user (student or lecturer).
+
+    Returns both messages addressed to the user AND messages the user sent
+    (e.g. the student's own replies to the AI assistant), so a conversation
+    reads as a complete two-way thread instead of appearing one-sided. Each
+    row is tagged with an `outgoing` flag the frontend can style/align by.
     """
     admin = get_admin_client()
     try:
         resp = with_retry(
             lambda c: c.table("messages")
-            .select("id, sender_id, recipient_id, course_id, content, is_read, created_at, users!sender_id(full_name, role)")
-            .eq("recipient_id", user["id"])
+            .select("id, sender_id, recipient_id, course_id, content, is_read, created_at, users!sender_id(full_name, role), recipient:users!recipient_id(full_name, role)")
+            .or_(f"recipient_id.eq.{user['id']},sender_id.eq.{user['id']}")
             .order("created_at", desc=True)
             .execute()
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch inbox: {exc}")
 
-    return getattr(resp, "data", [])
+    rows = getattr(resp, "data", []) or []
+    for row in rows:
+        row["outgoing"] = bool(row.get("sender_id") == user["id"])
+    return rows
 
 
 DAILY_INSIGHT_MINUTES = 24 * 60

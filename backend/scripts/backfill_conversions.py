@@ -14,13 +14,11 @@
 import argparse
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
-
-import httpx
+from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.database import get_admin_client  # noqa: E402
+from app.database import get_admin_client, get_storage_client  # noqa: E402
 from app.routes.materials import BUCKET_NAME  # noqa: E402
 from app.services.doc_converter import (  # noqa: E402
     OFFICE_EXTS,
@@ -28,15 +26,17 @@ from app.services.doc_converter import (  # noqa: E402
     find_soffice,
 )
 
-URL_PREFIX = f"/storage/v1/object/public/{BUCKET_NAME}/"
-
 
 def storage_path_from_url(url: str) -> str | None:
-    path = urlparse(url).path
-    idx = path.find(URL_PREFIX)
-    if idx == -1:
+    """Normalize a stored reference (legacy URL or bare path) to a storage path."""
+    if not url:
         return None
-    return path[idx + len(URL_PREFIX):]
+    value = url.strip()
+    marker = f"/{BUCKET_NAME}/"
+    if marker in value:
+        value = value.split(marker, 1)[-1]
+    path = unquote(value.split("?")[0]).strip("/")
+    return path or None
 
 
 def main() -> int:
@@ -58,8 +58,9 @@ def main() -> int:
 
     candidates = [
         r for r in rows
-        if Path(urlparse(r.get("content_url") or "").path).suffix.lower() in OFFICE_EXTS
-        and storage_path_from_url(r["content_url"])
+        if (lambda sp: sp and Path(sp).suffix.lower() in OFFICE_EXTS)(
+            storage_path_from_url(r.get("content_url") or "")
+        )
     ]
     print(f"{len(candidates)} Office material(s) without a PDF version.")
 
@@ -72,20 +73,18 @@ def main() -> int:
         candidates = candidates[: args.limit]
 
     ok = failed = 0
+    bucket = get_storage_client().from_(BUCKET_NAME)
     for r in candidates:
         title = r["title"]
-        url = r["content_url"]
-        spath = storage_path_from_url(url)
+        spath = storage_path_from_url(r.get("content_url") or "")
         try:
-            file_bytes = httpx.get(url, follow_redirects=True, timeout=60).content
+            file_bytes = bucket.download(spath)
             pdf_bytes = convert_to_pdf(file_bytes, Path(spath).name)
             if not pdf_bytes:
                 raise RuntimeError("conversion returned no data")
             pdf_path = f"{Path(spath).stem}.pdf"
-            bucket = admin.storage.from_(BUCKET_NAME)
             bucket.upload(pdf_path, pdf_bytes, {"content-type": "application/pdf"})
-            render_url = bucket.get_public_url(pdf_path)
-            admin.table("materials").update({"render_url": render_url}).eq("id", r["id"]).execute()
+            admin.table("materials").update({"render_url": pdf_path}).eq("id", r["id"]).execute()
             ok += 1
             print(f"  converted: {title}")
         except Exception as exc:

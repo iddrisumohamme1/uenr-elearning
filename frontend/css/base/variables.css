@@ -22,8 +22,10 @@
      Emerald green (energy / natural resources) with a two-tone green pair
      for gradients and depth. */
   --clr-primary:      #10b981; /* Emerald — primary */
+  --clr-primary-deep: #047857; /* Deep forest — solid CTA fill (white text 5.5:1) */
   --clr-primary-dark: #059669;
   --clr-primary-light:#34d399;
+  --clr-secondary:    #065f46; /* Deep forest — fill/depth (white text 7.7:1) */
   --clr-accent:       #16a34a; /* Deep green — depth accent */
   --clr-energy:       #4ade80; /* Bright green — energy (signature accent) */
 
@@ -34,24 +36,24 @@
 
   /* --- BACKGROUND SYSTEM --- */
   /* Layered backgrounds to create depth — deep, rich near-black in dark mode */
-  --bg:         #060a12; /* Near-black background */
-  --bg-surface: #0b101c; /* Main section background */
-  --bg-card:    #101625; /* Card background */
-  --bg-elevated:#161e30; /* Hover/Active background */
-  --bg-glass:   rgba(11, 16, 28, 0.8); /* For blurred overlays */
+  --bg:         #060708; /* Neutral near-black background */
+  --bg-surface: #0b0d0f; /* Main section background */
+  --bg-card:    #101316; /* Card background */
+  --bg-elevated:#171a1f; /* Hover/Active background */
+  --bg-glass:   rgba(9, 12, 14, 0.8); /* For blurred overlays */
 
   /* --- TEXT SYSTEM --- */
-  --text-primary:   #e6edf7; /* Soft white for high readability */
-  --text-secondary: #8b95a9; /* Soft gray for descriptions */
-  --text-muted:     #5b6478; /* Faded gray for less important info */
+  --text-primary:   #e9f5f0; /* Soft white for high readability */
+  --text-secondary: #97a9a0; /* Soft gray-green for descriptions */
+  --text-muted:     #6d8579; /* Faded gray-green for less important info */
 
   /* --- BORDERS & LINES --- */
   --border:       rgba(255,255,255,0.06);
   --border-focus: rgba(16,185,129,0.55);
 
   /* --- GRADIENTS --- */
-  /* Emerald → green: energy in motion */
-  --grad-primary: linear-gradient(135deg, #10b981, #22c55e);
+  /* Deep forest → canopy: CTAs stay AA-legible with white text */
+  --grad-primary: linear-gradient(135deg, #047857, #065f46);
   --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
   --grad-hero:    radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.10) 0%, transparent 70%);
 
@@ -92,15 +94,15 @@
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
   /* Background — green & white */
-  --bg:         #f4fbf7;
+  --bg:         #f2faf6;
   --bg-surface: #ffffff;
   --bg-card:    #ffffff;
-  --bg-elevated:#e1f3ea;
+  --bg-elevated:#e0f1e8;
   --bg-glass:   rgba(255,255,255,0.8);
 
-  --text-primary:   #0f172a;
-  --text-secondary: #475569;
-  --text-muted:     #64748b; /* must stay darker than dark-mode muted — light bg needs dark text */
+  --text-primary:   #0e1713;
+  --text-secondary: #3f5b50;
+  --text-muted:     #5f7d71; /* must stay darker than dark-mode muted — light bg needs dark text */
 
   --border:       rgba(6,70,45,0.08);
   --border-focus: rgba(16,185,129,0.5);

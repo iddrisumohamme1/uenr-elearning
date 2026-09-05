@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const courseSelect = document.getElementById('course-select');
     const materialSelect = document.getElementById('material-select');
     const generateBtn = document.getElementById('generate-btn');
+    const generateCancelBtn = document.getElementById('generate-cancel-btn');
     const preview = document.getElementById('preview');
     const previewType = document.getElementById('preview-type');
     const previewTitle = document.getElementById('preview-title');
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedCourseName = '';
     let pendingResource = null;
     let pendingDeleteId = null;
+    let generateAbort = null;
 
     const closeModal = (m) => { if (m) m.hidden = true; };
     document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
@@ -227,13 +229,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Select a course and a material first.', 'warning');
             return;
         }
+        const controller = new AbortController();
+        generateAbort = controller;
         setButtonBusy(generateBtn, true);
+        generateCancelBtn.hidden = false;
         preview.hidden = true;
         try {
             const res = await authFetch(`${API_BASE}/api/resources/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ material_id: selectedMaterialId, resource_type: selectedFormat() }),
+                signal: controller.signal,
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
@@ -258,10 +264,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToast('Resources generation failed. Try again later.', 'error');
             }
         } catch (err) {
-            showToast('Resources generation failed. Try again later.', 'error');
+            if (err && err.name === 'AbortError') {
+                showToast('Generation cancelled.', 'info');
+            } else {
+                showToast('Resources generation failed. Try again later.', 'error');
+            }
         } finally {
+            if (generateAbort === controller) generateAbort = null;
+            generateCancelBtn.hidden = true;
             setButtonBusy(generateBtn, false);
         }
+    });
+
+    generateCancelBtn.addEventListener('click', () => {
+        if (generateAbort) generateAbort.abort();
     });
 
     modePreview.addEventListener('click', () => setMode('preview'));

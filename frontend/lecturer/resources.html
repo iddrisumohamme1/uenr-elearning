@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
-    <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="../shared/dropdown.css?v=2">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="resources.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -61,13 +61,13 @@
                 <div class="press-row">
                     <div class="press-field">
                         <label class="press-label" for="course-select">Course</label>
-                        <select id="course-select" class="form-input" data-dropdown required>
+                        <select id="course-select" class="form-input" data-dropdown data-dropdown-search data-dropdown-dir="down" required>
                             <option value="" disabled selected>Loading courses…</option>
                         </select>
                     </div>
                     <div class="press-field">
                         <label class="press-label" for="material-select">Material</label>
-                        <select id="material-select" class="form-input" data-dropdown required>
+                        <select id="material-select" class="form-input" data-dropdown data-dropdown-dir="down" required>
                             <option value="" disabled selected>Select a course first</option>
                         </select>
                     </div>
@@ -101,6 +101,9 @@
                     <button id="generate-btn" class="btn-auth btn-press">
                         <span class="btn-label"><i class="bi bi-magic"></i> Generate preview</span><span class="btn-spinner" hidden></span>
                     </button>
+                    <button id="generate-cancel-btn" class="btn-secondary btn-press" type="button" hidden>
+                        <span class="btn-label"><i class="bi bi-x-circle"></i> Cancel</span><span class="btn-spinner" hidden></span>
+                    </button>
                 </div>
 
                 <div id="preview" class="proof" hidden aria-live="polite">
@@ -111,7 +114,7 @@
                             <h3 id="preview-title">Preview</h3>
                             <p class="text-muted" id="preview-course"></p>
                         </div>
-                        <button id="publish-btn" class="btn-publish"><span class="btn-label"><i class="bi bi-send"></i> Publish for students</span><span class="btn-spinner" hidden></span></button>
+                        <button id="publish-btn" class="btn-publish"><span class="btn-label"><i class="bi bi-send"></i> Save </span><span class="btn-spinner" hidden></span></button>
                     </div>
                     <div class="proof-toolbar">
                         <div class="proof-tabs" role="tablist" aria-label="Proof mode">
@@ -165,8 +168,8 @@
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
-    <script src="../shared/dropdown.js"></script>
+    <script src="../shared/dropdown.js?v=2"></script>
     <script src="../shared/markdown.js"></script>
-    <script src="resources.js"></script>
+    <script src="resources.js?v=2"></script>
 </body>
 </html>

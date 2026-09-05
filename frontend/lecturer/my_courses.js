@@ -230,9 +230,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="material-title"><i class="bi bi-file-earmark-text"></i> ${escapeHTML(m.title)}</span>
                         <span class="material-meta">${formatOrg(m) ? escapeHTML(formatOrg(m)) + ' · ' : ''}${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</span>
                     </div>
-                    <button class="btn-material-remove" data-id="${m.id}" data-title="${escapeHTML(m.title)}" aria-label="Remove ${escapeHTML(m.title)}"><i class="bi bi-trash"></i> Remove</button>
+                    <div class="material-actions">
+                        <button class="btn-material-view" data-mat-id="${m.id}" data-mat-title="${escapeHTML(m.title)}" data-mat-type="${escapeHTML(m.content_type || '')}" data-mat-url="${escapeHTML(m.content_url || '')}" data-mat-render="${escapeHTML(m.render_url || '')}" aria-label="View ${escapeHTML(m.title)}"><i class="bi bi-eye"></i> View</button>
+                        <button class="btn-material-dl" data-mat-id="${m.id}" data-mat-title="${escapeHTML(m.title)}" aria-label="Download ${escapeHTML(m.title)}" title="Download"><i class="bi bi-download"></i></button>
+                        <button class="btn-material-remove" data-id="${m.id}" data-title="${escapeHTML(m.title)}" aria-label="Remove ${escapeHTML(m.title)}"><i class="bi bi-trash"></i> Remove</button>
+                    </div>
                 </div>
             `).join('');
+            materialsBody.querySelectorAll('.btn-material-view').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    MaterialPreview.open({
+                        id: btn.dataset.matId,
+                        title: btn.dataset.matTitle,
+                        content_type: btn.dataset.matType,
+                        content_url: btn.dataset.matUrl,
+                        render_url: btn.dataset.matRender,
+                    });
+                });
+            });
+            materialsBody.querySelectorAll('.btn-material-dl').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    MaterialPreview.download({ id: btn.dataset.matId, title: btn.dataset.matTitle });
+                });
+            });
             materialsBody.querySelectorAll('.btn-material-remove').forEach(btn => {
                 btn.addEventListener('click', () => openRemoveMaterial(btn.dataset.id, btn.dataset.title));
             });

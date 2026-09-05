@@ -33,12 +33,9 @@ def invalidate_user_cache(user_id: str):
             _AUTH_CACHE.pop(key, None)
 
 
-def get_current_user(authorization: str = Header(default="")):
-    """Validate the bearer token and return the user's profile row."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-
-    token = authorization.split(" ", 1)[1].strip()
+def _resolve_user(token: str) -> dict | None:
+    """Validate a bearer token and return the user's profile row, or None if
+    the token is missing/invalid."""
     admin = get_admin_client()
 
     key = hashlib.sha256(token.encode()).hexdigest()
@@ -53,11 +50,11 @@ def get_current_user(authorization: str = Header(default="")):
     except Exception as exc:
         import sys
         print(f"[SECURITY] get_user failed: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return None
 
     auth_user = getattr(result, "user", None)
     if auth_user is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return None
 
     # Attach the profile (role/department) for convenience.
     try:
@@ -69,6 +66,28 @@ def get_current_user(authorization: str = Header(default="")):
 
     _AUTH_CACHE[key] = (now, profile.data[0])
     return profile.data[0]
+
+
+def get_current_user(authorization: str = Header(default="")):
+    """Validate the bearer token and return the user's profile row."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    user = _resolve_user(authorization.split(" ", 1)[1].strip())
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return user
+
+
+def optional_current_user(authorization: str = Header(default="")):
+    """Like get_current_user, but returns None when no bearer token is sent.
+
+    Used by read-only endpoints that also accept a scoped query token (e.g.
+    media elements that cannot attach an Authorization header). An invalid
+    *present* token still resolves to None so callers can reject explicitly.
+    """
+    if not authorization.startswith("Bearer "):
+        return None
+    return _resolve_user(authorization.split(" ", 1)[1].strip())
 
 
 def require_role(*roles: str):

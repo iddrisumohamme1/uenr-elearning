@@ -1,17 +1,18 @@
 /* 
-   STUDENT INBOX PAGE LOGIC
-   frontend/student/inbox.js
+   STAFF INBOX PAGE LOGIC (shared by lecturer & HOD)
+   frontend/lecturer/inbox.js
 
    Two-pane conversation inbox: a left list of conversations (organized by
-   person) and a right thread rendered as left/right bubbles with a sticky
+   student) and a right thread rendered as left/right bubbles with a sticky
    composer.
 */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = await requireSession('student').catch(() => null);
+    const user = await requireSession('lecturer', 'hod').catch(() => null);
     if (!user) return;
 
-    document.querySelector('.avatar').textContent = user.full_name.charAt(0).toUpperCase();
+    const avatarEl = document.getElementById('user-avatar') || document.querySelector('.avatar');
+    if (avatarEl) avatarEl.textContent = user.full_name.charAt(0).toUpperCase();
     attachLogout('logout-btn');
     initProfilePopup();
 
@@ -22,12 +23,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const convosEl = document.getElementById('convos-list');
-    const threadEl = document.getElementById('thread');
     const threadNameEl = document.getElementById('thread-name');
     const threadMetaEl = document.getElementById('thread-meta');
     const threadAvatarEl = document.getElementById('thread-avatar');
     const messagesEl = document.getElementById('thread-messages');
-    const composerEl = document.getElementById('composer');
     const composerWrapEl = document.getElementById('composer-wrap');
     const composerInputEl = document.getElementById('composer-input');
     const composerSendEl = document.getElementById('composer-send');
@@ -61,51 +60,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    // Render the AI assistant's plain-text output as structured parts.
-    function renderAiContent(content) {
-        const headerRe = /^[📘📝📄🤖]/;
-        const lines = String(content || '').split('\n');
-        const out = [];
-        let list = [];
-
-        const flushList = () => {
-            if (list.length) {
-                out.push(`<ul class="ai-list">${list.map(li => `<li>${escapeHTML(li)}</li>`).join('')}</ul>`);
-                list = [];
-            }
-        };
-
-        lines.forEach((raw) => {
-            const line = raw.replace(/\s+$/, '');
-            const trimmed = line.trim();
-            if (!trimmed) return;
-            if (trimmed.startsWith('•')) {
-                list.push(trimmed.replace(/^•\s*/, '').trim());
-                return;
-            }
-            flushList();
-            if (headerRe.test(trimmed)) {
-                out.push(`<div class="ai-h"><i class="bi bi-magic" aria-hidden="true"></i>${escapeHTML(trimmed)}</div>`);
-            } else if (trimmed.startsWith('Assessment standing:') || trimmed.startsWith('Your current learning profile:')) {
-                out.push(`<div class="ai-note">${escapeHTML(trimmed)}</div>`);
-            } else {
-                out.push(`<p class="ai-p">${escapeHTML(trimmed)}</p>`);
-            }
-        });
-        flushList();
-        return out.join('');
-    }
-
     async function loadCourseNames() {
         try {
-            await swrGet('my-courses', `${API_BASE}/api/students/${user.id}/courses`, courses => {
+            await swrGet('courses', `${API_BASE}/api/courses/`, courses => {
                 courses.forEach(c => { if (c.id) courseNames[c.id] = c.title; });
             });
         } catch (err) { /* optional enrichment */ }
     }
 
     // ── Conversation grouping ─────────────────────────────────────
-    // Each conversation is keyed by the *other party* in the exchange.
     function buildConversations(messages) {
         const map = new Map();
         (messages || []).forEach(m => {
@@ -114,7 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!map.has(partner.id)) {
                 map.set(partner.id, {
                     id: partner.id,
-                    senderId: partner.senderId,
+                    recipientId: partner.recipientId,
                     name: partner.name,
                     role: partner.role,
                     isAI: partner.isAI,
@@ -141,32 +104,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function determinePartner(m, outgoing) {
-        // Every conversation is keyed by the *other party*, so both directions
-        // of a thread (incoming + outgoing) merge into a single two-way thread.
-        const other = outgoing ? (m.recipient || {}) : (m.users || {});
-        const isAI = other.role === 'assistant';
-        const key = isAI ? 'ai' : (outgoing ? `c-${m.recipient_id || 'staff'}` : `c-${m.sender_id || 'staff'}`);
-        const name = other.full_name || 'Your lecturer';
+        const senderName = (m.users && m.users.full_name) || 'Student';
+        const isAssistant = m.users && m.users.role === 'assistant';
+        const role = (m.users && m.users.role) || '';
 
         if (outgoing) {
-            // Sent message: the conversation partner is the recipient (lecturer/HOD/AI).
+            // Staff sent this → conversation partner is the recipient (student).
+            const partnerId = m.recipient_id || 'student';
             return {
-                id: key,
-                senderId: m.recipient_id,
-                name: name,
-                role: other.role || '',
-                isAI: isAI,
+                id: `out-${partnerId}`,
+                recipientId: partnerId,
+                name: (m.recipient && m.recipient.full_name) || 'Student',
+                role: (m.recipient && m.recipient.role) || 'student',
+                isAI: false,
                 courseId: m.course_id,
                 courseLabel: m.course_id && courseNames[m.course_id] ? courseNames[m.course_id] : ''
             };
         }
 
         return {
-            id: key,
-            senderId: m.sender_id,
-            name: name,
-            role: other.role || '',
-            isAI: isAI,
+            id: isAssistant ? 'ai' : `in-${m.sender_id || 'student'}`,
+            recipientId: m.sender_id,
+            name: isAssistant ? 'AI Insight Assistant' : senderName,
+            role: role,
+            isAI: isAssistant,
             courseId: m.course_id,
             courseLabel: m.course_id && courseNames[m.course_id] ? courseNames[m.course_id] : ''
         };
@@ -207,7 +168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ── Render conversation list (left pane) ─────────────────────
     function renderConvos() {
         if (!conversations.length) {
-            convosEl.innerHTML = '<div class="inbox-empty"><i class="bi bi-inbox"></i><p>No conversations yet. Lecturers and the AI assistant will message you here with feedback and study advice.</p></div>';
+            convosEl.innerHTML = '<div class="inbox-empty"><i class="bi bi-inbox"></i><p>No conversations yet. Reply to student messages here, or send a new one from your dashboard.</p></div>';
             return;
         }
 
@@ -239,14 +200,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activeId = btn.dataset.id;
                 renderConvos();
                 renderThread(conversations.find(c => c.id === activeId));
-                // Mark all incoming unread in this conversation as read.
                 const convo = conversations.find(c => c.id === activeId);
                 if (convo) {
                     convo.messages.filter(m => !m.outgoing && !m.is_read).forEach(m => markRead(m.id));
                 }
                 if (window.innerWidth <= 760) {
                     document.getElementById('inbox').classList.add('show-thread');
-                    threadEl.classList.add('show');
                 }
             });
         });
@@ -273,9 +232,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         threadNameEl.innerHTML = `${escapeHTML(name)}${convo.isAI ? '<span class="ai-tag">AI</span>' : ''}`;
         threadMetaEl.textContent = convo.courseLabel
             ? (convo.isAI ? 'Course insights' : convo.courseLabel)
-            : (convo.isAI ? 'Study assistant' : 'Conversation');
+            : (convo.isAI ? 'Study assistant' : 'Student');
 
-        // Render with date dividers.
         let lastDate = '';
         const rows = convo.messages.map(m => {
             const div = fmtDateDivider(m.created_at);
@@ -285,13 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 lastDate = div;
             }
             const isOutgoing = !!m.outgoing;
-            const isAI = !isOutgoing && convo.isAI;
-            let body;
-            if (isAI) {
-                body = renderAiContent(m.content);
-            } else {
-                body = escapeHTML(m.content);
-            }
+            let body = escapeHTML(m.content);
             const meta = isOutgoing ? `You · ${fmtTime(m.created_at)}` : `${fmtTime(m.created_at)}`;
             const readMark = isOutgoing && m.is_read ? '<i class="bi bi-check2-all"></i> ' : (isOutgoing ? '<i class="bi bi-check2"></i> ' : '');
             return `${divider}
@@ -305,17 +257,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messagesEl.innerHTML = rows;
 
-        // Show composer.
         composerWrapEl.style.display = 'flex';
         composerStatusEl.style.display = 'none';
         composerInputEl.value = '';
         composerInputEl.dataset.convoid = convo.id;
-        composerInputEl.dataset.senderid = convo.senderId || '';
-        composerInputEl.dataset.isai = convo.isAI ? '1' : '0';
+        composerInputEl.dataset.recipientid = convo.recipientId || '';
         composerInputEl.dataset.course = convo.courseId || '';
         composerInputEl.placeholder = convo.isAI
-            ? 'Ask the AI assistant about this course…'
-            : `Message ${convo.name}…`;
+            ? 'Message the AI assistant…'
+            : `Reply to ${convo.name}…`;
 
         scrollThreadToBottom();
     }
@@ -326,41 +276,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ── Composer send ─────────────────────────────────────────────
+    // ── Composer send (staff uses /send, not /reply) ──────────────
     async function sendComposer() {
         const input = composerInputEl;
         const text = input.value.trim();
         if (!text) return;
-        const convoId = input.dataset.convoid;
-        const isAI = input.dataset.isai === '1';
-        const senderId = input.dataset.senderid;
+        const recipientId = input.dataset.recipientid;
         const courseId = input.dataset.course;
+        const isAI = input.dataset.convoid === 'ai';
 
         setButtonBusy(composerSendEl, true);
         composerStatusEl.style.display = 'none';
         try {
-            let res;
-            if (isAI) {
-                res = await authFetch(`${API_BASE}/api/messages/ai/reply`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ course_id: courseId || null, message: text })
-                });
-            } else {
-                res = await authFetch(`${API_BASE}/api/messages/reply`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ recipient_id: senderId, course_id: courseId || null, content: text })
-                });
-            }
+            const res = await authFetch(`${API_BASE}/api/messages/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipient_id: recipientId, course_id: courseId || null, content: text })
+            });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                throw new Error(err.detail || 'Reply failed');
+                throw new Error(err.detail || 'Send failed');
             }
             invalidateApiCache('inbox');
             invalidateApiCache('nav-unread');
             await loadMessages(true);
-            showToast(isAI ? 'AI replied.' : 'Message sent.', 'success');
+            showToast('Message sent.', 'success');
         } catch (err) {
             composerStatusEl.textContent = err.message || 'Could not send. Try again.';
             composerStatusEl.style.display = 'block';
@@ -388,7 +328,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadMessages(keepConversation = false) {
-        // Instant paint from cache.
         const cached = cachedRead('inbox');
         if (cached) {
             courseNames = Object.assign({}, courseNames, cached.courseNames || {});
@@ -414,42 +353,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             cachedWrite('inbox', { messages, courseNames });
             conversations = buildConversations(messages);
             if (!keepConversation && !cached) {
-                // Fresh load: default to the most recent conversation.
                 renderConvos();
                 if (conversations.length) {
                     activeId = conversations[0].id;
                 }
             }
             renderEverything();
-            await runDailyInsight();
         } catch (err) {
             console.error('Error loading inbox:', err);
             if (!cached) {
-                convosEl.innerHTML = `<div class="inbox-empty"><i class="bi bi-inbox"></i><p>${escapeHTML((err && err.message) || 'Unable to load your messages.')}</p></div>`;
+                convosEl.innerHTML = `<div class="inbox-empty"><p>Unable to load your messages.</p></div>`;
                 showToast('Unable to load your inbox.', 'error');
             }
-        }
-    }
-
-    // Lazy daily AI generation.
-    async function runDailyInsight() {
-        try {
-            const res = await authFetch(`${API_BASE}/api/messages/insight-on-open`, { method: 'POST' });
-            if (!res.ok) return;
-            const data = await res.json().catch(() => ({}));
-            if (data && data.generated > 0) {
-                invalidateApiCache('inbox');
-                invalidateApiCache('nav-unread');
-                const fresh = await authFetch(`${API_BASE}/api/messages/inbox`);
-                if (fresh.ok) {
-                    const messages = await fresh.json();
-                    cachedWrite('inbox', { messages, courseNames });
-                    conversations = buildConversations(messages);
-                    renderEverything();
-                }
-            }
-        } catch (err) {
-            console.error('Daily insight generation failed:', err);
         }
     }
 
@@ -474,7 +389,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         backBtnEl.addEventListener('click', () => {
             const inbox = document.getElementById('inbox');
             inbox.classList.remove('show-thread');
-            threadEl.classList.remove('show');
         });
     }
 

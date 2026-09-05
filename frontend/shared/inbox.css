@@ -1,0 +1,434 @@
+/* 
+   SHARED INBOX STYLES
+   frontend/shared/inbox.css
+
+   Two-pane conversation layout shared by the student, lecturer and HOD
+   inbox pages:
+     - Left:  compact conversation list, organized by person.
+     - Right: the open thread as left/right bubbles with date dividers
+       and a sticky composer.
+   Use alongside the page's own top-bar/main-content layout.
+*/
+
+.inbox {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--s4);
+    max-width: 1080px;
+    height: calc(100vh - 180px);
+    min-height: 480px;
+}
+
+/* ── Conversation list (left pane) ─────────────────────────────── */
+.inbox-convos {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    background-image: var(--grad-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+}
+
+.inbox-convos-head {
+    padding: var(--s4) var(--s5) var(--s3);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inbox-convos-count {
+    color: var(--clr-primary-light);
+    font-weight: 800;
+    font-family: var(--font-display);
+}
+
+.inbox-convos-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--s2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inbox-convo {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s3);
+    border: 1px solid transparent;
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    transition: background var(--t-base), border-color var(--t-base);
+    animation: fadeInUp var(--t-slow) both;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+}
+
+.inbox-convo:hover { background: var(--bg-elevated); }
+
+.inbox-convo.active {
+    background: var(--primary-soft);
+    border-color: var(--border-focus);
+}
+
+.inbox-convo-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: #fff;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+    font-size: 0.95rem;
+}
+
+.inbox-convo-avatar .bi {
+    font-size: 1.1rem;
+    color: #fff;
+}
+
+.inbox-convo-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.inbox-convo-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s2);
+}
+
+.inbox-convo-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+}
+
+.inbox-convo-time {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.inbox-convo-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s2);
+    margin-top: 2px;
+}
+
+.inbox-convo-preview-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inbox-convo.unread .inbox-convo-name { color: var(--text-primary); }
+
+.inbox-convo-badge {
+    flex-shrink: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #fff;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+    box-shadow: var(--shadow-glow);
+}
+
+.inbox-convo.unread .inbox-convo-preview-text { color: var(--text-primary); font-weight: 600; }
+
+/* ── Thread pane (right side) ──────────────────────────────────── */
+.inbox-thread {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg-card);
+    background-image: var(--grad-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+}
+
+.inbox-thread-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s5);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+}
+
+.inbox-thread-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: #fff;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+    font-size: 0.95rem;
+}
+
+.inbox-thread-avatar .bi { font-size: 1.1rem; color: #fff; }
+
+.inbox-thread-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.inbox-thread-name {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.inbox-thread-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.inbox-thread-back {
+    display: none;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+/* The emerald ribbon on the active thread — the app's "energy" signature */
+.inbox-thread-head {
+    border-left: 3px solid var(--clr-primary);
+}
+
+/* Scrollable message body */
+.inbox-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--s5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    scroll-behavior: smooth;
+}
+
+/* Date divider: "Today" / "Yesterday" / "Sep 2" */
+.inbox-date {
+    align-self: center;
+    margin: var(--s2) 0;
+    padding: 3px 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-full);
+}
+
+/* Bubbles */
+.inbox-bubble-row {
+    display: block;
+    animation: fadeInUp var(--t-slow) both;
+}
+
+.inbox-bubble-row.inbox-in { text-align: left; }
+.inbox-bubble-row.inbox-out { text-align: right; }
+
+.inbox-bubble {
+    display: inline-block;
+    text-align: left;
+    max-width: 55%;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--r-lg);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    position: relative;
+}
+
+.inbox-bubble.inbox-out {
+    background: var(--grad-primary);
+    color: #fff;
+    border-bottom-right-radius: var(--r-sm);
+}
+
+.inbox-bubble.inbox-in {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-bottom-left-radius: var(--r-sm);
+}
+
+.inbox-bubble-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.7rem;
+    opacity: 0.85;
+}
+
+.inbox-in .inbox-bubble-meta { color: var(--text-muted); }
+.inbox-out .inbox-bubble-meta { color: rgba(255, 255, 255, 0.85); }
+
+.inbox-bubble a { text-decoration: underline; }
+.inbox-out .inbox-bubble a { color: #fff; }
+
+/* AI bubble banner + styled content inside a thread */
+.inbox-bubble.inbox-in .ai-content {
+    margin-top: 0;
+    border: none;
+    border-left: 3px solid var(--clr-accent);
+    padding: 0.25rem 0 0.25rem 0.7rem;
+    max-height: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+    background: transparent;
+}
+
+.inbox-bubble.inbox-in .ai-list { list-style: none; }
+
+.inbox-bubble.inbox-in .ai-h { font-size: 0.9rem; }
+
+.inbox-bubble.inbox-in .ai-note,
+.inbox-bubble.inbox-in .ai-p { color: var(--text-secondary); }
+
+.inbox-bubble.inbox-in .ai-h,
+.inbox-bubble.inbox-in .ai-tag { display: inline; }
+
+/* ── Composer (sticky footer) ───────────────────────────────────── */
+.inbox-composer {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    border-top: 1px solid var(--border);
+    background: var(--bg-surface);
+}
+
+.inbox-composer textarea {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    padding: 0.6rem 0.9rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--text-primary);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    outline: none;
+    max-height: 120px;
+    transition: border-color var(--t-base);
+}
+
+.inbox-composer textarea:focus { border-color: var(--clr-primary); }
+.inbox-composer textarea::placeholder { color: var(--text-muted); }
+
+.inbox-composer-send {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: var(--r-full);
+    background: var(--grad-primary);
+    color: #fff;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform var(--t-base), box-shadow var(--t-base);
+}
+
+.inbox-composer-send:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+.inbox-composer-send:disabled { opacity: 0.6; cursor: default; }
+
+.inbox-composer-status {
+    font-size: 0.75rem;
+    color: var(--clr-danger);
+    align-self: center;
+}
+
+/* Empty / placeholder states */
+.inbox-thread-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s3);
+    padding: var(--s10);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.inbox-thread-placeholder i { font-size: 2.4rem; color: var(--border-strong); }
+.inbox-thread-placeholder h3 { font-size: 1.1rem; }
+.inbox-thread-placeholder p { font-size: 0.85rem; max-width: 300px; }
+
+.inbox-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--s10);
+}
+
+.inbox-empty i { font-size: 2.4rem; color: var(--border-strong); display: block; margin-bottom: var(--s3); }
+
+/* ── Mobile: stack the panes, list becomes a back-navigation ────── */
+@media (max-width: 760px) {
+    .inbox {
+        grid-template-columns: 1fr;
+        height: calc(100vh - 190px);
+    }
+
+    .inbox-thread { display: none; }
+    .inbox-thread.show { display: flex; }
+
+    .inbox.show-thread .inbox-convos { display: none; }
+
+    .inbox-thread-back { display: inline-flex; }
+}

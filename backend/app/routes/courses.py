@@ -219,7 +219,7 @@ def delete_course(course_id: str, user=Depends(require_role("hod"))):
     try:
         materials_resp = with_retry(
             lambda c: c.table("materials")
-            .select("id, content_url")
+            .select("id, content_url, render_url")
             .eq("course_id", course_id)
             .execute()
         )
@@ -288,12 +288,20 @@ def delete_course(course_id: str, user=Depends(require_role("hod"))):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to delete course: {exc}")
 
-    # Clean up the uploaded material files for this course in storage.
+    # Clean up the uploaded material files for this course in storage. Handles
+    # both the modern path form and legacy public-URL rows.
     for row in material_rows:
-        content_url = row.get("content_url") or ""
-        if content_url and "/materials/" in content_url:
-            path = content_url.split("/materials/", 1)[-1].split("?")[0]
-            if path:
+        seen = set()
+        for key in ("content_url", "render_url"):
+            value = (row.get(key) or "").strip()
+            if not value:
+                continue
+            marker = "/materials/"
+            if marker in value:
+                value = value.split(marker, 1)[-1]
+            path = value.split("?")[0].strip("/")
+            if path and path not in seen:
+                seen.add(path)
                 try:
                     get_storage_client().from_("materials").remove([path])
                 except Exception:

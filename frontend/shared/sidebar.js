@@ -26,6 +26,7 @@
             { folder: 'hod', file: 'upload.html', icon: 'bi-cloud-arrow-up', label: 'Upload Material' },
             { folder: 'lecturer', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
             { folder: 'lecturer', file: 'resources.html', icon: 'bi-lightbulb', label: 'Study Resources' },
+            { folder: 'lecturer', file: 'inbox.html', icon: 'bi-inbox', label: 'Inbox' },
             { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
         lecturer: [
@@ -34,6 +35,7 @@
             { folder: 'lecturer', file: 'my_courses.html', icon: 'bi-journal-bookmark', label: 'My Courses' },
             { folder: 'lecturer', file: 'assignments.html', icon: 'bi-journal-check', label: 'Assignments' },
             { folder: 'lecturer', file: 'resources.html', icon: 'bi-lightbulb', label: 'Study Resources' },
+            { folder: 'lecturer', file: 'inbox.html', icon: 'bi-inbox', label: 'Inbox' },
             { folder: 'settings', file: 'settings.html', icon: 'bi-gear', label: 'Settings' },
         ],
         student: [

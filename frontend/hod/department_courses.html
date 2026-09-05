@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
     <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="../shared/material-preview.css">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="hod-dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -112,6 +113,17 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="modal-overlay" id="materials-modal" hidden>
+                    <div class="modal-card modal-card--wide" role="dialog" aria-modal="true" aria-labelledby="materials-modal-title">
+                        <div class="modal-head">
+                            <h3 id="materials-modal-title">Course Materials</h3>
+                            <button class="modal-close" data-close-modal="materials-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <p class="modal-body text-muted" id="materials-modal-sub"></p>
+                        <div id="materials-modal-body" class="materials-list"></div>
+                    </div>
+                </div>
         </main>
     </div>
     <script src="../shared/sidebar.js"></script>
@@ -120,6 +132,7 @@
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
     <script src="../shared/dropdown.js"></script>
-    <script src="department_courses.js"></script>
+    <script src="../shared/material-preview.js?v=2"></script>
+    <script src="department_courses.js?v=2"></script>
 </body>
 </html>

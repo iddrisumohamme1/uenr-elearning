@@ -166,6 +166,37 @@
   text-align: center;
 }
 
+/* Searchable panel — search row pinned top, options scroll below */
+.dd__panel--search {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dd__search-wrap { padding: 0 0.1rem 0.4rem; }
+.dd__search {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.dd__search::placeholder { color: var(--text-muted); }
+.dd__search:focus {
+  border-color: var(--border-focus);
+  box-shadow: var(--ring);
+}
+.dd__list {
+  min-height: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.dd__option--gone { display: none !important; }
+
 /* Mobile / touch — the panel becomes a bottom sheet.
    Only applies on coarse-pointer (touch) devices under 560px, so a narrow
    desktop/devtools window keeps the anchored inline dropdown instead of
@@ -201,6 +232,7 @@
     animation-name: ddSheetIn;
   }
   .dd__option { padding: 0.75rem; font-size: 1rem; }
+  .dd__panel--search .dd__list { max-height: calc(60vh - 5.5rem); }
 }
 @keyframes ddSheetIn {
   from { opacity: 0; transform: translateY(100%); }

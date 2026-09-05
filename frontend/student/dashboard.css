@@ -370,7 +370,7 @@ body.role-student .top-bar-sub {
 }
 
 /* ── Stats: warm bubble tiles, one tint per metric ──────────────────────── */
-body.role-student .stat-card--energy { --tint: rgba(16, 185, 129, 0.10); --tint-strong: rgba(16, 185, 129, 0.45); --ink: #34d399; --icon-bg: linear-gradient(135deg, #10b981, #047857); }
+body.role-student .stat-card--energy { --tint: rgba(16, 185, 129, 0.10); --tint-strong: rgba(16, 185, 129, 0.45); --ink: #34d399; --icon-bg: linear-gradient(135deg, #047857, #065f46); }
 body.role-student .stat-card--courses{ --tint: rgba(45, 212, 191, 0.10); --tint-strong: rgba(45, 212, 191, 0.45); --ink: #2dd4bf; --icon-bg: linear-gradient(135deg, #14b8a6, #0f766e); }
 body.role-student .stat-card--done   { --tint: rgba(163, 230, 53, 0.09); --tint-strong: rgba(163, 230, 53, 0.4);  --ink: #a3e635; --icon-bg: linear-gradient(135deg, #84cc16, #3f6212); }
 body.role-student .stat-card--grade  { --tint: rgba(251, 191, 36, 0.11); --tint-strong: rgba(251, 191, 36, 0.45); --ink: #fbbf24; --icon-bg: linear-gradient(135deg, #f59e0b, #b45309); }

@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="../shared/profile-popup.css">
     <link rel="stylesheet" href="../shared/spinner.css">
     <link rel="stylesheet" href="../shared/sidebar.css">
-    <link rel="stylesheet" href="../shared/dropdown.css">
+    <link rel="stylesheet" href="../shared/dropdown.css?v=2">
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="upload.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
                     <form id="upload-form" novalidate>
                         <div class="form-group">
                             <label class="form-label" for="course-select">Select Course</label>
-                            <select id="course-select" class="form-input" data-dropdown required>
+                            <select id="course-select" class="form-input" data-dropdown data-dropdown-search data-dropdown-dir="down" required>
                                 <option value="" disabled selected>Loading courses...</option>
                             </select>
                         </div>
@@ -100,7 +100,7 @@
     <script src="../shared/session.js"></script>
     <script src="../shared/profile-popup.js"></script>
     <script src="../shared/toast.js"></script>
-    <script src="../shared/dropdown.js"></script>
+    <script src="../shared/dropdown.js?v=2"></script>
     <script src="upload.js"></script>
 </body>
 </html>

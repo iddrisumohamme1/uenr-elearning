@@ -13,16 +13,18 @@
     --rd-gold:       #f59e0b;
     --rd-mono:       'IBM Plex Mono', ui-monospace, monospace;
 
-    --bg:           #060a12;
-    --bg-surface:   #0b101c;
-    --bg-card:      #101625;
-    --bg-elevated:  #161e30;
+    --bg:           #060708;
+    --bg-surface:   #0b0d0f;
+    --bg-card:      #101316;
+    --bg-elevated:  #171a1f;
 
-    --text-primary:   #e6edf7;
-    --text-secondary: #8b95a9;
-    --text-muted:     #5b6478;
+    --text-primary:   #e9f5f0;
+    --text-secondary: #97a9a0;
+    --text-muted:     #6d8579;
 
     --clr-primary:    #10b981;
+    --clr-primary-deep: #047857;
+    --clr-secondary:  #065f46;
     --clr-accent:     #10b981;
     --clr-energy:     #f59e0b;
     --clr-success:    #34d399;
@@ -37,21 +39,21 @@
     --border-strong: rgba(255, 255, 255, 0.12);
     --border-focus:  rgba(16, 185, 129, 0.5);
 
-    --grad-primary:  linear-gradient(135deg, #10b981, #22c55e);
+    --grad-primary:  linear-gradient(135deg, #047857, #065f46);
     --grad-surface:  linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
     --shadow-glow:   0 0 30px rgba(16, 185, 129, 0.16);
     --ring:          0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 [data-theme="light"] {
-    --bg:           #f4fbf7;
+    --bg:           #f2faf6;
     --bg-surface:   #ffffff;
     --bg-card:      #ffffff;
-    --bg-elevated:  #e1f3ea;
+    --bg-elevated:  #e0f1e8;
 
-    --text-primary:   #0e1a2b;
-    --text-secondary: #475569;
-    --text-muted:     #64748b;
+    --text-primary:   #0e1713;
+    --text-secondary: #3f5b50;
+    --text-muted:     #5f7d71;
 
     --primary-soft: rgba(16, 185, 129, 0.1);
     --success-soft: rgba(52, 211, 153, 0.12);

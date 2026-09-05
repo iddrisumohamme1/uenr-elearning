@@ -23,7 +23,7 @@ An intelligent web-based e-learning platform that monitors student engagement an
 | Recommendations | YouTube Data API v3 + curated resource catalog |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth + JWT Bearer Tokens |
-| Storage | Supabase Storage (materials, avatars) |
+| Storage | Supabase Storage (private `materials` bucket, avatars) |
 | Design System | Shared CSS variables, light/dark theme, responsive breakpoints |
 | Hosting | Render (FastAPI web service) + Vercel (static frontend) |
 
@@ -42,6 +42,8 @@ FYP/
 │   │   ├── spinner.css           # Loading spinners, skeletons, button loaders
 │   │   ├── toast.css + toast.js  # Toast notifications (success/error/warning/info)
 │   │   ├── profile-popup.css + profile-popup.js # Profile popup with avatar upload
+│   │   ├── material-preview.css + material-preview.js # Staff read-only material preview modal (PDF.js / video / image / iframe + download)
+│   │   ├── vendor/pdfjs/         # Vendored PDF.js used by the viewer & preview modal
 │   │   ├── theme.js              # Light/dark theme toggle (localStorage)
 │   │   └── session.js            # Auth session, token refresh, role guards, nav badges
 │   ├── auth/                     # Login & Register (validation, confirm password, auto-login)
@@ -62,12 +64,12 @@ FYP/
 │   │   ├── main.py               # App entry point, CORS, routers
 │   │   ├── core/
 │   │   │   ├── config.py         # Environment settings (backend/.env)
-│   │   │   └── security.py       # JWT auth, role-based access (get_current_user, require_role)
+│   │   │   └── security.py       # JWT auth, role-based access (get_current_user, require_role, optional_current_user)
 │   │   ├── database.py           # Supabase client (admin + anon)
 │   │   ├── routes/
 │   │   │   ├── auth.py           # Register, login, token refresh
 │   │   │   ├── courses.py        # Course CRUD, enrollment
-│   │   │   ├── materials.py      # Material upload, listing, proxy (SSRF-protected, Range-aware for video seeking)
+│   │   │   ├── materials.py      # Material upload, listing, private-bucket serving (/view + /view-token + /download), delete
 │   │   │   ├── engagement.py     # Telemetry logging, Two-Tower classification
 │   │   │   ├── highlights.py     # Persistent PDF text highlights (create/list/delete)
 │   │   │   ├── analytics.py      # Lecturer, HOD & study analytics
@@ -89,6 +91,7 @@ FYP/
 │   │       ├── youtube_service.py      # YouTube Data API integration
 │   │       ├── material_content.py     # Material content extraction
 │   │       └── grades.py               # Grade computation
+│   ├── scripts/                  # Maintenance scripts (backfill_conversions.py — Legacy public-URL → render-path backfill)
 │   ├── .env.example              # Backend environment template
 │   └── requirements.txt
 ├── ml/                           # ML inference code & trained model
@@ -191,7 +194,9 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - **Responsive**: tablet (769–1100px) gets an off-canvas contents drawer; phones switch Contents/Material tabs and get ≥44px touch targets
 - **Touch-friendly highlighting**: tapping a saved highlight raises a Remove bubble (hover-only badges stay desktop-only), so every pointer path has an equivalent non-hover path
 - **Video player**: native HTML5 controls (accessible out of the box), starts paused with `preload="metadata"` and `playsinline`, 16:9 shell, inline download fallback for unsupported browsers
-- **Range-aware proxy**: the material proxy forwards HTTP `Range` requests upstream, so video seeking works through the SSRF-protected endpoint instead of re-downloading the whole file
+- **Access-checked serving**: files are streamed from the **private** storage bucket through `/api/materials/view/{id}` (signed URL + Range passthrough, so seeking still works). Native media elements (<img>/<video>/<iframe>, PDF.js) can't send an Authorization header, so they authenticate with a short-lived, material-scoped HMAC view token from `/api/materials/view-token/{id}`
+- **Staff preview**: lecturers and HODs can open any course material in a read-only preview modal (PDF.js rendering / video / image / inline iframe) or download it — no storage URL is ever exposed to the browser
+- **Private bucket**: the `materials` bucket is private; uploads store storage paths (legacy public URLs are normalized on read, and the delete/backfill paths handle both forms)
 
 ### PDF Highlighting (Active Reading)
 - Select any passage in an uploaded PDF → pick amber/green/blue from the floating swatches → saved to Supabase
@@ -249,11 +254,13 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - AI tutor: in-page Q&A grounded in the selected course's material content
 
 ### Messaging & Attendance
-- Student ↔ lecturer inbox with unread-count badges
+- Student ↔ lecturer/HOD inbox with unread-count badges
+- **Two-way AI assistant thread**: the student inbox renders proper two-way conversations — a student's own prompts *and* the AI assistant's replies appear in one thread, with lecturer and HOD threads merged into a single conversation per person (sender/recipient roles drive the pairing, so "AI" messages are never lost to a ghost outbox)
 - Attendance logging per student
 
 ### Design System
 - **Dark mode** (default) and **light mode** toggle
+- Neutral dark theme (no colour cast) with WCAG AA emerald tokens; CTAs use the deep-forest gradient (`#047857 → #065f46`)
 - CSS custom properties for all tokens (colors, spacing, typography, shadows)
 - Responsive breakpoints: 772px (collapsed icon sidebar), 560px (off-canvas drawer), 400px (compact)
 - Shared sidebar across all roles: injected nav with icons/labels, unread-count badges,
@@ -269,13 +276,14 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Profile avatar + popup with avatar upload on every authenticated page
 - Shared custom dropdown and pulse components across all roles
 - Toast notifications, loading spinners, skeleton placeholders, button loaders
+- Custom dropdown with searchable (top-down) and menu-down variants (`data-dropdown-search`, `data-dropdown-dir="down"`)
 
 ### Security
 - JWT bearer token authentication via Supabase
 - Role-based access control (student, lecturer, HOD)
 - Students can only access their own data
 - Quiz/assignment submission authorization (prevents submitting as another student)
-- SSRF protection on the material proxy endpoint
+- **Private material storage**: the `materials` bucket is private; files are served only through access-checked endpoints (signed Supabase URLs, short-lived and never exposed to the browser). Native media authenticate with material-scoped HMAC view tokens that cannot be replayed on other materials and never leak the user's JWT
 - Real credentials live only in the gitignored `backend/.env`
 
 ## API Endpoints
@@ -289,7 +297,10 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 | POST | `/api/courses/enroll` | Yes | Enroll in a course |
 | POST | `/api/materials/upload` | Lecturer/HOD | Upload course material |
 | GET | `/api/materials/course/{id}` | Yes | Get course materials |
-| GET | `/api/materials/proxy` | Yes | Proxy Supabase storage file |
+| DELETE | `/api/materials/{material_id}` | Lecturer/HOD | Delete a material (DB + storage cleanup) |
+| GET | `/api/materials/download?id=` | Yes | Download a material (records student downloads) |
+| GET | `/api/materials/view/{material_id}` | Yes / `?vt=` token | Stream a material inline (signed URL, Range-aware) |
+| GET | `/api/materials/view-token/{material_id}` | Yes | Issue a short-lived material-scoped HMAC view token |
 | POST | `/api/engagement/log` | Yes | Log student engagement metrics |
 | POST | `/api/engagement/classify` | Yes | Run Two-Tower classification |
 | POST | `/api/engagement/auto-classify` | Yes | Auto-classify from telemetry |

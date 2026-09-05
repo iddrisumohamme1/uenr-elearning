@@ -10,27 +10,31 @@
  */
 
 :root {
-  /* Brand Colors — green & white system: emerald (energy / natural
-     resources) with a two-tone green pair for gradients and depth */
+  /* Brand Colors — emerald (forest canopy / natural resources) with a
+     two-tone green pair for gradients and depth. Primary stays the
+     signature accent; deep forest tones carry solid CTA fills so white
+     labels meet WCAG AA (4.5:1). */
   --clr-primary:      #10b981;
+  --clr-primary-deep: #047857; /* Solid CTA fill — white text 5.5:1 */
   --clr-primary-dark: #059669;
   --clr-primary-light:#34d399;
+  --clr-secondary:    #065f46; /* Deep forest fill — white text 7.7:1 */
   --clr-accent:       #16a34a;
   --clr-energy:       #4ade80;
   --clr-success:      #22c55e;
   --clr-warning:      #f59e0b;
   --clr-danger:       #ef4444;
 
-  /* Background */
-  --bg:         #060a12;
-  --bg-surface: #0b101c;
-  --bg-card:    #101625;
-  --bg-elevated:#161e30;
+  /* Background — neutral near-black scale (no hue cast) */
+  --bg:         #060708;
+  --bg-surface: #0b0d0f;
+  --bg-card:    #101316;
+  --bg-elevated:#171a1f;
 
   /* Text */
-  --text-primary:   #e6edf7;
-  --text-secondary: #8b95a9;
-  --text-muted:     #5b6478;
+  --text-primary:   #e9f5f0;
+  --text-secondary: #97a9a0;
+  --text-muted:     #6d8579;
 
   /* Soft / translucent accents (for pills, hovers, active states) */
   --primary-soft: rgba(16,185,129,0.12);
@@ -41,15 +45,15 @@
   --danger-soft:  rgba(239,68,68,0.12);
 
   /* Glass surface for blurred overlays and elevated cards */
-  --bg-glass: rgba(11,16,28,0.8);
+  --bg-glass: rgba(9,12,14,0.8);
 
   /* Borders */
   --border:       rgba(255,255,255,0.06);
   --border-strong:rgba(255,255,255,0.12);
   --border-focus: rgba(16,185,129,0.55);
 
-  /* Gradients — emerald → green: energy in motion */
-  --grad-primary: linear-gradient(135deg,#10b981,#22c55e);
+  /* Gradients — deep forest → canopy: CTAs stay AA-legible with white text */
+  --grad-primary: linear-gradient(135deg,#047857,#065f46);
   --grad-success: linear-gradient(135deg,#22c55e,#16a34a);
   --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
   --grad-hero:    radial-gradient(ellipse at 60% 30%, rgba(16,185,129,0.10) 0%,transparent 60%);
@@ -96,15 +100,15 @@
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
   /* Background — green & white */
-  --bg:         #f4fbf7;
+  --bg:         #f2faf6;
   --bg-surface: #ffffff;
   --bg-card:    #ffffff;
-  --bg-elevated:#e1f3ea;
+  --bg-elevated:#e0f1e8;
 
   /* Text */
-  --text-primary:   #0f172a;
-  --text-secondary: #475569;
-  --text-muted:     #64748b; /* must stay darker than dark-mode muted — light bg needs dark text */
+  --text-primary:   #0e1713;
+  --text-secondary: #3f5b50;
+  --text-muted:     #5f7d71; /* must stay darker than dark-mode muted — light bg needs dark text */
 
   /* Soft accents */
   --primary-soft: rgba(16,185,129,0.08);
@@ -133,6 +137,6 @@
   /* Focus ring */
   --ring: 0 0 0 3px rgba(16,185,129,0.2);
 
-  /* Gradients stay the same (--grad-primary, --grad-success) */
+  /* Gradients stay the same across themes (--grad-primary, --grad-success) */
   --grad-surface: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%);
 }

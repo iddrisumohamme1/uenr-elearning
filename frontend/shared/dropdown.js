@@ -64,6 +64,60 @@
         panel.setAttribute('id', panelId);
         panel.hidden = true;
 
+        const searchable = select.hasAttribute('data-dropdown-search');
+        const forcedDown = select.dataset.dropdownDir === 'down';
+        let searchBox = null;
+        let listEl = null;
+        let emptyEl = null;
+
+        if (searchable) {
+            panel.classList.add('dd__panel--search');
+
+            const searchWrap = document.createElement('div');
+            searchWrap.className = 'dd__search-wrap';
+            searchBox = document.createElement('input');
+            searchBox.type = 'search';
+            searchBox.className = 'dd__search';
+            searchBox.setAttribute('aria-label', 'Search options');
+            searchBox.placeholder = 'Search…';
+            searchWrap.appendChild(searchBox);
+
+            listEl = document.createElement('div');
+            listEl.className = 'dd__list';
+            emptyEl = document.createElement('div');
+            emptyEl.className = 'dd__empty';
+            emptyEl.hidden = true;
+            emptyEl.textContent = 'No matching options';
+
+            panel.appendChild(searchWrap);
+            panel.appendChild(listEl);
+            panel.appendChild(emptyEl);
+
+            searchBox.addEventListener('input', function () {
+                query = searchBox.value.trim().toLowerCase();
+                applyFilter();
+            });
+            searchBox.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const first = optionButtons.find(function (b) {
+                        return !b.disabled && !b.classList.contains('dd__option--gone');
+                    });
+                    if (first) first.focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const last = optionButtons.slice().reverse().find(function (b) {
+                        return !b.disabled && !b.classList.contains('dd__option--gone');
+                    });
+                    if (last) last.focus();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    close();
+                    trigger.focus();
+                }
+            });
+        }
+
         select.classList.add('dd__native');
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(trigger);
@@ -79,36 +133,63 @@
         if (select.disabled) trigger.disabled = true;
 
         let optionButtons = [];
+        let query = '';
+
+        function makeOption(opt) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dd__option';
+            btn.setAttribute('role', 'option');
+            btn.dataset.value = opt.value;
+            btn.innerHTML =
+                '<span class="dd__option-text"></span>' +
+                '<span class="dd__check" aria-hidden="true"><i class="bi bi-check-lg"></i></span>';
+            btn.querySelector('.dd__option-text').textContent = opt.textContent;
+            if (opt.disabled) {
+                btn.setAttribute('aria-disabled', 'true');
+                btn.disabled = true;
+            }
+            btn.addEventListener('click', function () { selectOption(opt.value); });
+            optionButtons.push(btn);
+            return btn;
+        }
+
+        function applyFilter() {
+            if (!searchable) return;
+            const q = query;
+            let visible = 0;
+            optionButtons.forEach(function (btn) {
+                const text = btn.querySelector('.dd__option-text').textContent.toLowerCase();
+                const match = !q || text.indexOf(q) !== -1;
+                btn.classList.toggle('dd__option--gone', !match);
+                if (match) visible++;
+            });
+            emptyEl.hidden = visible > 0;
+        }
 
         function buildOptions() {
             const options = Array.prototype.slice.call(select.options);
-            panel.innerHTML = '';
             optionButtons = [];
 
             if (options.length === 0) {
-                panel.innerHTML = '<div class="dd__empty">No options</div>';
+                if (searchable) {
+                    listEl.innerHTML = '';
+                    emptyEl.hidden = false;
+                    emptyEl.textContent = 'No options';
+                } else {
+                    panel.innerHTML = '<div class="dd__empty">No options</div>';
+                }
                 return;
             }
 
-            options.forEach(function (opt) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'dd__option';
-                btn.setAttribute('role', 'option');
-                btn.dataset.value = opt.value;
-                btn.innerHTML =
-                    '<span class="dd__option-text"></span>' +
-                    '<span class="dd__check" aria-hidden="true"><i class="bi bi-check-lg"></i></span>';
-                btn.querySelector('.dd__option-text').textContent = opt.textContent;
-                if (opt.disabled) {
-                    btn.setAttribute('aria-disabled', 'true');
-                    btn.disabled = true;
-                }
-                btn.addEventListener('click', function () { selectOption(opt.value); });
-                panel.appendChild(btn);
-                optionButtons.push(btn);
-            });
-
+            if (searchable) {
+                listEl.innerHTML = '';
+                options.forEach(function (opt) { listEl.appendChild(makeOption(opt)); });
+                applyFilter();
+            } else {
+                panel.innerHTML = '';
+                options.forEach(function (opt) { panel.appendChild(makeOption(opt)); });
+            }
             syncSelected();
         }
 
@@ -142,6 +223,7 @@
 
         function positionPanel() {
             panel.classList.remove('dd__panel--up');
+            if (forcedDown) return;
             const rect = panel.getBoundingClientRect();
             if (rect.bottom > window.innerHeight) {
                 panel.classList.add('dd__panel--up');
@@ -156,6 +238,10 @@
             openPanel = panel;
             trigger.setAttribute('aria-expanded', 'true');
 
+            if (searchable && !isSheet()) {
+                searchBox.focus();
+                return;
+            }
             const selected = optionButtons.find(function (b) { return !b.disabled && b.dataset.value === select.value; });
             const focusTarget = selected || optionButtons.find(function (b) { return !b.disabled; });
             if (focusTarget) focusTarget.focus();
@@ -186,7 +272,7 @@
         });
 
         panel.addEventListener('keydown', function (e) {
-            const enabled = optionButtons.filter(function (b) { return !b.disabled; });
+            const enabled = optionButtons.filter(function (b) { return !b.disabled && !b.classList.contains('dd__option--gone'); });
             if (enabled.length === 0) return;
 
             let idx = enabled.indexOf(document.activeElement);

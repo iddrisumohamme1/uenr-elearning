@@ -219,6 +219,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <button class="course-action course-action--assign" data-assign="${course.id}" title="Assign a lecturer">
                                 <i class="bi bi-person-plus"></i> ${assigned ? 'Reassign' : 'Assign'}
                             </button>
+                            <button class="course-action course-action--materials" data-materials="${course.id}" title="View course materials">
+                                <i class="bi bi-folder2-open"></i> Materials
+                            </button>
                             <button class="course-action course-action--danger" data-delete="${course.id}" title="Delete course">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -263,14 +266,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     courseList.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-assign], button[data-delete]');
+        const btn = e.target.closest('button[data-assign], button[data-delete], button[data-materials]');
         if (!btn) return;
-        const courseId = btn.dataset.assign || btn.dataset.delete;
+        const courseId = btn.dataset.assign || btn.dataset.delete || btn.dataset.materials;
         const course = deptCourses.find(c => c.id === courseId);
         if (!course) return;
         if (btn.hasAttribute('data-assign')) openAssignModal(course);
         else if (btn.hasAttribute('data-delete')) openDeleteModal(course);
+        else if (btn.hasAttribute('data-materials')) openMaterialsModal(course);
     });
+
+    const materialsModal = document.getElementById('materials-modal');
+    const materialsModalTitle = document.getElementById('materials-modal-title');
+    const materialsModalSub = document.getElementById('materials-modal-sub');
+    const materialsModalBody = document.getElementById('materials-modal-body');
+
+    function openMaterialsModal(course) {
+        materialsModalTitle.textContent = course.title || 'Course Materials';
+        materialsModalSub.textContent = `${course.code || 'Course'} ${course.title || ''}`.trim();
+        materialsModalBody.innerHTML = '<div class="loading-wrapper loading-full"><div class="spinner"></div><p>Loading materials…</p></div>';
+        openModal(materialsModal);
+
+        authFetch(`${API_BASE}/api/materials/course/${course.id}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to load materials');
+                return res.json();
+            })
+            .then(data => {
+                const materials = (data && data.materials) || [];
+                if (!materials.length) {
+                    materialsModalBody.innerHTML = '<p class="text-muted">No materials uploaded for this course yet.</p>';
+                    return;
+                }
+                materialsModalBody.innerHTML = materials.map(m => `
+                    <div class="mat-row">
+                        <div class="mat-info">
+                            <span class="mat-title"><i class="bi bi-file-earmark-text"></i> ${escapeHTML(m.title)}</span>
+                            <span class="mat-meta">${m.week_number != null ? 'Week ' + escapeHTML(String(m.week_number)) + ' · ' : ''}${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</span>
+                        </div>
+                        <div class="mat-actions">
+                            <button class="mat-btn mat-btn--view" data-mat-id="${m.id}" data-mat-title="${escapeHTML(m.title)}" data-mat-type="${escapeHTML(m.content_type || '')}" data-mat-url="${escapeHTML(m.content_url || '')}" data-mat-render="${escapeHTML(m.render_url || '')}" aria-label="View ${escapeHTML(m.title)}"><i class="bi bi-eye"></i> View</button>
+                            <button class="mat-btn mat-btn--dl" data-mat-id="${m.id}" aria-label="Download ${escapeHTML(m.title)}"><i class="bi bi-download"></i> Download</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                materialsModalBody.querySelectorAll('.mat-btn--view').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        MaterialPreview.open({
+                            id: btn.dataset.matId,
+                            title: btn.dataset.matTitle,
+                            content_type: btn.dataset.matType,
+                            content_url: btn.dataset.matUrl,
+                            render_url: btn.dataset.matRender,
+                        });
+                    });
+                });
+                materialsModalBody.querySelectorAll('.mat-btn--dl').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        MaterialPreview.download({ id: btn.dataset.matId, title: btn.dataset.matTitle });
+                    });
+                });
+            })
+            .catch(() => {
+                materialsModalBody.innerHTML = '<p class="text-muted">Unable to load materials.</p>';
+                showToast('Unable to load materials.', 'error');
+            });
+    }
 
     confirmDeleteBtn.addEventListener('click', confirmDelete);
     confirmAssignBtn.addEventListener('click', confirmAssign);

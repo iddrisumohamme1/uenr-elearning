@@ -4,15 +4,50 @@
 
 import io
 import re
+from urllib.parse import unquote
 
 import httpx
 from pypdf import PdfReader
 
+from app.database import get_storage_client, with_retry
+
+
+def _storage_path(value: str) -> str | None:
+    """Derive a storage object path from a stored reference.
+
+    Accepts the modern bare-path form (``<course>/<file>``) and legacy public
+    URLs (``…/storage/v1/object/public/materials/<course>/<file>``). URL
+    escapes are decoded because Supabase object keys hold literal characters.
+    """
+    if not value:
+        return None
+    value = value.strip()
+    marker = "/materials/"
+    if marker in value:
+        value = value.split(marker, 1)[-1]
+    path = unquote(value.split("?")[0]).strip("/")
+    return path or None
+
 
 def fetch_material_content(content_url: str) -> bytes | None:
-    """Download a material file from Supabase storage."""
+    """Download a material file from Supabase storage.
+
+    Files live in a private bucket, so reads go through the service-role
+    Storage client (path form). Legacy rows that still store a public URL
+    fall back to an HTTP fetch, then to the Storage client in case the
+    bucket was already made private.
+    """
     if not content_url:
         return None
+    path = _storage_path(content_url)
+    if path:
+        try:
+            downloaded = with_retry(
+                lambda c: c.storage.from_("materials").download(path)
+            )
+            return downloaded
+        except Exception as exc:
+            print(f"[material_content] Storage download failed for '{path}': {exc}")
     try:
         with httpx.Client(timeout=30, follow_redirects=True, verify=False) as client:
             r = client.get(content_url)

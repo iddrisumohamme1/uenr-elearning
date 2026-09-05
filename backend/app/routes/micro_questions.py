@@ -22,6 +22,7 @@ import httpx
 
 from app.database import get_admin_client, with_retry
 from app.core.security import get_current_user
+from app.services.material_content import fetch_material_content
 
 router = APIRouter(prefix="/api/micro-questions", tags=["micro_questions"])
 
@@ -431,17 +432,8 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 
 
 def _fetch_material_content(content_url: str) -> bytes | None:
-    """Download a material file from Supabase storage."""
-    if not content_url:
-        return None
-    try:
-        with httpx.Client(timeout=30, follow_redirects=True, verify=False) as client:
-            r = client.get(content_url)
-            r.raise_for_status()
-            return r.content
-    except Exception as exc:
-        print(f"[micro-questions] Failed to download material: {exc}")
-        return None
+    """Download a material file from Supabase storage (private-bucket aware)."""
+    return fetch_material_content(content_url)
 
 
 def _extract_pdf_text(content: bytes) -> str:
