@@ -14,7 +14,6 @@ from functools import lru_cache
 from io import BytesIO
 import sys
 import time
-from urllib.parse import urlparse
 
 import httpx
 from supabase import create_client, Client
@@ -50,6 +49,13 @@ TUS_CHUNK_SIZE = 6 * 1024 * 1024
 # to this many times before surfacing the error to the caller's retry loop.
 _TUS_CHUNK_RETRIES = 5
 _TUS_CHUNK_RETRY_DELAY_SECONDS = 1.0
+
+# Whole-upload attempts in tus_upload_blob. Transient DNS/connection drops
+# (see _is_connection_error) are retried with a short linear backoff; real
+# errors (bad metadata, rejected chunk) raise immediately instead of wasting
+# time, matching the with_retry pattern used everywhere else in this file.
+_TUS_ATTEMPTS = 4
+_TUS_ATTEMPT_DELAY_SECONDS = 1.0
 
 
 def _build_client(url: str, key: str) -> Client:
@@ -103,6 +109,13 @@ _CONNECTION_ERROR_MARKERS = (
     "access a socket in a way forbidden",
     "forbidden by its access permissions",
     "[winerror 10013]",
+    # Windows WSAECONNRESET (WinError 10054) — the remote end force-closed an
+    # in-flight connection ("An existing connection was forcibly closed by the
+    # remote host"), usually mid-read on flaky links. Transient; retrying with a
+    # fresh client pool is correct.
+    "existing connection was forcibly closed",
+    "forcibly closed by the remote host",
+    "[winerror 10054]",
 )
 
 
@@ -192,12 +205,17 @@ def with_retry_storage(fn, retries: int = 3, delay: float = 0.6):
 
 
 def _tus_endpoint() -> str:
-    """Supabase TUS endpoint on the direct ``<ref>.storage.supabase.co``
-    hostname, which Supabase recommends for large uploads (better throughput
-    than the project URL)."""
-    host = urlparse(settings.SUPABASE_URL).hostname or ""
-    ref = host.split(".")[0]
-    return f"https://{ref}.storage.supabase.co/storage/v1/upload/resumable"
+    """Supabase TUS resumable-upload endpoint on the project URL host.
+
+    The documented Supabase endpoint is
+    ``https://<project-ref>.supabase.co/storage/v1/upload/resumable``. Deriving
+    it directly from ``SUPABASE_URL`` (rather than rewriting the subdomain to the
+    ``<ref>.storage.supabase.co`` gateway) keeps large uploads on the same host
+    every other request already uses; the direct gateway subdomain can fail to
+    resolve on flaky resolvers, surfacing as ``getaddrinfo failed`` before any
+    chunk is sent.
+    """
+    return f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/upload/resumable"
 
 
 def tus_upload_blob(bucket: str, path: str, data: bytes, content_type: str, cache_control: str = "3600") -> str:
@@ -208,7 +226,7 @@ def tus_upload_blob(bucket: str, path: str, data: bytes, content_type: str, cach
     from the last confirmed offset instead of restarting the whole file.
     Returns ``path`` so the caller can build the public URL.
     """
-    for attempt in range(1, 4):
+    for attempt in range(1, _TUS_ATTEMPTS + 1):
         try:
             uploader = tus_client.TusClient(
                 _tus_endpoint(),
@@ -231,15 +249,35 @@ def tus_upload_blob(bucket: str, path: str, data: bytes, content_type: str, cach
             uploader.upload()
             return path
         except Exception as exc:
-            if attempt >= 3:
+            if attempt >= _TUS_ATTEMPTS or not _is_connection_error(exc):
                 raise
             print(
-                f"[storage] TUS attempt {attempt}/3 failed after {type(exc).__name__}: {exc}",
+                f"[storage] TUS attempt {attempt}/{_TUS_ATTEMPTS} failed after {type(exc).__name__}: {exc}",
                 file=sys.stderr,
                 flush=True,
             )
-            time.sleep(0.8 * attempt)
+            time.sleep(_TUS_ATTEMPT_DELAY_SECONDS * attempt)
     raise RuntimeError("tus_upload_blob exhausted")  # pragma: no cover
+
+
+def _standard_upload(bucket: str, path: str, data: bytes, content_type: str) -> None:
+    """Home in the blob with a single-request HTTP multipart upload.
+
+    Goes through the project URL host (the same hostname every PostgREST and
+    signed-URL call uses) and the with_retry_storage wrapper, so transient
+    connection/DNS drops are retried with a fresh client instead of failing.
+
+    ``upsert`` overwrites any pre-existing object at the same path. That keeps
+    the fallback safe in the "ambiguous failure" case where an earlier TUS or
+    standard attempt actually persisted the object server-side but its
+    acknowledgement was lost to a connection reset.
+    """
+    options = {"upsert": "true"}
+    if content_type:
+        options["content-type"] = content_type
+    with_retry_storage(
+        lambda c: c.from_(bucket).upload(path, data, options)
+    )
 
 
 def upload_blob(bucket: str, path: str, data: bytes, content_type: str, cache_control: str = "3600") -> str:
@@ -247,15 +285,24 @@ def upload_blob(bucket: str, path: str, data: bytes, content_type: str, cache_co
 
     The proven single-request standard upload is used for files at or below the
     standard-upload threshold; larger files use the TUS resumable protocol so
-    they survive mid-upload connection drops.
+    they survive mid-upload connection drops. If TUS itself trips on a
+    connection/DNS error (flaky resolvers), the upload falls back to the
+    standard single-request upload so a resolver blip can never fail a file.
     """
     if len(data) <= STANDARD_UPLOAD_MAX_BYTES:
-        options = {"content-type": content_type} if content_type else None
-        with_retry_storage(
-            lambda c: c.from_(bucket).upload(path, data, options)
-        )
+        _standard_upload(bucket, path, data, content_type)
     else:
-        tus_upload_blob(bucket, path, data, content_type, cache_control)
+        try:
+            tus_upload_blob(bucket, path, data, content_type, cache_control)
+        except Exception as exc:
+            if not _is_connection_error(exc):
+                raise
+            print(
+                f"[storage] TUS failed after {type(exc).__name__}: {exc} — falling back to standard upload.",
+                file=sys.stderr,
+                flush=True,
+            )
+            _standard_upload(bucket, path, data, content_type)
     return path
 
 

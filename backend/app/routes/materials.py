@@ -3,6 +3,7 @@
 
 import hashlib
 import hmac
+import re
 import time
 
 import httpx
@@ -31,6 +32,27 @@ router = APIRouter(prefix="/api/materials", tags=["materials"])
 BUCKET_NAME = "materials"
 
 SIGNED_URL_TTL_SECONDS = 3600
+
+
+def _safe_storage_name(name: str) -> str:
+    """Return an object-key-safe version of a filename.
+
+    Supabase Storage only accepts S3-safe object keys — letters, digits and
+    ``_ - . ! * ' ( ) space & $ @ = ; : + , ?``. Everything else (square
+    brackets, hash, quotes, backslash, non-ASCII, …) makes the upload fail
+    with a 400 ``InvalidKey``. Invalid characters are replaced with ``_`` and
+    square brackets are rewritten as parentheses so browser artifacts like
+    ``file[1].pdf`` keep a readable name. The display title is unaffected —
+    only the stored storage object key is sanitized.
+    """
+    if not name:
+        return "unnamed"
+    safe = name.replace("[", "(").replace("]", ")")
+    safe = safe.replace("/", "_").replace("\\", "_")
+    safe = re.sub(r"[^A-Za-z0-9_\-\.!*'() \$@=;:+,?]", "_", safe)
+    safe = re.sub(r"_+", "_", safe).strip(" ._")
+    return safe[:255] or "unnamed"
+
 
 # Native media elements (<img>/<video>/<iframe>, PDF.js) cannot attach an
 # Authorization header, so the frontend fetches a short-lived, material-scoped
@@ -186,7 +208,7 @@ def upload_material(
         raise HTTPException(status_code=403, detail="HOD may only upload materials for courses in their department.")
 
     file_name = Path(file.filename).name
-    storage_path = f"{course_id}/{uuid4().hex}-{file_name}"
+    storage_path = f"{course_id}/{uuid4().hex}-{_safe_storage_name(file_name)}"
 
     # Read once into memory so the size check, storage upload, and the optional
     # PDF conversion all share the same bytes (avoids re-reading the stream).

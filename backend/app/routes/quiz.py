@@ -12,7 +12,11 @@ from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
-from app.routes.recommendations import RECOMMEND_THRESHOLD, record_auto_recommendation
+from app.routes.recommendations import (
+    RECOMMEND_THRESHOLD,
+    collect_missed_questions,
+    record_auto_recommendation,
+)
 from app.services.material_content import material_text_from_url
 from app.services.quiz_generator import quiz_ai
 from app.services.insight_messages import push_insight_message
@@ -210,8 +214,10 @@ def generate_ai_quiz(course_id: str, material_id: str, user=Depends(get_current_
     """
     admin = get_admin_client()
 
-    # 1. Fetch material content and extract text from the actual file.
-    material_text = ""
+    # 1. Fetch material content and extract text from the actual file. If the
+    #    file text cannot be read there is nothing to ground the quiz on, so
+    #    fail loudly instead of generating a generic off-topic quiz.
+    file_text = ""
     try:
         mat_resp = with_retry(
             lambda c: c.table("materials")
@@ -220,20 +226,28 @@ def generate_ai_quiz(course_id: str, material_id: str, user=Depends(get_current_
             .execute()
         )
         mat_data = getattr(mat_resp, "data", [])
-        if mat_data:
-            mat = mat_data[0]
-            material_text = f"{mat.get('title', '')} - {mat.get('description', '')}".strip()
-            content_url = mat.get("content_url") or ""
-            content_type = (mat.get("content_type") or "").lower()
-            if content_url:
-                extracted = material_text_from_url(content_url, content_type)
-                if extracted:
-                    material_text = f"{material_text}\n{extracted}"
+        if not mat_data:
+            raise HTTPException(status_code=404, detail="Material not found.")
+        mat = mat_data[0]
+        material_text = f"{mat.get('title', '')} - {mat.get('description', '')}".strip()
+        content_url = mat.get("content_url") or ""
+        content_type = (mat.get("content_type") or "").lower()
+        if content_url:
+            extracted = material_text_from_url(content_url, content_type)
+            if extracted:
+                file_text = extracted
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[quiz] Could not fetch material content: {e}")
 
-    if not material_text:
-        material_text = "Standard introduction to the course concepts."
+    if not file_text:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not read this material's file content for quiz generation. Please try again or contact your lecturer.",
+        )
+
+    material_text = f"{material_text}\n{file_text}" if material_text else file_text
 
     # 2. No shared cache: generate fresh for this student every attempt.
     today_str = str(date.today())
@@ -365,8 +379,9 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
                 print(f"[quiz] post-submit re-classify skipped: {e}")
 
         # Auto-recommend study resources when the student underperforms. The
-        # query is built from the course title + material title so the semantic
-        # search can pull in related material from anywhere in the resource pool.
+        # query is built from the questions the student could not answer so the
+        # semantic search targets exactly the missed content, with the
+        # course/material title as a fallback label.
         recommended_count = 0
         if percentage < RECOMMEND_THRESHOLD and course_id:
             weak_concept = "course quiz material"
@@ -403,12 +418,21 @@ def submit_quiz(payload: QuizSubmission, user=Depends(require_role("student"))):
             except Exception:
                 pass
             try:
+                missed_qs = collect_missed_questions(
+                    data.get("objective", []),
+                    submitted_obj,
+                    theory_qs,
+                    theory_answers,
+                    theory_scores,
+                )
                 created = record_auto_recommendation(
                     student_id=user["id"],
                     course_id=course_id,
                     submission_id=submission_id,
                     score=percentage,
                     weak_concept=weak_concept,
+                    query="; ".join(missed_qs) if missed_qs else weak_concept,
+                    missed_summary="; ".join(missed_qs) if missed_qs else "",
                 )
                 recommended_count = len(created)
             except Exception as e:

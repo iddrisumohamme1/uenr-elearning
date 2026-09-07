@@ -11,7 +11,11 @@ from typing import List, Optional
 
 from app.core.security import get_current_user, require_role
 from app.database import get_admin_client, with_retry
-from app.routes.recommendations import RECOMMEND_THRESHOLD, record_auto_recommendation
+from app.routes.recommendations import (
+    RECOMMEND_THRESHOLD,
+    collect_missed_questions,
+    record_auto_recommendation,
+)
 from app.services.doc_converter import convert_to_pdf
 from app.services.grades import letter_grade
 from app.services.material_content import extract_pdf_text, material_text_from_url
@@ -185,6 +189,12 @@ def generate_questions(payload: GenerateQuestionsRequest, user=Depends(require_r
 
     num_obj = max(1, min(20, payload.num_objective))
     num_theory = max(0, min(10, payload.num_theory))
+
+    if not combined_material and not (payload.topic or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="No course material content could be read and no topic was provided. Upload readable material to the course or type a topic.",
+        )
 
     quiz_data = quiz_ai.generate_quiz(
         material_content=combined_material[:30000] if combined_material else payload.topic,
@@ -406,7 +416,8 @@ def _auto_generate_impl(admin, user):
             continue
         material_text = _load_material_text(admin, material_id)
         if not material_text:
-            material_text = "Standard introduction to the course concepts."
+            print(f"[assignments] Skipping auto-generation for material {material_id}: content could not be read.")
+            continue
 
         quiz_data = quiz_ai.generate_quiz(material_content=material_text[:30000], num_objective=10, num_theory=2)
         if _is_mock_quiz(quiz_data):
@@ -744,8 +755,9 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
             response["message"] = "Assignment submitted and graded."
 
             # Auto-recommend study resources when the student underperforms.
-            # The query is built from the course + source material titles so the
-            # semantic search pulls in related material from the whole pool.
+            # The query is built from the questions the student could not answer
+            # so the semantic search targets exactly the missed content, with
+            # the course + source material titles as the fallback label.
             if percentage < RECOMMEND_THRESHOLD:
                 weak_concept = "course assignment material"
                 try:
@@ -769,12 +781,21 @@ def submit_assignment(payload: AssignmentSubmitRequest, user=Depends(require_rol
                 except Exception:
                     pass
                 try:
+                    missed_qs = collect_missed_questions(
+                        questions.get("objective", []),
+                        submitted_obj,
+                        theory_qs,
+                        theory_answers,
+                        theory_scores,
+                    )
                     created = record_auto_recommendation(
                         student_id=user["id"],
                         course_id=assignment["course_id"],
                         submission_id=submission.get("id"),
                         score=percentage,
                         weak_concept=weak_concept,
+                        query="; ".join(missed_qs) if missed_qs else weak_concept,
+                        missed_summary="; ".join(missed_qs) if missed_qs else "",
                     )
                     if created:
                         response["recommendations"] = created

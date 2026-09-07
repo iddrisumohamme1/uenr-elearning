@@ -277,23 +277,47 @@
 .inbox-bubble-row.inbox-in { text-align: left; }
 .inbox-bubble-row.inbox-out { text-align: right; }
 
+/* Sender attribution shown above each AI bubble */
+.inbox-msg-by {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 4px 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.inbox-msg-by .bi { color: var(--clr-primary-light); }
+
+.inbox-msg-by.out {
+    justify-content: flex-end;
+    margin-right: 4px;
+}
+
+.inbox-msg-by.out .bi { color: var(--clr-primary-light); }
+
 .inbox-bubble {
     display: inline-block;
     text-align: left;
     max-width: 55%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.35rem 0.7rem;
     border-radius: var(--r-lg);
     font-size: 0.85rem;
-    line-height: 1.5;
+    line-height: 1.35;
     white-space: pre-wrap;
     word-wrap: break-word;
     position: relative;
+    box-shadow: var(--shadow-sm);
 }
 
 .inbox-bubble.inbox-out {
     background: var(--grad-primary);
     color: #fff;
     border-bottom-right-radius: var(--r-sm);
+    max-width: 45%;
 }
 
 .inbox-bubble.inbox-in {
@@ -303,10 +327,18 @@
     border-bottom-left-radius: var(--r-sm);
 }
 
+/* AI replies get more room and read as a formatted card rather than a bubble */
+.inbox-bubble.inbox-in.ai-msg {
+    max-width: 80%;
+    padding: 0.55rem 0.8rem 0.45rem;
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--clr-accent);
+}
+
 .inbox-bubble-meta {
     display: block;
-    margin-top: 3px;
-    font-size: 0.7rem;
+    margin-top: 2px;
+    font-size: 0.68rem;
     opacity: 0.85;
 }
 
@@ -316,27 +348,72 @@
 .inbox-bubble a { text-decoration: underline; }
 .inbox-out .inbox-bubble a { color: #fff; }
 
-/* AI bubble banner + styled content inside a thread */
-.inbox-bubble.inbox-in .ai-content {
-    margin-top: 0;
-    border: none;
-    border-left: 3px solid var(--clr-accent);
-    padding: 0.25rem 0 0.25rem 0.7rem;
-    max-height: none;
-    -webkit-mask-image: none;
-    mask-image: none;
-    background: transparent;
+/* Paragraph arrangement inside plain (student/lecturer) messages */
+.inbox-bubble p { margin: 0; }
+.inbox-bubble p + p { margin-top: 0.3rem; }
+.inbox-out .inbox-bubble-meta { text-align: right; }
+
+/* AI reply typography: structured headers, bullets, and callout notes */
+.inbox-bubble.inbox-in .ai-h {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 0.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
-.inbox-bubble.inbox-in .ai-list { list-style: none; }
+.inbox-bubble.inbox-in .ai-h i { color: var(--clr-primary-light); }
 
-.inbox-bubble.inbox-in .ai-h { font-size: 0.9rem; }
+.inbox-bubble.inbox-in .ai-p {
+    margin: 0.35rem 0;
+    color: var(--text-secondary);
+}
 
-.inbox-bubble.inbox-in .ai-note,
-.inbox-bubble.inbox-in .ai-p { color: var(--text-secondary); }
+.inbox-bubble.inbox-in .ai-p:first-child { margin-top: 0; }
+.inbox-bubble.inbox-in .ai-p:last-child { margin-bottom: 0; }
 
-.inbox-bubble.inbox-in .ai-h,
-.inbox-bubble.inbox-in .ai-tag { display: inline; }
+.inbox-bubble.inbox-in .ai-list {
+    list-style: none;
+    margin: 0.35rem 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.inbox-bubble.inbox-in .ai-list li {
+    position: relative;
+    padding-left: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.inbox-bubble.inbox-in .ai-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.42em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--clr-primary-light);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.inbox-bubble.inbox-in .ai-note {
+    margin: 0.4rem 0;
+    padding: 0.5rem 0.7rem;
+    background: var(--primary-soft);
+    border-left: 3px solid var(--clr-accent);
+    border-radius: var(--r-md);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.inbox-bubble.inbox-in .ai-note:last-child { margin-bottom: 0; }
 
 /* ── Composer (sticky footer) ───────────────────────────────────── */
 .inbox-composer {
@@ -352,16 +429,17 @@
     flex: 1;
     min-width: 0;
     resize: none;
-    padding: 0.6rem 0.9rem;
+    padding: 0.45rem 0.9rem;
     font-family: var(--font-sans);
     font-size: 0.9rem;
-    line-height: 1.45;
+    line-height: 1.4;
     color: var(--text-primary);
     background: var(--bg);
     border: 1px solid var(--border-strong);
     border-radius: var(--r-lg);
     outline: none;
-    max-height: 120px;
+    min-height: 34px;
+    max-height: 160px;
     transition: border-color var(--t-base);
 }
 
@@ -391,6 +469,10 @@
     font-size: 0.75rem;
     color: var(--clr-danger);
     align-self: center;
+}
+
+.inbox-composer-status.pending {
+    color: var(--text-muted);
 }
 
 /* Empty / placeholder states */
@@ -431,4 +513,8 @@
     .inbox.show-thread .inbox-convos { display: none; }
 
     .inbox-thread-back { display: inline-flex; }
+
+    .inbox-bubble { max-width: 85%; }
+    .inbox-bubble.inbox-out { max-width: 75%; }
+    .inbox-bubble.inbox-in.ai-msg { max-width: 92%; }
 }

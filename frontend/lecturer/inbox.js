@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         return div.innerHTML;
     }
 
+    // Render a plain chat message as spaced paragraphs so multi-line replies
+    // read cleanly inside the bubble.
+    function renderPlainText(content) {
+        return String(content || '').split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length)
+            .map(l => `<p>${escapeHTML(l)}</p>`)
+            .join('');
+    }
+
     const convosEl = document.getElementById('convos-list');
     const threadNameEl = document.getElementById('thread-name');
     const threadMetaEl = document.getElementById('thread-meta');
@@ -58,6 +68,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (d.toDateString() === now.toDateString()) return 'Today';
         if (d.toDateString() === yest.toDateString()) return 'Yesterday';
         return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    // Render the AI assistant's plain-text output as structured parts.
+    function renderAiContent(content) {
+        const headerRe = /^[📘📝📄🤖]/;
+        const lines = String(content || '').split('\n');
+        const out = [];
+        let list = [];
+
+        const flushList = () => {
+            if (list.length) {
+                out.push(`<ul class="ai-list">${list.map(li => `<li>${escapeHTML(li)}</li>`).join('')}</ul>`);
+                list = [];
+            }
+        };
+
+        lines.forEach((raw) => {
+            const line = raw.replace(/\s+$/, '');
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            if (trimmed.startsWith('•')) {
+                list.push(trimmed.replace(/^•\s*/, '').trim());
+                return;
+            }
+            flushList();
+            if (headerRe.test(trimmed)) {
+                out.push(`<div class="ai-h"><i class="bi bi-magic" aria-hidden="true"></i>${escapeHTML(trimmed)}</div>`);
+            } else if (trimmed.startsWith('Assessment standing:') || trimmed.startsWith('Your current learning profile:')) {
+                out.push(`<div class="ai-note">${escapeHTML(trimmed)}</div>`);
+            } else {
+                out.push(`<p class="ai-p">${escapeHTML(trimmed)}</p>`);
+            }
+        });
+        flushList();
+        return out.join('');
     }
 
     async function loadCourseNames() {
@@ -243,12 +288,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 lastDate = div;
             }
             const isOutgoing = !!m.outgoing;
-            let body = escapeHTML(m.content);
+            const isAI = !isOutgoing && convo.isAI;
+            let body;
+            let bubbleExtra = '';
+            let byLabel = '';
+            if (isAI) {
+                body = renderAiContent(m.content);
+                bubbleExtra = ' ai-msg';
+                byLabel = '<span class="inbox-msg-by"><i class="bi bi-robot" aria-hidden="true"></i>Study Assistant</span>';
+            } else {
+                body = renderPlainText(m.content);
+                if (isOutgoing) {
+                    byLabel = '<span class="inbox-msg-by out"><i class="bi bi-person" aria-hidden="true"></i>You</span>';
+                }
+            }
             const meta = isOutgoing ? `You · ${fmtTime(m.created_at)}` : `${fmtTime(m.created_at)}`;
             const readMark = isOutgoing && m.is_read ? '<i class="bi bi-check2-all"></i> ' : (isOutgoing ? '<i class="bi bi-check2"></i> ' : '');
             return `${divider}
                 <div class="inbox-bubble-row ${isOutgoing ? 'inbox-out' : 'inbox-in'}">
-                    <div class="inbox-bubble ${isOutgoing ? 'inbox-out' : 'inbox-in'}">
+                    ${byLabel}
+                    <div class="inbox-bubble ${isOutgoing ? 'inbox-out' : 'inbox-in'}${bubbleExtra}">
                         ${body}
                         <span class="inbox-bubble-meta">${readMark}${meta}</span>
                     </div>
@@ -285,8 +344,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const courseId = input.dataset.course;
         const isAI = input.dataset.convoid === 'ai';
 
+        // Move the text out of the composer immediately; the pending hint tells
+        // the user the message is on its way while the AI thinks.
+        input.value = '';
+        input.style.height = 'auto';
+        composerSendEl.disabled = true;
+        composerStatusEl.classList.add('pending');
+        composerStatusEl.textContent = isAI ? 'AI is thinking…' : 'Sending…';
+        composerStatusEl.style.display = 'block';
+
         setButtonBusy(composerSendEl, true);
-        composerStatusEl.style.display = 'none';
         try {
             const res = await authFetch(`${API_BASE}/api/messages/send`, {
                 method: 'POST',
@@ -302,8 +369,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadMessages(true);
             showToast('Message sent.', 'success');
         } catch (err) {
+            composerStatusEl.classList.remove('pending');
             composerStatusEl.textContent = err.message || 'Could not send. Try again.';
             composerStatusEl.style.display = 'block';
+            input.value = text;
+            input.style.height = 'auto';
+            composerSendEl.disabled = input.value.trim().length === 0;
         } finally {
             setButtonBusy(composerSendEl, false);
         }

@@ -26,6 +26,10 @@ WEAK_SCORE_THRESHOLD = 60.0
 # surfaced to the student as a sidebar notification.
 RECOMMEND_THRESHOLD = 59.0
 
+# A theory question scored below this (on a 0..1 grading scale) counts as "could
+# not answer" when auto-recommendations are built from a quiz/assignment.
+THEORY_WEAK_SCORE = 0.7
+
 TOPIC_LABELS = {
     "machine_learning": "Machine Learning",
     "databases": "Databases",
@@ -121,6 +125,47 @@ def _scope_notification_items(items: list, material_course: dict, enrolled_ids: 
     return scoped
 
 
+def collect_missed_questions(
+    obj_qs: list,
+    submitted_obj: list,
+    theory_qs: list,
+    theory_answers: list,
+    theory_scores: list,
+    max_items: int = 6,
+) -> list:
+    """Return the question texts a student could not answer.
+
+    Objective: a submitted index that is missing, None, or not equal to the
+    stored correct index. Theory: a blank answer, or an AI score below
+    ``THEORY_WEAK_SCORE``. Capped at ``max_items`` so the semantic
+    recommendation query stays bounded.
+    """
+    missed = []
+    submitted_obj = submitted_obj or []
+    for i, q in enumerate(obj_qs):
+        if i >= len(submitted_obj) or submitted_obj[i] is None:
+            missed.append(q.get("question") or "")
+        elif q.get("correct_answer_index") is not None and submitted_obj[i] != q.get("correct_answer_index"):
+            missed.append(q.get("question") or "")
+
+    theory_answers = theory_answers or []
+    theory_scores = theory_scores or []
+    for i, q in enumerate(theory_qs):
+        ans = theory_answers[i] if i < len(theory_answers) else ""
+        score = theory_scores[i] if i < len(theory_scores) else 0.0
+        if not (ans or "").strip() or float(score or 0) < THEORY_WEAK_SCORE:
+            missed.append(q.get("question") or "")
+
+    cleaned = []
+    for text in missed:
+        text = (text or "").strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+        if len(cleaned) >= max_items:
+            break
+    return cleaned
+
+
 def record_auto_recommendation(
     student_id: str,
     course_id: str,
@@ -129,22 +174,29 @@ def record_auto_recommendation(
     weak_concept: str,
     top_n: int = 2,
     include_web: bool = False,
+    query: str = "",
+    missed_summary: str = "",
 ) -> list:
     """
     Generate resource recommendations for a weak concept and store them as
     unread notifications for the student. Returns the created notification rows.
     Never raises — a failing recommendation must not break quiz submission.
 
-    `include_web` is off by default so the fast path (used right after a quiz)
-    only searches the local pool and skips the network-bound live YouTube search.
-    Database course materials are excluded from the surface so auto-recommendations
-    only point to external study resources (videos, articles, curated links) — the
-    student already has the course material they underperformed on.
+    ``weak_concept`` names the weakness for storage/display; when ``query`` is
+    given (e.g. the text of the questions the student could not answer) the
+    engine searches on that instead, so recommendations match the exact missed
+    content. ``include_web`` is off by default so the fast path (used right
+    after a quiz) only searches the local pool and skips the network-bound live
+    YouTube search. Database course materials are excluded from the surface so
+    auto-recommendations only point to external study resources (videos,
+    articles, curated links) — the student already has the course material they
+    underperformed on.
     """
     try:
         admin = get_admin_client()
+        search_text = (query or "").strip() or weak_concept
         results = engine.get_recommendations(
-            weak_concepts=weak_concept,
+            weak_concepts=search_text,
             top_n=top_n,
             include_web=include_web,
             enrolled_course_ids=_enrolled_course_ids(admin, student_id),
@@ -153,6 +205,11 @@ def record_auto_recommendation(
     except Exception as e:
         print(f"[Recommendation] Auto-recommendation failed: {e}")
         return []
+
+    if missed_summary:
+        note = f"Missed: \u201c{missed_summary[:140]}\u201d (score {score}%)"
+    else:
+        note = f"Recommended for: \u201c{weak_concept}\u201d (score {score}%)"
 
     created = []
     for r in results:
@@ -172,7 +229,7 @@ def record_auto_recommendation(
                     "resource_source": r.get("source") or "material",
                     "resource_type": r.get("type") or "Resource",
                     "resource_description": r.get("description") or "",
-                    "reason": f"Recommended for: \u201c{weak_concept}\u201d (quiz score {score}%)",
+                    "reason": note,
                 }).execute()
             )
             created.extend(getattr(resp, "data", []) or [])

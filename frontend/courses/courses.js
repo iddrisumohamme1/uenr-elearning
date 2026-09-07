@@ -88,6 +88,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function emptyStateHtml(courses) {
         const query = document.getElementById('course-search').value.trim();
+
+        // Enrolled tab lists courses directly (no drilling) — old behavior.
+        if (currentTab === 'enrolled') {
+            if (query) {
+                return `
+                    <div class="empty-state">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <h3>No matches</h3>
+                        <p>Nothing matches "${escapeHtml(query)}". Try a course code, title, or lecturer name.</p>
+                    </div>`;
+            }
+            return `
+                <div class="empty-state">
+                    <i class="bi bi-mortarboard" aria-hidden="true"></i>
+                    <h3>No enrollments yet</h3>
+                    <p>Open the All Courses tab and enroll to see your courses here.</p>
+                </div>`;
+        }
+
+        // All Courses tab — drill-down not complete yet, so the picker is the
+        // content; show a short prompt beneath it (or a helpful note when
+        // there's nothing to pick).
+        if (browse.level == null) {
+            if (!allCourses.length) {
+                return `
+                    <div class="empty-state">
+                        <i class="bi bi-collection" aria-hidden="true"></i>
+                        <h3>No courses available</h3>
+                        <p>No courses have been published yet. Check back later.</p>
+                    </div>`;
+            }
+            return `
+                <div class="empty-state">
+                    <i class="bi bi-collection" aria-hidden="true"></i>
+                    <h3>Pick a level</h3>
+                    <p>Select a level above to browse the available courses.</p>
+                </div>`;
+        }
+
+        if (browse.semester == null) {
+            return `
+                <div class="empty-state">
+                    <i class="bi bi-collection" aria-hidden="true"></i>
+                    <h3>Pick a semester</h3>
+                    <p>Select a semester above to see courses in <strong>${escapeHtml(levelLabel(browse.level))}</strong>.</p>
+                </div>`;
+        }
+
         if (query) {
             return `
                 <div class="empty-state">
@@ -96,30 +144,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <p>Nothing matches "${escapeHtml(query)}". Try a course code, title, or lecturer name.</p>
                 </div>`;
         }
-        if (currentTab === 'enrolled') {
-            return `
-                <div class="empty-state">
-                    <i class="bi bi-mortarboard" aria-hidden="true"></i>
-                    <h3>No enrollments yet</h3>
-                    <p>Open the All Courses tab and enroll to see your courses here.</p>
-                </div>`;
-        }
-        if (currentTab === 'all' && (browse.level != null || browse.semester != null)) {
-            const scope = semLabel(browse.semester)
-                ? `${levelLabel(browse.level)} · ${semLabel(browse.semester)}`
-                : levelLabel(browse.level);
-            return `
-                <div class="empty-state">
-                    <i class="bi bi-collection" aria-hidden="true"></i>
-                    <h3>No courses here</h3>
-                    <p>There are no courses in <strong>${escapeHtml(scope)}</strong>. Try a different level or semester.</p>
-                </div>`;
-        }
+
+        const scope = semLabel(browse.semester)
+            ? `${levelLabel(browse.level)} · ${semLabel(browse.semester)}`
+            : levelLabel(browse.level);
         return `
             <div class="empty-state">
                 <i class="bi bi-collection" aria-hidden="true"></i>
-                <h3>No courses available</h3>
-                <p>No courses have been published yet. Check back later.</p>
+                <h3>No courses here</h3>
+                <p>There are no courses in <strong>${escapeHtml(scope)}</strong>. Try a different level or semester.</p>
             </div>`;
     }
 
@@ -318,19 +351,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentTab === 'enrolled') {
             // The catalogue has no progress data, so merge in the real progress
             // from the students/{id}/courses endpoint so the status pill matches
-            // the dashboard's "Continue learning" card.
+            // the dashboard's "Continue learning" card. Old behavior: enrolled
+            // courses are listed directly with no level/semester drilling.
             filtered = allCourses
                 .filter(c => enrolledCourseIds.has(c.id))
                 .map(c => ({ ...c, progress: progressById.has(c.id) ? progressById.get(c.id) : c.progress }));
-            renderBrowseNav(); // hides nav
+            renderBrowseNav();
             renderCourses(filtered);
             return;
         }
 
-        // All Courses tab — apply drill-down browse filter.
+        // All Courses tab — apply the drill-down browse filter. No course cards
+        // until the student has selected a level and a semester; the browse
+        // pickers (with live counts) are the content before that.
         if (browse.level != null) filtered = filtered.filter(c => inLevel(c, browse.level));
         if (browse.semester != null) filtered = filtered.filter(c => inSemester(c, browse.semester));
-        filtered = filtered.filter(matchesQuery);
+        if (browse.level == null || browse.semester == null) {
+            filtered = [];
+        } else {
+            filtered = filtered.filter(matchesQuery);
+        }
+
         renderBrowseNav();
         renderCourses(filtered);
     }
@@ -340,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentTab = btn.dataset.tab;
-            if (currentTab === 'enrolled') resetBrowse();
+            resetBrowse();
             filterAndRender();
         });
     });

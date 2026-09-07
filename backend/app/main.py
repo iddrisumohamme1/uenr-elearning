@@ -10,8 +10,6 @@ import os
 import ssl
 import traceback
 
-# Only bypass SSL in development to avoid [SSL: CERTIFICATE_VERIFY_FAILED].
-# In production this must NOT be set — it disables all certificate validation.
 if os.getenv("APP_ENV", "development") == "development":
     try:
         ssl._create_default_https_context = ssl._create_unverified_context

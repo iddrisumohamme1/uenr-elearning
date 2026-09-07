@@ -21,6 +21,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         return div.innerHTML;
     }
 
+    // Render a plain chat message as spaced paragraphs so multi-line replies
+    // read cleanly inside the bubble.
+    function renderPlainText(content) {
+        return String(content || '').split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length)
+            .map(l => `<p>${escapeHTML(l)}</p>`)
+            .join('');
+    }
+
     const convosEl = document.getElementById('convos-list');
     const threadEl = document.getElementById('thread');
     const threadNameEl = document.getElementById('thread-name');
@@ -287,16 +297,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isOutgoing = !!m.outgoing;
             const isAI = !isOutgoing && convo.isAI;
             let body;
+            let bubbleExtra = '';
+            let byLabel = '';
             if (isAI) {
                 body = renderAiContent(m.content);
+                bubbleExtra = ' ai-msg';
+                byLabel = '<span class="inbox-msg-by"><i class="bi bi-robot" aria-hidden="true"></i>Study Assistant</span>';
             } else {
-                body = escapeHTML(m.content);
+                body = renderPlainText(m.content);
+                if (isOutgoing) {
+                    byLabel = '<span class="inbox-msg-by out"><i class="bi bi-person" aria-hidden="true"></i>You</span>';
+                }
             }
             const meta = isOutgoing ? `You · ${fmtTime(m.created_at)}` : `${fmtTime(m.created_at)}`;
             const readMark = isOutgoing && m.is_read ? '<i class="bi bi-check2-all"></i> ' : (isOutgoing ? '<i class="bi bi-check2"></i> ' : '');
             return `${divider}
                 <div class="inbox-bubble-row ${isOutgoing ? 'inbox-out' : 'inbox-in'}">
-                    <div class="inbox-bubble ${isOutgoing ? 'inbox-out' : 'inbox-in'}">
+                    ${byLabel}
+                    <div class="inbox-bubble ${isOutgoing ? 'inbox-out' : 'inbox-in'}${bubbleExtra}">
                         ${body}
                         <span class="inbox-bubble-meta">${readMark}${meta}</span>
                     </div>
@@ -336,8 +354,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const senderId = input.dataset.senderid;
         const courseId = input.dataset.course;
 
+        // Move the text out of the composer immediately; the pending hint tells
+        // the student the message is on its way while the AI thinks.
+        input.value = '';
+        input.style.height = 'auto';
+        composerSendEl.disabled = true;
+        composerStatusEl.classList.add('pending');
+        composerStatusEl.textContent = isAI ? 'AI is thinking…' : 'Sending…';
+        composerStatusEl.style.display = 'block';
+
         setButtonBusy(composerSendEl, true);
-        composerStatusEl.style.display = 'none';
         try {
             let res;
             if (isAI) {
@@ -362,8 +388,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadMessages(true);
             showToast(isAI ? 'AI replied.' : 'Message sent.', 'success');
         } catch (err) {
+            composerStatusEl.classList.remove('pending');
             composerStatusEl.textContent = err.message || 'Could not send. Try again.';
             composerStatusEl.style.display = 'block';
+            input.value = text;
+            input.style.height = 'auto';
+            composerSendEl.disabled = input.value.trim().length === 0;
         } finally {
             setButtonBusy(composerSendEl, false);
         }

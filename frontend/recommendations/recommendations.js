@@ -143,8 +143,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Everything with a URL opens in the in-app viewer (embedded player /
         // iframe). In-system pages (materials, study resources) just navigate.
+        // Articles / web pages can't be framed (X-Frame-Options / CSP
+        // frame-ancestors), so they open in a new browser tab instead.
         if (item.url) {
-            showViewer(item, vid);
+            if (vid) {
+                showViewer(item, vid);
+            } else {
+                window.open(item.url, '_blank', 'noopener');
+            }
             return;
         }
         if (link.href) {
