@@ -3,6 +3,7 @@
 #          Accepts a weak concept description and returns top-N matched learning
 #          materials, OR auto-detects weak topics from the student's quiz history.
 
+import re
 import threading
 import time
 
@@ -23,8 +24,11 @@ router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 WEAK_SCORE_THRESHOLD = 60.0
 
 # A quiz score below this triggers an automatic resource recommendation that is
-# surfaced to the student as a sidebar notification.
-RECOMMEND_THRESHOLD = 59.0
+# surfaced to the student as a sidebar notification. Students scoring below
+# 50% are clearly struggling and are redirected to supplementary external
+# study resources (videos, articles, curated links) — not course materials
+# they already have.
+RECOMMEND_THRESHOLD = 50.0
 
 # A theory question scored below this (on a 0..1 grading scale) counts as "could
 # not answer" when auto-recommendations are built from a quiz/assignment.
@@ -166,6 +170,128 @@ def collect_missed_questions(
     return cleaned
 
 
+# Multiple-choice phrasings that carry no topical information. Strip them before
+# the text is sent to the semantic pool or a live web search, so a query like
+# "Which of the following tools is used for plagiarism detection?" becomes the
+# keyword-rich "tools used for plagiarism detection".
+_QUERY_BOILERPLATE_PATTERNS = [
+    r"\bwhich one of the following\b",
+    r"\bwhich of the following\b",
+    r"\bwhich of these\b",
+    r"\bwhich statement\b",
+    r"\bwhich is\b",
+    r"\bwhich\b",
+    r"\bwhat is\b",
+    r"\bwhat are\b",
+    r"\bwhat does\b",
+    r"\bwhat\b",
+    r"\bwhy is\b",
+    r"\bwhy does\b",
+    r"\bwhy do\b",
+    r"\bwhy\b",
+    r"\bhow does\b",
+    r"\bhow is\b",
+    r"\bhow do\b",
+    r"\bhow\b",
+    r"\bchoose the correct\b",
+    r"\bchoose the best\b",
+    r"\bselect the correct\b",
+    r"\bselect the best\b",
+    r"\bselect the right\b",
+    r"\bchoose\b",
+    r"\bselect\b",
+    r"\bthe correct answer is\b",
+    r"\ball of the following\b",
+    r"\bstate whether\b",
+    r"\bexplain\b",
+    r"\bdefine\b",
+    r"\bdescribe\b",
+    r"\bdiscuss\b",
+    r"\bdistinguish between\b",
+    r"\bcompare and contrast\b",
+    r"\bidentify\b",
+    r"\bis primarily used for\b",
+    r"\bis mainly used for\b",
+    r"\bis best described as\b",
+    r"\bis known for its\b",
+    r"\bis specifically designed for\b",
+    r"\bis commonly used in\b",
+    r"\bis commonly used for\b",
+    r"\bis generally used for\b",
+    r"\bis used for\b",
+    r"\bis used in\b",
+    r"\brefers to\b",
+    r"\bis considered\b",
+    r"\bis defined as\b",
+    r"\bis known as\b",
+    r"\bis called\b",
+    r"\bis a type of\b",
+    r"\bis an example of\b",
+    r"\bknown as\b",
+    r"\bis the\b",
+    r"\bis a\b",
+    r"\bis an\b",
+    r"\bthe concept of\b",
+    r"\bthe process of\b",
+    r"\bthe following\b",
+]
+
+_QUERY_BOILERPLATE_REGEX = re.compile(
+    "|".join(_QUERY_BOILERPLATE_PATTERNS), re.IGNORECASE
+)
+# Clean up punctuation orphans left behind by boilerplate removal, e.g.
+# "Overleaf is primarily used for:" -> "Overleaf :" -> "Overleaf".
+_QUERY_TRIM_REGEX = re.compile(r"\s*[:.,]\s*(;|\b|$)")
+_QUERY_MAX_LENGTH = 140
+
+
+def _clean_search_query(raw_query: str, weak_concept: str = "") -> str:
+    """Scrub MCQ boilerplate from the recommendation search text and trim it to a
+    bounded, keyword-rich length so semantic scoring and live web search both
+    work well. Falls back to the original text when nothing meaningful remains
+    and appends the course context when the cleaned query is very short."""
+    text = _QUERY_BOILERPLATE_REGEX.sub(" ", (raw_query or "").strip())
+    text = " ".join((text or "").split())
+    text = _QUERY_TRIM_REGEX.sub("", text)
+    text = " ".join((text or "").split())
+    text = text.strip(" ,.;:!?'\"-")
+    if not text:
+        text = (raw_query or "").strip()
+    if len(text) < 40:
+        context = (weak_concept or "").strip()
+        if context:
+            text = f"{text}; {context}" if text else context
+    if len(text) > _QUERY_MAX_LENGTH:
+        text = text[:_QUERY_MAX_LENGTH].rstrip(" ;,.")
+    return text
+
+
+def _pick_web_query(missed_questions: list, weak_concept: str = "") -> str:
+    """Choose the single most topically informative missed question to send to
+    the live web search. Merging many questions into one query dilutes every
+    search engine (verified: Bing returned an online tool store for a merged
+    research-tools query), so one focused question is searched instead. The
+    most informative question is the one with the most distinct content words
+    after MCQ boilerplate is stripped."""
+    best = ""
+    best_score = 0
+    for q in missed_questions or []:
+        cleaned = _clean_search_query(q, "")
+        words = [w for w in re.split(r"[^a-z0-9]+", cleaned.lower()) if len(w) >= 3]
+        score = len(set(words))
+        if score > best_score:
+            best, best_score = cleaned, score
+    if not best and missed_questions:
+        best = _clean_search_query(missed_questions[0], "")
+    if not best:
+        best = (weak_concept or "").strip()
+    best = best[:90]
+    context = (weak_concept or "").strip()
+    if context and len(best.split()) < 3:
+        best = f"{best} {context}"
+    return best[:100]
+
+
 def record_auto_recommendation(
     student_id: str,
     course_id: str,
@@ -173,7 +299,7 @@ def record_auto_recommendation(
     score: float,
     weak_concept: str,
     top_n: int = 2,
-    include_web: bool = False,
+    include_web: bool = True,
     query: str = "",
     missed_summary: str = "",
 ) -> list:
@@ -185,20 +311,26 @@ def record_auto_recommendation(
     ``weak_concept`` names the weakness for storage/display; when ``query`` is
     given (e.g. the text of the questions the student could not answer) the
     engine searches on that instead, so recommendations match the exact missed
-    content. ``include_web`` is off by default so the fast path (used right
-    after a quiz) only searches the local pool and skips the network-bound live
-    YouTube search. Database course materials are excluded from the surface so
-    auto-recommendations only point to external study resources (videos,
-    articles, curated links) — the student already has the course material they
-    underperformed on.
+    content. ``include_web`` is on by default so a struggling student gets live
+    study resources (YouTube/short-answer articles) found from their missed
+    questions, not just the small curated pool. The query is scrubbed of MCQ
+    boilerplate before searching so engines get a clean, keyword-rich text.
+    Database course materials are excluded so that the recommended content is
+    always external study resources (videos, articles, curated links) rather
+    than the course materials the student already has. Only students scoring
+    below RECOMMEND_THRESHOLD (50%) are redirected.
     """
     try:
         admin = get_admin_client()
-        search_text = (query or "").strip() or weak_concept
+        raw_text = (query or "").strip() or weak_concept
+        search_text = _clean_search_query(raw_text, weak_concept)
+        missed_qs = [q.strip() for q in (query or "").split(";") if q.strip()]
+        web_text = _pick_web_query(missed_qs or [raw_text], weak_concept)
         results = engine.get_recommendations(
             weak_concepts=search_text,
             top_n=top_n,
             include_web=include_web,
+            web_query=web_text,
             enrolled_course_ids=_enrolled_course_ids(admin, student_id),
             exclude_materials=True,
         )

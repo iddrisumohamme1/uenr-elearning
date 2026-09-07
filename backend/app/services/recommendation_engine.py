@@ -13,6 +13,7 @@ import threading
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
 # ── Supabase client ───────────────────────────────────────────────────────────
 from app.database import get_admin_client
@@ -28,6 +29,16 @@ WEB_SEARCH_TIMEOUT_SECONDS = 3.0
 
 # Small worker pool for the concurrent YouTube fetches.
 _WEB_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+
+# Minimum cosine similarity a pool candidate must reach before it is surfaced.
+# The two floors exist because the TF-IDF fallback and Sentence-BERT produce
+# very different score ranges; the engine picks the right one for the active
+# backend. Candidates below the floor are treated as irrelevant and never
+# recommended (an empty surface is preferred over a mismatched one). The floor
+# only ever applies to the local pool — live web results keep their rank-based
+# scores.
+RECOMMEND_MIN_SCORE_SEMANTIC = 0.25
+RECOMMEND_MIN_SCORE_TFIDF = 0.05
 
 # ── Curated external study resources ──────────────────────────────────────────
 # Each entry maps a topic keyword to a list of verified external resources.
@@ -182,7 +193,7 @@ TOPIC_KEYWORDS = [
                    "schema", "joins", "index", "mysql", "postgres", "db"]),
     ("programming", ["c++", "c language", "pointers", "arrays", "functions", "recursion",
                      "oops", "oop", "data structures", "linked list", "stack", "queue",
-                     "python", "java", "c ", "sorting", "algorithm"]),
+                     "python", "java", "c programming", "sorting", "algorithm"]),
     ("software_engineering", ["software engineering", "design patterns", "uml", "rest", "http",
                               "git", "version control", "agile", "scrum", "software testing",
                               "requirements", "software design"]),
@@ -369,7 +380,10 @@ class RecommendationEngine:
 
     # ── Public API ────────────────────────────────────────────────────────────
     def get_recommendations(self, weak_concepts: str, top_n: int = 3, include_web: bool = True,
-                            enrolled_course_ids=None, exclude_materials: bool = False) -> list:
+                            enrolled_course_ids=None, exclude_materials: bool = False,
+                            prefer_course_id: Optional[str] = None,
+                            min_score: Optional[float] = None,
+                            web_query: Optional[str] = None) -> list:
         # Lazy-load the pool + model on first use (idempotent afterwards).
         self._ensure_ready()
         # Pool refresh (if any) runs in the background — the student never waits on it.
@@ -378,21 +392,27 @@ class RecommendationEngine:
             return []
 
         # When the caller knows the student's enrollments, restrict the ranked
-        # pool to their world: academic materials only from enrolled courses,
-        # curated external links only on the topic this query is about. Live web
-        # (YouTube) results are already guided by the weak-concept query, so they
-        # stay as-is. When `exclude_materials` is set, database course materials
-        # are dropped entirely so only external resources surface.
+        # pool to their world: academic materials only from enrolled courses.
+        # Curated external links are NOT topic-gated — a keyword misclassification
+        # (e.g. "algorithm" appearing in a research-methods question) could
+        # otherwise pin the pool to one wrong bucket and surface irrelevant
+        # resources. Instead every external candidate is scored against the
+        # query and the relevance floor decides what surfaces. Live web
+        # (YouTube/article) results are guided by the query itself. When
+        # `exclude_materials` is set, database course materials are dropped so
+        # only external resources remain. When `prefer_course_id` is set, only
+        # that course's materials are eligible — used by the auto-recommendation
+        # path so a submission's recommendation never leaks another course's
+        # material.
         allowed = None
         if enrolled_course_ids is not None:
             enrolled = set(enrolled_course_ids)
-            target_topic = detect_topic(weak_concepts)
             allowed = [
                 i for i, r in enumerate(self.resources)
                 if (r.get("source") == "material"
                     and not exclude_materials
-                    and r.get("course_id") in enrolled)
-                or (r.get("source") != "material" and r.get("topic") == target_topic)
+                    and r.get("course_id") in enrolled
+                    and (prefer_course_id is None or r.get("course_id") == prefer_course_id))
             ]
 
         self._ensure_model()
@@ -405,14 +425,50 @@ class RecommendationEngine:
         if not pool_results:
             pool_results = self._tfidf_search(weak_concepts, top_n * 2, allowed=allowed)
 
+        # Drop near-zero-similarity candidates before anything is surfaced. The
+        # floor is chosen per active backend unless the caller overrides it.
+        raw_pool = pool_results
+        if pool_results:
+            floor = min_score
+            if floor is None:
+                floor = RECOMMEND_MIN_SCORE_SEMANTIC if self.model is not None else RECOMMEND_MIN_SCORE_TFIDF
+            if floor:
+                pool_results = [
+                    r for r in pool_results
+                    if float(r.get("similarity_score", 0)) >= float(floor)
+                ]
+
+        # With a course-scoped request, never leave the student empty-handed:
+        # when nothing cleared the floor, fall back to the best candidate from
+        # the submission's own course — it is by construction the right topic.
+        if not pool_results and prefer_course_id is not None:
+            fallback = [
+                r for r in raw_pool
+                if r.get("source") == "material"
+                and r.get("course_id") == prefer_course_id
+            ]
+            if fallback:
+                best = sorted(
+                    fallback[:3],
+                    key=lambda r: (float(r.get("similarity_score", 0)), r.get("title", "")),
+                    reverse=True,
+                )[0]
+                pool_results = [best]
+
         # Live web (YouTube + Wikipedia) search is optional and network-bound.
         # It runs in a worker thread and is bounded by WEB_SEARCH_TIMEOUT_SECONDS
         # so a slow upstream call never stacks on top of the pool search latency.
         # The fast path (e.g. during quiz submission) can skip it entirely.
         results = pool_results
         if include_web:
-            yt_future = _WEB_EXECUTOR.submit(self._youtube_recommendations, weak_concepts, top_n)
-            art_future = _WEB_EXECUTOR.submit(self._article_recommendations, weak_concepts, top_n)
+            # A focused query searches the web far better than the full pool
+            # text (merging many missed questions dilutes every engine and
+            # invites storefront spam, e.g. Bing returning an online tool shop
+            # for "tools free reference management application …"). The caller
+            # picks the most topically informative missed question for this.
+            web_text = (web_query or "").strip() or weak_concepts
+            yt_future = _WEB_EXECUTOR.submit(self._youtube_recommendations, web_text, top_n)
+            art_future = _WEB_EXECUTOR.submit(self._article_recommendations, web_text, top_n)
             try:
                 youtube_results = yt_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
             except Exception:
@@ -421,9 +477,70 @@ class RecommendationEngine:
                 article_results = art_future.result(timeout=WEB_SEARCH_TIMEOUT_SECONDS)
             except Exception:
                 article_results = []
-            results = pool_results + youtube_results + article_results
-            results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
+            web_results = self._confirm_web_relevance(web_text, youtube_results + article_results)
+            results = self._dedupe(pool_results + web_results)
+        results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
         return results[:top_n]
+
+    @staticmethod
+    def _dedupe(items: list) -> list:
+        seen = set()
+        unique = []
+        for r in items:
+            key = " ".join((r.get("title") or "").lower().split())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            unique.append(r)
+        return unique
+
+    def _confirm_web_relevance(self, query: str, items: list) -> list:
+        """Verify live web results actually relate to the query before they are
+        surfaced. Search engines sometimes return junk (verified: a research-tools
+        query returned "English-French Dictionary WordReference.com"), so every
+        web item is re-scored against the query with the active backend and the
+        fake rank-based score is replaced by the real similarity. Below-floor
+        items are dropped."""
+        if not items:
+            return []
+        retained = []
+        if self.model is not None and self.resource_embeddings is not None:
+            try:
+                import numpy as np
+                query_embedding = self.model.encode(query, convert_to_numpy=True)
+                texts = [
+                    "{} {}".format(it.get("title", ""), it.get("description", ""))
+                    for it in items
+                ]
+                embs = self.model.encode(texts, convert_to_numpy=True)
+                qn = max(np.linalg.norm(query_embedding), 1e-9)
+                norms = np.linalg.norm(embs, axis=1)
+                norms[norms == 0] = 1e-9
+                sims = np.dot(embs, query_embedding) / (norms * qn)
+                for it, sim in zip(items, sims):
+                    sim = float(sim)
+                    if sim >= RECOMMEND_MIN_SCORE_SEMANTIC:
+                        it["similarity_score"] = round(sim, 4)
+                        retained.append(it)
+                return retained
+            except Exception as e:
+                print(f"[Recommendation] Web relevance check failed ({e}); keeping rank scores.")
+                return items
+
+        # TF-IDF backend: score against the same corpus vocabulary used for the pool.
+        query_tokens = self._tokenize(query)
+        if not query_tokens:
+            return items
+        for it in items:
+            tokens = self._tokenize(f"{it.get('title', '')} {it.get('description', '')}")
+            if not tokens:
+                continue
+            overlap = sum(1 for t in set(query_tokens) if t in set(tokens))
+            score = overlap / max(len(set(query_tokens)), 1)
+            if overlap >= 2 and score >= RECOMMEND_MIN_SCORE_TFIDF:
+                it["similarity_score"] = round(max(0.0, min(1.0, score)), 4)
+                retained.append(it)
+        return retained
 
     def _youtube_recommendations(self, query: str, top_n: int) -> list:
         """Fetch live YouTube videos for the weak concept and map them into the

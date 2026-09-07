@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const perCourse = await Promise.all(
             courses.map(c =>
                 swrGet(`roster-at-risk:${c.id}`, `${API_BASE}/api/analytics/course/${c.id}/at-risk`)
-                    .then(d => ({ course: c, data }))
+                    .then(d => ({ course: c, data: d }))
                     .catch(() => ({ course: c, data: null }))
             )
         );
