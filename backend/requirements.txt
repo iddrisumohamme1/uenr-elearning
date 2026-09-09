@@ -2,6 +2,7 @@ fastapi
 uvicorn
 supabase
 pydantic
+email-validator
 pydantic-settings
 python-dotenv
 python-multipart

@@ -161,8 +161,8 @@ def register(payload: RegisterRequest):
     if payload.role not in ALLOWED_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role}")
 
-    if payload.role in {"lecturer", "hod"} and not payload.department:
-        raise HTTPException(status_code=400, detail="Department is required for lecturer and HOD accounts.")
+    if not payload.department:
+        raise HTTPException(status_code=400, detail="Please select your school/department.")
 
     try:
         admin = get_admin_client()

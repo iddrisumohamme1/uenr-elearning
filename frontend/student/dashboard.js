@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!user) return;
 
     // Update Profile Info
-    document.getElementById('welcome-text').textContent = `Welcome, ${user.full_name.split(' ')[0]}`;
+    document.getElementById('welcome-text').textContent = `Welcome, ${firstNameOf(user.full_name) || 'Student'}`;
     document.querySelector('.avatar').textContent = user.full_name.charAt(0).toUpperCase();
 
     attachLogout('logout-btn');

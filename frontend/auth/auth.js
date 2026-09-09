@@ -75,22 +75,77 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Field-level validation helpers (used by the register form)
+    // Field-level validation helpers (used by the register form). Error <small>
+    // elements start hidden via CSS (.field-error { display:none }) and are
+    // revealed by toggling the .show class — the invalid border alone gives no
+    // explanation, so both are applied together.
     const setError = (input, message) => {
         input.classList.add('invalid');
         const errorEl = document.getElementById(input.id + '-error');
-        if (errorEl) errorEl.textContent = message;
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
     };
     const clearError = (input) => {
         input.classList.remove('invalid');
         const errorEl = document.getElementById(input.id + '-error');
-        if (errorEl) errorEl.textContent = '';
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.remove('show');
+        }
     };
     const clearErrors = (form) => form.querySelectorAll('.form-input').forEach(clearError);
 
     const roleCards = document.querySelectorAll('.role-card');
     let selectedRole = 'student';
     let isSubmitting = false;
+
+    // Auto-append ".com" when the user leaves a domain without a dot:
+    // "name@gmail" -> "name@gmail.com". Emails that already have a dot in
+    // the domain (gmail.com, uenr.edu.gh, ...) are left untouched.
+    const autoCompleteEmail = (value) => {
+        const v = value.trim();
+        if (!v.includes('@')) return v;
+        const [local, domain] = v.split('@');
+        if (local && domain && !domain.includes('.') && /^[A-Za-z0-9-]+$/.test(domain)) {
+            return `${local}@${domain}.com`;
+        }
+        return v;
+    };
+
+    // UENR-owned email domains. Explicitly allowed in addition to any valid
+    // general email (gmail.com, yahoo.com, ...).
+    const UENR_DOMAINS = new Set(['uenr.edu.gh', 'uenr.edu', 'uenr.gov.gh']);
+
+    const isValidEmail = (value) => {
+        const email = (value || '').trim();
+        if (!email) return false;
+        const domain = email.split('@')[1];
+        if (UENR_DOMAINS.has(domain)) return true;
+        // General address: local part then a real, well-formed domain with at
+        // least two labels and a recognised TLD (com, org, net, edu, gh, ...).
+        if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(email)) return false;
+        if (!/\.(com|org|net|edu|gov|io|int|mil|gh|uk|us|co|ca|au|ng|za|com\.gh|edu\.gh|org\.gh|gov\.gh|co\.uk|org\.uk|ac\.uk)$/i.test(email)) return false;
+        if (/\.\.|@@/.test(email)) return false;
+        return true;
+    };
+
+    // Strong password check: 8+ chars with uppercase, lowercase, a number
+    // and a special character.
+    const isStrongPassword = (value) =>
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/.test(value || '');
+
+    // 0-4 score used by the strength meter.
+    const passwordScore = (value) => {
+        const p = value || '';
+        let score = 0;
+        if (p.length >= 8) score++;
+        if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++;
+        if (/\d/.test(p)) score++;
+        if (/[^A-Za-z0-9\s]/.test(p)) score++;
+        return score;
+    };
 
     roleCards.forEach(card => {
         card.addEventListener('click', () => {
@@ -106,12 +161,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             if (isSubmitting) return;
 
-            const email = document.getElementById('email').value;
+            const emailInput = document.getElementById('email');
+            const email = autoCompleteEmail(emailInput.value);
+            emailInput.value = email;
             const password = document.getElementById('password').value;
             const btn = loginForm.querySelector('.btn-auth');
 
             if (!email || !password) {
                 showToast('Please fill in all fields.', 'warning');
+                return;
+            }
+            if (!isValidEmail(email)) {
+                showToast('Please enter a valid email address (e.g. name@domain.com or name@uenr.edu.gh).', 'warning');
                 return;
             }
 
@@ -162,17 +223,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             inp.addEventListener('change', () => clearError(inp));
         });
 
+        // Live password strength meter
+        const strengthBar = document.getElementById('password-strength');
+        const strengthText = document.getElementById('password-strength-text');
+        const updateStrength = () => {
+            if (!strengthBar || !strengthText) return;
+            const score = passwordScore(passwordInput.value);
+            const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+            const colors = ['#ff5a5a', '#ff8c42', '#ffc107', '#8bc34a', '#2ecc71'];
+            strengthBar.className = 'strength-bar';
+            if (passwordInput.value) {
+                strengthBar.classList.add(`strength-${score}`);
+                strengthBar.style.width = `${(score / 4) * 100}%`;
+                strengthText.textContent = labels[score];
+                strengthText.style.color = colors[score];
+            } else {
+                strengthBar.style.width = '0%';
+                strengthText.textContent = '';
+            }
+        };
+        passwordInput.addEventListener('input', updateStrength);
+
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isSubmitting) return;
 
             const fullname = fullnameInput.value.trim();
-            const email = emailInput.value.trim();
+            const email = autoCompleteEmail(emailInput.value.trim());
+            emailInput.value = email;
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
             const department = departmentSelect ? departmentSelect.value : null;
             const btn = registerForm.querySelector('.btn-auth');
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            // Real-name characters only: letters, spaces, hyphens, apostrophes, dots.
+            // Digits, @, underscores and any other symbol are rejected.
+            const nameRegex = /^[A-Za-z\s\-'.]+$/;
 
             clearErrors(registerForm);
             let firstInvalid = null;
@@ -182,15 +267,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
 
             if (!fullname) flag(fullnameInput, 'Please enter your full name.');
+            else if (!nameRegex.test(fullname)) flag(fullnameInput, 'Name must contain only letters, spaces, hyphens or apostrophes — no numbers or symbols.');
             if (!email) flag(emailInput, 'Please enter your email address.');
-            else if (!emailRegex.test(email)) flag(emailInput, 'Please enter a valid email address.');
+            else if (!isValidEmail(email)) flag(emailInput, 'Please enter a valid email address — either a UENR address (e.g. name@uenr.edu.gh) or a real domain ending in .com, .org, .net, .edu, .gh, etc.');
             if (!password) flag(passwordInput, 'Please enter a password.');
-            else if (password.length < 6) flag(passwordInput, 'Password must be at least 6 characters.');
+            else if (!isStrongPassword(password)) flag(passwordInput, 'Password must be at least 8 characters with uppercase, lowercase, a number and a special character (e.g. !@#$%^&*).');
             if (!confirmPassword) flag(confirmPasswordInput, 'Please confirm your password.');
             else if (password && confirmPassword !== password) flag(confirmPasswordInput, 'Passwords do not match.');
-            if ((selectedRole === 'lecturer' || selectedRole === 'hod') && !department) {
-                flag(departmentSelect, 'Department is required for lecturer and HOD accounts.');
-            }
+            if (!department) flag(departmentSelect, 'Please select your school/department.');
 
             if (firstInvalid) {
                 firstInvalid.focus();

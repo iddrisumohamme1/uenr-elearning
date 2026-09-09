@@ -62,6 +62,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedIndices = new Set();  // indices of selected questions
     let activeSource = 'ai';  // 'ai' | 'import' — which panel backs the review step
 
+    /* ── Due date must never be in the past ────────────────────────────── */
+    // Local-date "today" (avoid UTC drift from toISOString()).
+    const d = new Date();
+    const todayISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const DUE_ERR = 'Please enter a correct date — the due date cannot be in the past.';
+    ['ai-due', 'imp-due'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.min = todayISO;
+    });
+    // Inline prompt helpers — reuse the .invalid/.field-error red-border pattern.
+    const setDueError = (id) => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`${id}-error`);
+        if (el) el.classList.add('invalid');
+        if (err) { err.textContent = DUE_ERR; err.classList.add('show'); }
+    };
+    const clearDueError = (id) => {
+        const el = document.getElementById(id);
+        const err = document.getElementById(`${id}-error`);
+        if (el) el.classList.remove('invalid');
+        if (err) { err.textContent = ''; err.classList.remove('show'); }
+    };
+    const checkDueField = (id) => {
+        const el = document.getElementById(id);
+        const val = el ? el.value : '';
+        if (!val || val >= todayISO) clearDueError(id);
+        else setDueError(id);
+    };
+    // Prompt the user as soon as a past date is entered.
+    ['ai-due', 'imp-due'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => checkDueField(id));
+    });
+    // Shared check used by every create path before submitting.
+    const dueDateInvalid = (dueDate) => dueDate && dueDate < todayISO;
+
     /* ── Helpers ──────────────────────────────────────────────────────── */
     const closeModal = (m) => { if (m) m.hidden = true; };
     document.querySelectorAll('.modal [data-close="true"]').forEach(btn =>
@@ -465,10 +501,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('ai-topic').value = '';
         document.getElementById('ai-instructions').value = '';
         document.getElementById('ai-due').value = '';
+        clearDueError('ai-due');
         document.getElementById('ai-week').value = '';
         document.getElementById('imp-assign-title').value = '';
         document.getElementById('imp-instructions').value = '';
         document.getElementById('imp-due').value = '';
+        clearDueError('imp-due');
         document.getElementById('imp-week').value = '';
         impFileInput.value = '';
         updateImpFileLabel();
@@ -476,6 +514,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     reviewCreateBtn.addEventListener('click', async () => {
         const { courseId, title, instructions, dueDate, weekNum } = activeMeta();
+        const dueFieldId = activeSource === 'import' ? 'imp-due' : 'ai-due';
+        if (dueDateInvalid(dueDate)) {
+            setDueError(dueFieldId);
+            showToast(DUE_ERR, 'warning');
+            const el = document.getElementById(dueFieldId);
+            if (el) el.focus();
+            return;
+        }
         if (!courseId || !title) {
             showToast('Select a course and enter a title.', 'warning');
             return;

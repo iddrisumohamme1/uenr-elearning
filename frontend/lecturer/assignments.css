@@ -202,6 +202,17 @@
 }
 .form-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--ring); }
 
+/* Field-level validation (due-date prompt) */
+.form-input.invalid { border-color: var(--clr-danger); }
+.form-input.invalid:focus { border-color: var(--clr-danger); box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.15); }
+.field-error {
+  display: none;
+  margin-top: var(--s1);
+  font-size: 0.75rem;
+  color: var(--clr-danger);
+}
+.field-error.show { display: block; }
+
 .btn-text {
   background: none;
   border: none;

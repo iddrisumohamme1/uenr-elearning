@@ -58,6 +58,10 @@
                         <input type="password" class="form-input" id="password" name="password" placeholder="••••••••" autocomplete="new-password" required>
                         <button type="button" class="password-toggle" aria-label="Show password"><i class="bi bi-eye"></i></button>
                     </div>
+                    <div class="strength-wrap" aria-live="polite">
+                        <div class="strength-track"><div class="strength-bar" id="password-strength" style="width:0%"></div></div>
+                        <small class="strength-text" id="password-strength-text"></small>
+                    </div>
                     <small class="field-error" id="password-error"></small>
                 </div>
 
@@ -77,7 +81,7 @@
 
                 <div class="form-group">
                     <label class="form-label" for="department">Department</label>
-                    <select id="department" name="department" class="form-input" data-dropdown>
+                    <select id="department" name="department" class="form-input" data-dropdown required>
                         <option value="" disabled selected>Select your department</option>
                         <option value="Civil Engineering">Civil Engineering</option>
                         <option value="Computer Engineering">Computer Engineering</option>

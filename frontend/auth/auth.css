@@ -93,6 +93,33 @@
   box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.15);
 }
 
+/* Password strength meter */
+.strength-wrap {
+  margin-top: var(--s2);
+}
+.strength-track {
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-bottom: var(--s1);
+}
+.strength-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: var(--r-full);
+  background: var(--clr-danger);
+  transition: width var(--t-base), background var(--t-base);
+}
+.strength-bar.strength-1 { background: var(--clr-danger); }
+.strength-bar.strength-2 { background: #ff8c42; }
+.strength-bar.strength-3 { background: #ffc107; }
+.strength-bar.strength-4 { background: var(--clr-success); }
+.strength-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 .field-error {
   display: none;
   margin-top: var(--s1);

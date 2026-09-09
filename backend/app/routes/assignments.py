@@ -121,9 +121,11 @@ def create_assignment(payload: AssignmentCreateRequest, user=Depends(require_rol
     due = payload.due_date
     if due:
         try:
-            date.fromisoformat(due)
+            due_parsed = date.fromisoformat(due)
         except ValueError:
             raise HTTPException(status_code=400, detail="due_date must be a valid date (YYYY-MM-DD).")
+        if due_parsed < date.today():
+            raise HTTPException(status_code=400, detail="Due date cannot be in the past.")
 
     try:
         row = {

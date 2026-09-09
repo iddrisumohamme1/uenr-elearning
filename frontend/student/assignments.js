@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const recs = data.recommendations || [];
                 const recsHtml = recs.length ? `
                     <div class="auto-recs">
-                        <h4 class="auto-recs-title"><i class="bi bi-stars"></i> Recommended for you</h4>
+                        <h4 class="auto-recs-title"><i class="bi bi-bullseye"></i> Recommended for you</h4>
                         <p class="auto-recs-note">Your score was below 60% — these resources can help you improve.</p>
                         <ul class="auto-recs-list">
                             ${recs.map(r => {

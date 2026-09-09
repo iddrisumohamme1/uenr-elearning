@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const vid = itemSourceYouTube(item) ? youtubeId(item.url) : null;
         const match = Math.max(0, Math.min(100, Number(item.match_percent) || 0));
         const reasonChips = (item.reasons || []).map(r => `
-            <span class="feed-reason"><i class="bi bi-stars" aria-hidden="true"></i>${escapeHTML(r)}</span>
+            <span class="feed-reason"><i class="bi bi-bullseye" aria-hidden="true"></i>${escapeHTML(r)}</span>
         `).join('');
         const course = item.course_name ? `<span class="feed-course">${escapeHTML(item.course_name)}</span>` : '';
         const byline = item.channel

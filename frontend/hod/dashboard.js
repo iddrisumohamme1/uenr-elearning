@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     deptName.textContent = user.department || 'Department';
 
-    const firstName = user.full_name ? user.full_name.split(' ')[0] : 'Head of Department';
+    const firstName = firstNameOf(user.full_name) || 'Head of Department';
     document.getElementById('welcome-text').textContent = ghanaGreeting(firstName);
     document.getElementById('user-avatar').textContent = (user.full_name || 'H').charAt(0).toUpperCase();
 

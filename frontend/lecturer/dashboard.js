@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireSession('lecturer').catch(() => null);
     if (!user) return;
 
-    const firstName = user.full_name ? user.full_name.split(' ')[0] : 'Lecturer';
+    const firstName = firstNameOf(user.full_name) || 'Lecturer';
     document.getElementById('welcome-text').textContent = ghanaGreeting(firstName);
     document.getElementById('user-avatar').textContent = (user.full_name || 'L').charAt(0).toUpperCase();
 

@@ -235,6 +235,18 @@ async function initNavBadges() {
 }
 
 /**
+ * Extract the first name from a full name, skipping any leading honorific
+ * titles (Dr., Prof., Mr., Mrs., Eng., Rev., ...). "Dr. Amoanyi" -> "Amoanyi",
+ * "Prof. Kwaku Mensah" -> "Kwaku", "Iddrisu Mohammed" -> "Iddrisu".
+ * Returns an empty string when nothing usable remains.
+ */
+const HONORIFICS = /^(?:(?:Dr|Prof|Professor|Mr|Mrs|Ms|Miss|Eng|Rev|Hon|Sir|Madam|Chief|Instructor|Teacher)(?:\.)?(?:\s+|$))+/i;
+function firstNameOf(fullName = '') {
+    const name = String(fullName || '').trim().replace(HONORIFICS, '');
+    return name ? name.split(/\s+/)[0] : '';
+}
+
+/**
  * Timezone-aware greeting rendered on the role dashboards. The platform
  * serves Ghanaian students, so the greeting is computed from the Africa/Accra
  * clock rather than the visitor's local time — a machine set to another

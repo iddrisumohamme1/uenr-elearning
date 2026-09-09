@@ -90,6 +90,10 @@
         $('date_of_birth').value = user.date_of_birth || '';
         $('phone').value = user.phone || '';
 
+        // A date of birth can never be today or in the future — gray out
+        // future days in the native date picker.
+        $('date_of_birth').max = new Date().toISOString().slice(0, 10);
+
         const idInput = cfg.field === 'index' ? $('index_number') : $('staff_id');
         idInput.placeholder = cfg.placeholder;
         idInput.value = cfg.field === 'index' ? (user.index_number || '') : (user.staff_id || '');
@@ -171,10 +175,41 @@
             $('full_name').focus();
             return;
         }
+        // Real-name characters only: letters, spaces, hyphens, apostrophes.
+        // Digits, @, dots, underscores and any other symbol are rejected.
+        const nameRegex = /^[a-zA-Z\s\-']+$/;
+        if (!nameRegex.test(fullName)) {
+            setError($('full_name'), $('full_name-error'), 'Name must contain only letters, spaces, hyphens or apostrophes — no numbers or symbols.');
+            $('full_name').focus();
+            return;
+        }
+
+        // Date of birth must be a real, past date (not today and not in the
+        // future) and sensibly old enough to be an adult/student.
+        const dobRaw = $('date_of_birth').value || '';
+        if (dobRaw) {
+            const dob = new Date(dobRaw + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dobValid = !Number.isNaN(dob.getTime());
+            const years = dobValid ? (today.getFullYear() - dob.getFullYear()) : 0;
+            if (!dobValid || dob >= today) {
+                setError($('date_of_birth'), $('date_of_birth-error'),
+                    'Date of birth cannot be today or in the future.');
+                $('date_of_birth').focus();
+                return;
+            }
+            if (years < 5) {
+                setError($('date_of_birth'), $('date_of_birth-error'),
+                    'Date of birth must be a valid past date.');
+                $('date_of_birth').focus();
+                return;
+            }
+        }
 
         const payload = {
             full_name: fullName,
-            date_of_birth: $('date_of_birth').value || '',
+            date_of_birth: dobRaw,
             phone: $('phone').value.trim(),
         };
 
