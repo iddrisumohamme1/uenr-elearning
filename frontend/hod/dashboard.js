@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
     }
 
-    function renderAttentionQueue(courses) {
+    function renderAttentionQueue(courses, studentComprehension = null) {
         const results = [];
         const courseMap = {};
         (Array.isArray(courses) ? courses : []).forEach(c => { courseMap[c.id] = c; });
@@ -422,12 +422,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                         groups.push(groupMap[course.id]);
                     }
+                    // Prefer the student's department-wide latest comprehension
+                    // (the same value the dept comprehension doughnut is built
+                    // from) so the queue card never contradicts the chart. Fall
+                    // back to the per-course value returned by at-risk.
+                    const deptComp = studentComprehension
+                        ? studentComprehension[s.student_id]
+                        : null;
                     groupMap[course.id].students.push({
                         student_id: s.student_id,
                         course_id: course.id,
                         full_name: s.full_name || null,
-                        comprehension_label: s.comprehension_label || 'Unknown',
-                        comprehension_class: s.comprehension_class,
+                        comprehension_class: deptComp ? deptComp.class : s.comprehension_class,
+                        comprehension_label: deptComp ? deptComp.label : (s.comprehension_label || 'Unknown'),
                         created_at: s.created_at,
                         reading_minutes: s.reading_minutes,
                         days_since_last_activity: s.days_since_last_activity,
@@ -528,7 +535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderCourseMetrics(deptSummary, courseMap);
 
             // Attention queue — department-wide
-            await renderAttentionQueue(deptCourses);
+            await renderAttentionQueue(deptCourses, deptSummary ? deptSummary.student_comprehension : null);
 
             // My Classes — HODs can teach too
             const myCourses = (Array.isArray(courses) ? courses : []).filter(c => c.lecturer_id === user.id);

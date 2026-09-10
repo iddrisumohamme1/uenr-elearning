@@ -270,12 +270,15 @@
 
 /* Bubbles */
 .inbox-bubble-row {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
     animation: fadeInUp var(--t-slow) both;
 }
 
 .inbox-bubble-row.inbox-in { text-align: left; }
-.inbox-bubble-row.inbox-out { text-align: right; }
+.inbox-bubble-row.inbox-out { align-items: flex-end; text-align: right; }
 
 /* Sender attribution shown above each AI bubble */
 .inbox-msg-by {
@@ -301,6 +304,7 @@
 
 .inbox-bubble {
     display: inline-block;
+    width: fit-content;
     text-align: left;
     max-width: 55%;
     padding: 0.35rem 0.7rem;
@@ -313,17 +317,20 @@
     box-shadow: var(--shadow-sm);
 }
 
+.inbox-bubble.inbox-out,
+.inbox-bubble.inbox-in {
+    background: var(--clr-primary-light);
+    color: #064e3b;
+}
+
 .inbox-bubble.inbox-out {
-    background: var(--grad-primary);
-    color: #fff;
+    border: 1px solid var(--clr-primary-deep);
     border-bottom-right-radius: var(--r-sm);
     max-width: 45%;
 }
 
 .inbox-bubble.inbox-in {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
+    border: 1px solid var(--clr-primary-deep);
     border-bottom-left-radius: var(--r-sm);
 }
 
@@ -331,8 +338,8 @@
 .inbox-bubble.inbox-in.ai-msg {
     max-width: 80%;
     padding: 0.55rem 0.8rem 0.45rem;
-    border: 1px solid var(--border-strong);
-    border-left: 3px solid var(--clr-accent);
+    border-color: var(--clr-primary-deep);
+    border-left: 3px solid var(--clr-primary-deep);
 }
 
 .inbox-bubble-meta {
@@ -342,11 +349,11 @@
     opacity: 0.85;
 }
 
-.inbox-in .inbox-bubble-meta { color: var(--text-muted); }
-.inbox-out .inbox-bubble-meta { color: rgba(255, 255, 255, 0.85); }
+.inbox-in .inbox-bubble-meta { color: rgba(6, 78, 59, 0.7); }
+.inbox-out .inbox-bubble-meta { color: rgba(6, 78, 59, 0.7); }
 
 .inbox-bubble a { text-decoration: underline; }
-.inbox-out .inbox-bubble a { color: #fff; }
+.inbox-out .inbox-bubble a { color: #064e3b; }
 
 /* Paragraph arrangement inside plain (student/lecturer) messages */
 .inbox-bubble p { margin: 0; }
@@ -360,17 +367,17 @@
     gap: 6px;
     margin: 0 0 0.3rem;
     padding-bottom: 0.3rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--clr-primary-deep);
     font-size: 0.88rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #064e3b;
 }
 
-.inbox-bubble.inbox-in .ai-h i { color: var(--clr-primary-light); }
+.inbox-bubble.inbox-in .ai-h i { color: var(--clr-primary-deep); }
 
 .inbox-bubble.inbox-in .ai-p {
     margin: 0.35rem 0;
-    color: var(--text-secondary);
+    color: #0b3d2e;
 }
 
 .inbox-bubble.inbox-in .ai-p:first-child { margin-top: 0; }
@@ -388,7 +395,7 @@
 .inbox-bubble.inbox-in .ai-list li {
     position: relative;
     padding-left: 1.1rem;
-    color: var(--text-secondary);
+    color: #0b3d2e;
 }
 
 .inbox-bubble.inbox-in .ai-list li::before {
@@ -399,17 +406,17 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--clr-primary-light);
-    box-shadow: 0 0 0 3px var(--primary-soft);
+    background: var(--clr-primary-deep);
+    box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.18);
 }
 
 .inbox-bubble.inbox-in .ai-note {
     margin: 0.4rem 0;
     padding: 0.5rem 0.7rem;
-    background: var(--primary-soft);
-    border-left: 3px solid var(--clr-accent);
+    background: rgba(4, 120, 87, 0.12);
+    border-left: 3px solid var(--clr-primary-deep);
     border-radius: var(--r-md);
-    color: var(--text-secondary);
+    color: #0b3d2e;
     font-size: 0.82rem;
 }
 

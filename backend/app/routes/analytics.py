@@ -450,6 +450,18 @@ def department_summary(user=Depends(require_role("hod"))):
             "moderate": {"count": comp_mod,  "pct": _pct(comp_mod,  len(comp_latest))},
             "good":     {"count": comp_good, "pct": _pct(comp_good, len(comp_latest))},
         },
+        # Per-student department-wide latest comprehension — the same source
+        # the doughnut above is built from. The HOD dashboard overlays this
+        # onto the Attention Queue cards so a flagged student's comprehension
+        # never contradicts the chart (a per-course value can disagree when a
+        # newer classification exists in another course).
+        "student_comprehension": {
+            sid: {
+                "class": comp_cls,
+                "label": COMPREHENSION_LABELS.get(comp_cls, "Unknown"),
+            }
+            for sid, (_, comp_cls) in comp_latest.items()
+        },
         "by_course": by_course,
     }
 
