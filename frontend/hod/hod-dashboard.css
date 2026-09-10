@@ -664,18 +664,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.metric-health {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.metric-health--success { color: var(--clr-success); }
-.metric-health--warning { color: var(--clr-warning); }
-.metric-health--danger  { color: var(--clr-danger); }
-.metric-health--muted   { color: var(--text-muted); }
 .metric-bar {
   display: flex;
   height: 6px;
@@ -973,25 +961,7 @@ body.role-hod .pulse-label {
   color: var(--id-gold-ink);
 }
 body.role-hod .pulse-score {
-  font-family: var(--id-serif);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-body.role-hod .pulse-score .pulse-unit {
-  font-family: var(--id-serif);
-  font-style: italic;
-  color: var(--id-gold-ink);
-}
-body.role-hod .pulse-readout { background: var(--bg-elevated); }
-body.role-hod .pulse-readout-num {
-  font-family: 'Space Grotesk', var(--font-display);
-  font-weight: 600;
-}
-body.role-hod .pulse-readout-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.64rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  display: none;
 }
 /* The segmented bar becomes a 6px ledger "ruler" with hairlines. */
 body.role-hod .pulse-bar {

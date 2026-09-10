@@ -74,8 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function setDeptPulse(atRisk, moderate, engaged, total, caption) {
-        const pulseScoreEl = document.getElementById('dept-pulse-score');
-        const pulseAtRiskEl = document.getElementById('dept-pulse-at-risk');
         const captionEl = document.getElementById('dept-pulse-caption');
         const segs = {
             risk: document.getElementById('dept-seg-risk'),
@@ -86,8 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const legendMod = document.getElementById('dept-legend-mod');
         const legendEngaged = document.getElementById('dept-legend-eng');
         if (total === 0) {
-            pulseScoreEl.textContent = '--';
-            pulseAtRiskEl.textContent = '0';
             segs.risk.style.width = '0%';
             segs.mod.style.width = '0%';
             segs.engaged.style.width = '0%';
@@ -97,8 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             captionEl.textContent = caption || 'No engagement data yet.';
             return;
         }
-        animateCount(pulseScoreEl, Math.round(((moderate + engaged) / total) * 100));
-        pulseAtRiskEl.textContent = String(atRisk);
         segs.risk.style.width = `${(atRisk / total) * 100}%`;
         segs.mod.style.width = `${(moderate / total) * 100}%`;
         segs.engaged.style.width = `${(engaged / total) * 100}%`;
@@ -384,26 +378,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const riskPct = c.total > 0 ? (c.at_risk / c.total) * 100 : 0;
             const modPct = c.total > 0 ? (c.moderate / c.total) * 100 : 0;
             const goodPct = c.total > 0 ? (c.high / c.total) * 100 : 0;
-            const atRiskPct = c.total > 0 ? (c.at_risk / c.total) * 100 : 0;
-            let healthLabel, healthClass;
-            if (c.total === 0) {
-                healthLabel = 'No data';
-                healthClass = 'muted';
-            } else if (atRiskPct >= 30) {
-                healthLabel = 'At Risk';
-                healthClass = 'danger';
-            } else if (atRiskPct >= 10) {
-                healthLabel = 'Moderate';
-                healthClass = 'warning';
-            } else {
-                healthLabel = 'Healthy';
-                healthClass = 'success';
-            }
             return `
                 <div class="metric-item">
                     <div class="metric-head">
                         <span class="metric-name">${escapeHTML(name)}</span>
-                        <span class="metric-health metric-health--${healthClass}">${healthLabel}</span>
                     </div>
                     <div class="metric-bar" role="img" aria-label="Engagement split for ${escapeHTML(name)}">
                         <span class="metric-seg metric-seg--risk" style="width:${riskPct}%"></span>

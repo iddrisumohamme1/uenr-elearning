@@ -8,7 +8,38 @@
 
 import os
 import ssl
+import socket
+import subprocess
+import sys
 import traceback
+
+
+def _kill_stale_port(port: int = 8001) -> None:
+    """On Windows, kill any orphaned process still listening on *port*.
+
+    This commonly happens when uvicorn is closed via the terminal's X button
+    instead of Ctrl+C — the child process survives and blocks the port on
+    the next start.  Running on import (before uvicorn binds) so the user
+    never sees "Address already in use".
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        out = subprocess.check_output(
+            ["netstat", "-ano"], text=True, timeout=5, stderr=subprocess.DEVNULL,
+        )
+        for line in out.splitlines():
+            if f":{port}" in line and "LISTENING" in line:
+                pid = int(line.rsplit(None, 1)[-1])
+                subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+                )
+    except Exception:
+        pass
+
+
+_kill_stale_port(8001)
 
 if os.getenv("APP_ENV", "development") == "development":
     try:
