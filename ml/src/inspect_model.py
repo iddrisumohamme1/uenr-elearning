@@ -5,7 +5,7 @@
 import os
 import sys
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "student_engagement_model.keras")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "best_two_tower_model.keras")
 
 def inspect_model(model_path=MODEL_PATH):
     try:

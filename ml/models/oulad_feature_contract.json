@@ -1,0 +1,30 @@
+{
+    "student_features": [
+        "gender",
+        "age_band",
+        "highest_education",
+        "imd_band",
+        "disability"
+    ],
+    "interaction_features": [
+        "total_activities",
+        "unique_materials",
+        "active_days",
+        "avg_daily_activity",
+        "activity_per_registered_day",
+        "days_since_last_activity",
+        "assessment_count"
+    ],
+    "targets": {
+        "engagement": [
+            "At-Risk",
+            "Moderate",
+            "Highly Engaged"
+        ],
+        "comprehension": [
+            "Low Comprehension",
+            "Moderate Comprehension",
+            "Good Comprehension"
+        ]
+    }
+}

@@ -95,8 +95,8 @@ FYP/
 │   ├── .env.example              # Backend environment template
 │   └── requirements.txt
 ├── ml/                           # ML inference code & trained model
-│   ├── src/                      # Model inspection & inference scripts
-│   └── models/                   # Trained model artifacts (e.g. student_engagement_model.keras)
+│   ├── src/                      # Retraining & inference scripts (train_kaggle_two_tower.py, train_two_tower_local.ipynb, test_inference.py, generate_training_report.py, inspect_model.py)
+│   └── models/                   # Trained model artifacts (best_two_tower_model.keras, oulad_preprocessor.json, oulad_feature_contract.json, metrics, curves)
 ├── supabase/                     # Database migrations (SQL) & seed data
 ├── .env.example                  # Root environment template
 ├── requirements.txt              # Root redirect → backend/requirements.txt (Render default)
@@ -207,15 +207,17 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - The AI quiz start screen lists your saved highlights for that material as a pre-quiz refresher
 
 ### Two-Tower Neural Network
-- **Student Tower**: 9 demographic features (age, sex, education, etc.) — shared platform defaults since demographics aren't collected; discrimination comes from the interaction tower
-- **Interaction Tower**: 6 behavioral features (grades, absences, failures, free time)
-- Quiz scores are rescaled from percentages (0–100) to UCI grades (0–20) before inference
-- Both quiz systems feed classification: legacy quizzes *and* AI comprehension checks (`quiz_submissions`)
-- `failures` = distinct course quizzes whose latest attempt scored <40% (cap 4); `absences` come from real attendance logs
-- Classifies students into At-Risk / Moderate / Highly Engaged + comprehension level (Low / Moderate / Good)
+- **Pre-trained on OULAD** (Open University Learning Analytics Dataset, CC BY 4.0 — the same kind of VLE clickstream telemetry the platform logs, not classroom exam grades; citation: Kuzilek, J., Hlosta, M., & Zdrahal, Z. (2017), *Scientific Data* 4:170171), then **fine-tuned on the Kaggle simulated student-learning-interaction dataset** (300 students). The fine-tune reuses the deployed weights instead of retraining from scratch, so the original OULAD knowledge is preserved. Reproducible via `ml/src/train_kaggle_two_tower.py` or the executed `ml/src/train_two_tower_local.ipynb` (`ml/OULAD_RETRAIN_PLAN.txt` documents the exact steps and artifact layout).
+- **Student Tower**: 5 demographic features (gender, age band, highest education, IMD band, disability) — shared platform defaults since demographics aren't collected (documented limitation); discrimination comes from the interaction tower
+- **Interaction Tower**: 7 behavioural features built from real platform telemetry: `total_activities` (study minutes), `unique_materials`, `active_days`, `avg_daily_activity`, `activity_per_registered_day`, `days_since_last_activity`, `assessment_count` (distinct graded quizzes + assignments)
+- Interaction features are standardized at inference with the scaler serialized in `ml/models/oulad_preprocessor.json`; the feature contract lives in `ml/models/oulad_feature_contract.json`. Quiz-derived features are kept **out of the feature set** as a leakage guard — classification is driven by behaviour, not by the assessment being predicted
+- Labels: engagement `final_result → At-Risk (Withdrawn/Fail) / Moderate (Pass) / Highly Engaged (Distinction)`; comprehension = the student's latest quiz/assignment score (≥80 → Good, ≥50 → Moderate, else Low), the same bins as the production `comprehension_from_scores` rule
+- **Comprehension-head corrections** (the deployed fine-tune): class-balanced effective-number weights (β = 0.999) folded into a focal loss (γ = 1.5) so the rare `Low` class still trains; an ordinal penalty (λ = 0.1) that costs an *adjacent* misclassification (e.g. Low↔Moderate) less than a *skip* (Low↔Good); and a task-specific comprehension branch (`Dense(16)` → softmax) off the shared trunk so the head no longer competes with the engagement head for representation. Engagement keeps plain cross-entropy with inverse-frequency sample weights.
+- Holdout evaluation (30% split): Engagement accuracy **0.6370**, macro-F1 **0.6287**; Comprehension accuracy **0.4521**, macro-F1 **0.3086** (246 errors: 220 adjacent, 26 skip). Reported honestly from `ml/models/model_evaluation_results.json` — these sit at the realistic ceiling for pure clickstream telemetry (behavioural logs explain very little grade variance in the literature), which is why comprehension is always **overridden at runtime by the student's real assessment scores** (`comprehension_from_scores`); the model head is only the fallback that drives stored probabilities and the pre-assessment default
 - Auto-classify endpoint bridges telemetry logs with ML inference after 60s of engaged reading
 - Results render as a quiet "AI insight" chip beside the status beacon (full label in the tooltip) — the Active/Idle status stays untouched
 - Lazy-loads the model and falls back to a heuristic analyzer when `ENGAGEMENT_ML_ENABLED=false`
+- `ml/src/test_inference.py` sanity-checks the saved artifact; `ml/src/generate_training_report.py` renders the real metrics + curves for the report
 
 ### Micro-Questions
 - Auto-generated when a student is classified as At-Risk
@@ -229,12 +231,15 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Lecturers review per-student submissions with on-time/overdue status
 - Submission tracking with on-time status and average grade
 - Assignment Performance section in the student analytics dashboard
+- Low-scored question-based assignments (< 50%) automatically recommend study resources from the missed questions (shown inline in the submission result)
 
 ### AI Quizzes
 - Quiz creation with manual or AI-generated questions (Gemini/Groq)
 - Fully untimed: quizzes open with a start screen; the student begins when ready
 - Closing or navigating away mid-attempt triggers a browser leave-warning; the guard disarms only on successful submission
+- Manual quizzes let students skip questions and submit early — skipped, blank, and wrong questions are all treated as missed (the results page even shows how many questions went unanswered)
 - Instant grading and per-question feedback
+- Low-scored quizzes (< 50%) automatically recommend study resources built from the missed questions
 - Weak-topic detection feeds the recommendation engine
 
 ### Study Resources ("The Study Press")
@@ -248,6 +253,7 @@ Starts the backend (skips if already running on port 8001) and opens the landing
 - Recommends YouTube tutorials (YouTube Data API), articles, and study materials
 - Curated resource catalog that lecturers can generate and publish per course
 - Auto-detected weak-topic chips surface in the search box on page load
+- **Auto-recommendation on low assessment scores**: when a student scores below 50% on a quiz (AI or manual) or a question-based assignment, the system collects the questions they missed — skipped, left blank, or answered wrong — and builds the recommendation search directly from those exact question texts (course/material title as a fallback). The results are stored as unread notifications; after a low-scored quiz the results page shows the score briefly then automatically redirects the student to the Recommendations page to act on them, and the sidebar shows an unread badge
 - Fast retrieval: weak-topic auto-detection searches only the local pool, and the
   live YouTube search runs concurrently behind a short timeout so it never stacks
   on top of pool latency

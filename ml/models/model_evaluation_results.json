@@ -1,0 +1,25 @@
+{
+    "engagement_accuracy": 0.6369710467706013,
+    "engagement_f1_macro": 0.6287195395785902,
+    "comprehension_accuracy": 0.4521158129175947,
+    "comprehension_f1_macro": 0.30858871401561433,
+    "comprehension_errors": 246,
+    "comprehension_adjacent_errors": 220,
+    "comprehension_skip_errors": 26,
+    "loss_params": {
+        "focal_gamma": 1.5,
+        "class_balanced_beta": 0.999,
+        "ordinal_lambda": 0.1
+    },
+    "comprehension_label_source": "latest_quiz",
+    "classes_engagement": {
+        "0": 670,
+        "1": 432,
+        "2": 394
+    },
+    "classes_comprehension": {
+        "0": 198,
+        "1": 989,
+        "2": 309
+    }
+}

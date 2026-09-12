@@ -28,10 +28,7 @@ ml/*.keras
 ml/*.pb
 ml/checkpoints/
 ml/saved_models/
-ml/data/*.csv
-ml/data/*.pkl
-ml/data/*.npy
-ml/notebooks/.ipynb_checkpoints/
+ml/data/
 
 # Logs
 *.log
@@ -39,6 +36,9 @@ ml/notebooks/.ipynb_checkpoints/
 # Supabase local
 supabase/.temp/
 supabase/.env
+
+# Supabase access token (live credential — never commit)
+ml/accesstoken.txt
 
 # Third-party reference material (Anthropic skills)
 skills/

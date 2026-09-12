@@ -133,18 +133,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('next-btn').addEventListener('click', () => {
-        if (selectedOption === null) { showToast('Please select an option.', 'warning'); return; }
         answers[currentQuestionIndex] = selectedOption;
         if (currentQuestionIndex === currentQuiz.questions.length - 1) submitQuiz();
         else { currentQuestionIndex++; loadQuestion(); }
     });
 
     async function submitQuiz() {
-        if (answers.some(a => a === null)) {
-            showToast('Please answer every question before submitting.', 'warning');
-            return;
-        }
-
         let finalScore = null;
         let correct = 0;
         let total = currentQuiz.questions.length;
@@ -184,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         disarmLeaveGuard();
         const recsParam = recRedirect ? '&redirectRecs=1' : '';
-        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${correct}&total=${total}${recsParam}`;
+        const unanswered = answers.filter(a => a === null).length;
+        window.location.href = `../results/results.html?score=${finalScore}&quiz=${encodeURIComponent(currentQuiz.title)}&correct=${correct}&total=${total}&unanswered=${unanswered}${recsParam}`;
     }
 
     loadCourses();

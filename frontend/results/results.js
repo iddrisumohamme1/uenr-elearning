@@ -39,16 +39,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (correct && total) {
         detailsEl.style.display = 'block';
         document.getElementById('detail-text').textContent = `You answered ${correct} out of ${total} questions correctly${quizTitle ? ' in "' + quizTitle + '"' : ''}.`;
-        if (theory !== null && theory !== undefined && theory !== '') {
+        if (unansweredTheory > 0) {
+            const skipEl = document.createElement('p');
+            skipEl.className = 'text-muted';
+            skipEl.style.marginTop = '0.5rem';
+            skipEl.textContent = `You did not answer ${unansweredTheory} question${unansweredTheory > 1 ? 's' : ''}. These were scored 0, which reduced your overall mark.`;
+            skipEl.style.color = 'var(--clr-danger)';
+            detailsEl.appendChild(skipEl);
+        } else if (theory !== null && theory !== undefined && theory !== '') {
             const theoryEl = document.createElement('p');
             theoryEl.className = 'text-muted';
             theoryEl.style.marginTop = '0.5rem';
-            if (unansweredTheory > 0) {
-                theoryEl.textContent = `You did not answer ${unansweredTheory} theory question${unansweredTheory > 1 ? 's' : ''}. These were scored 0, which reduced your overall mark.`;
-                theoryEl.style.color = 'var(--clr-danger)';
-            } else {
-                theoryEl.textContent = `Theory questions scored ${Math.round(parseFloat(theory))}%.`;
-            }
+            theoryEl.textContent = `Theory questions scored ${Math.round(parseFloat(theory))}%.`;
             detailsEl.appendChild(theoryEl);
         }
     }

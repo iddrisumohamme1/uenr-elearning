@@ -2,9 +2,10 @@
 # Purpose: Logs student telemetry, runs Two-Tower Neural Network inference,
 #          and persists engagement + comprehension classifications to Supabase.
 #
-# Two-Tower input split:
-#   Student Tower  → 9 demographic features (profile data)
-#   Interaction Tower → 6 behavioural features (platform activity)
+# Two-Tower feature aggregation + inference live in
+# app.services.engagement_features (shared with the historical backfill
+# script backend/scripts/backfill_engagement.py), so the analysis here and
+# the data reconciliation can never drift.
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -13,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from app.database import get_admin_client, with_retry
 from app.core.security import get_current_user, require_role
 from app.services.engagement_analyzer import get_analyzer
+from app.services.engagement_features import comprehension_from_scores, compute_classification
 from app.services.insight_messages import push_insight_message
 
 router = APIRouter(prefix="/api/engagement", tags=["engagement"])
@@ -21,26 +23,24 @@ router = APIRouter(prefix="/api/engagement", tags=["engagement"])
 # ── Request / Response Models ─────────────────────────────────────────────────
 
 class StudentProfile(BaseModel):
-    """9 demographic features → Student Tower"""
-    age:        float = Field(17.0, ge=10, le=25)
-    sex:        float = Field(1.0,  description="1=Male, 0=Female")
-    address:    float = Field(1.0,  description="1=Urban, 0=Rural")
-    famsize:    float = Field(1.0,  description="1=GT3, 0=LE3")
-    Pstatus:    float = Field(1.0,  description="1=Together, 0=Apart")
-    Medu:       float = Field(2.0,  ge=0, le=4, description="Mother education 0-4")
-    Fedu:       float = Field(2.0,  ge=0, le=4, description="Father education 0-4")
-    traveltime: float = Field(1.0,  ge=1, le=4)
-    studytime:  float = Field(2.0,  ge=1, le=4)
+    """5 demographic features → Student Tower (OULAD encodings, see defaults)"""
+    gender:           float = Field(1.0, ge=0, le=1, description="0=Female, 1=Male")
+    age_band:         float = Field(1.0, ge=0, le=2, description="0-35=0, 35-55=1, 55+=2")
+    highest_education: float = Field(1.0, ge=0, le=3,
+                                     description="NoFormal=0, LowerA=1, ALevel=2, Higher=3")
+    imd_band:         float = Field(5.0, ge=0, le=9, description="IMD deprivation decile 0-9")
+    disability:       float = Field(0.0, ge=0, le=1, description="0=No, 1=Yes")
 
 
 class InteractionLog(BaseModel):
-    """6 behavioural / academic interaction features → Interaction Tower"""
-    failures: float = Field(0.0, ge=0, le=4, description="Past course failures")
-    absences: float = Field(5.0, ge=0,        description="Number of absences")
-    G1:       float = Field(12.0, ge=0, le=20, description="First period grade (0-20)")
-    G2:       float = Field(12.0, ge=0, le=20, description="Second period grade (0-20)")
-    G3:       float = Field(12.0, ge=0, le=20, description="Final grade (0-20)")
-    freetime: float = Field(3.0,  ge=1, le=5,  description="Free time after school 1-5")
+    """7 behavioural features → Interaction Tower (OULAD telemetry)"""
+    total_activities:               float = Field(0.0, ge=0, description="Total activity volume (mins)")
+    unique_materials:               float = Field(0.0, ge=0, description="Distinct materials accessed")
+    active_days:                    float = Field(0.0, ge=0, description="Distinct active days")
+    avg_daily_activity:             float = Field(0.0, ge=0, description="Total / active days")
+    activity_per_registered_day:    float = Field(0.0, ge=0, description="Total / enrolled days")
+    days_since_last_activity:       float = Field(0.0, ge=0, description="Days since last telemetry")
+    assessment_count:               float = Field(0.0, ge=0, description="Distinct graded assessments")
 
 
 class EngagementRequest(BaseModel):
@@ -204,12 +204,13 @@ def classify_engagement(payload: EngagementRequest, user=Depends(get_current_use
         "student_id":        payload.student_id,
         "course_id":         payload.course_id,
         # Interaction features stored as telemetry metrics
-        "failures":          interaction_dict["failures"],
-        "absences":          interaction_dict["absences"],
-        "G1":                interaction_dict["G1"],
-        "G2":                interaction_dict["G2"],
-        "G3":                interaction_dict["G3"],
-        "freetime":          interaction_dict["freetime"],
+        "total_activities":            interaction_dict["total_activities"],
+        "unique_materials":            interaction_dict["unique_materials"],
+        "active_days":                 interaction_dict["active_days"],
+        "avg_daily_activity":          interaction_dict["avg_daily_activity"],
+        "activity_per_registered_day": interaction_dict["activity_per_registered_day"],
+        "days_since_last_activity":    interaction_dict["days_since_last_activity"],
+        "assessment_count":            interaction_dict["assessment_count"],
         # Classification output
         "engagement_class":   result["engagement_class"],
         "engagement_label":   result["engagement_label"],
@@ -492,133 +493,7 @@ def get_at_risk_students(course_id: str, user=Depends(get_current_user)):
         raise HTTPException(500, detail=str(e))
 
 
-def _assignment_scores(admin, student_id, course_id):
-    """Latest graded assignment scores for a student in a course.
 
-    Mirrors the visibility rule used by the assignments list: shared
-    (manually created) assignments plus the student's own auto-generated ones.
-    Only graded (non-null) scores count; they are clamped to 0-100 and returned
-    newest-first so older attempts never shadow recent work.
-    """
-    scores = []
-    try:
-        assign_resp = with_retry(
-            lambda c: c.table("assignments")
-            .select("id, auto_generated, student_id")
-            .eq("course_id", course_id)
-            .execute()
-        )
-        assignments = getattr(assign_resp, "data", []) or []
-        visible = [
-            a for a in assignments
-            if not a.get("auto_generated") or a.get("student_id") == student_id
-        ]
-        a_ids = [a["id"] for a in visible if a.get("id")]
-        if not a_ids:
-            return scores
-
-        subs_resp = with_retry(
-            lambda c: c.table("assignment_submissions")
-            .select("assignment_id, submitted_at, score")
-            .eq("student_id", student_id)
-            .in_("assignment_id", a_ids)
-            .order("submitted_at", desc=True)
-            .execute()
-        )
-        for s in (getattr(subs_resp, "data", []) or []):
-            score = s.get("score")
-            if score is None:
-                continue
-            try:
-                scores.append(max(0.0, min(100.0, float(score))))
-            except (TypeError, ValueError):
-                continue
-    except Exception as e:
-        print(f"[auto-classify] Could not fetch assignment scores: {e}")
-    return scores
-
-
-def _course_graded_scores(admin, student_id, course_id):
-    """Every scored assessment a student has in a course, globally time-sorted.
-
-    Merges legacy quizzes (quiz_results), AI-generated quizzes
-    (quiz_submissions) and graded assignments (assignment_submissions) into a
-    single chronological list of ``(submitted_at, score)`` drawn from one
-    timestamp column, so the newest assessment is always last regardless of
-    source. This replaces the old newest-per-table merge whose per-table
-    ``order()``/``limit()`` could surface stale or transiently-worst scores.
-    Payload scores are stored on a 0-100 percentage scale.
-    """
-    rows = []
-    try:
-        quiz_resp = with_retry(
-            lambda c: c.table("quiz_results")
-            .select("submitted_at, score, quizzes!inner(course_id)")
-            .eq("student_id", student_id)
-            .execute()
-        )
-        for qr in (getattr(quiz_resp, "data", []) or []):
-            cinfo = qr.get("quizzes")
-            if not (isinstance(cinfo, dict) and cinfo.get("course_id") == course_id):
-                continue
-            score = qr.get("score")
-            if score is None:
-                continue
-            rows.append((qr.get("submitted_at"), float(score)))
-    except Exception as e:
-        print(f"[graded-scores] quiz_results error: {e}")
-
-    try:
-        ai_resp = with_retry(
-            lambda c: c.table("quiz_submissions")
-            .select("submitted_at, score, generated_quizzes!inner(course_id)")
-            .eq("student_id", student_id)
-            .execute()
-        )
-        for qr in (getattr(ai_resp, "data", []) or []):
-            gq = qr.get("generated_quizzes")
-            if not (isinstance(gq, dict) and gq.get("course_id") == course_id):
-                continue
-            score = qr.get("score")
-            if score is None:
-                continue
-            rows.append((qr.get("submitted_at"), float(score)))
-    except Exception as e:
-        print(f"[graded-scores] quiz_submissions error: {e}")
-
-    for score in _assignment_scores(admin, student_id, course_id):
-        rows.append((None, score))
-
-    rows.sort(key=lambda r: (r[0] is None, r[0] or ""))
-    return rows
-
-
-# Comprehension derived directly from a student's actual assessment scores.
-# Thresholds mirror the quiz same-page labels (>=80 Good, >=50 Moderate, else
-# Low) so the comprehension card and the per-quiz feedback never contradict.
-# The label reflects the MOST RECENT scored assessment — the same "present
-# tense" signal the analytics quiz-history card highlights (its latest row's
-# per-submission comprehension_level), so a freshly improved quiz immediately
-# lifts the course comprehension label instead of being diluted or left stale.
-_COMPREHENSION_OK_MIN = 80.0
-_COMPREHENSION_MOD_MIN = 50.0
-
-
-def _comprehension_from_scores(scores):
-    """Map a student's real quiz/assignment percentages to (class, label).
-
-    Uses the most recent score in ``scores`` (callers hand over the list in
-    chronological order, newest last). Returns None when there are no scored
-    assessments — callers then fall back to the ML model's comprehension output.
-    """
-    if not scores:
-        return None
-    latest = scores[-1]
-    if latest >= _COMPREHENSION_OK_MIN:
-        return 2, "Good Comprehension"
-    if latest >= _COMPREHENSION_MOD_MIN:
-        return 1, "Moderate Comprehension"
-    return 0, "Low Comprehension"
 
 
 def _material_course_id(admin, material_id):
@@ -707,7 +582,7 @@ def _material_assessment(admin, student_id, material_id, course_id=None):
 
     if best is None:
         return None
-    return _comprehension_from_scores([best[1]])
+    return comprehension_from_scores([best[1]])
 
 
 def _course_material_comprehension(admin, student_id, course_id):
@@ -744,7 +619,7 @@ def _course_material_comprehension(admin, student_id, course_id):
                 mid = mid_by_quiz.get(qid)
                 if mid is None:
                     continue
-                comp = _comprehension_from_scores([float(s["score"])])
+                comp = comprehension_from_scores([float(s["score"])])
                 if comp is not None:
                     result[mid] = comp
     except Exception as e:
@@ -776,7 +651,7 @@ def _course_material_comprehension(admin, student_id, course_id):
                 mid = mid_by_assign.get(aid)
                 if mid is None:
                     continue
-                comp = _comprehension_from_scores([float(s["score"])])
+                comp = comprehension_from_scores([float(s["score"])])
                 if comp is not None:
                     result[mid] = comp
     except Exception as e:
@@ -801,150 +676,16 @@ def _run_classification(admin, student_id, course_id, material_id=None):
     immediately refreshes the stored label instead of waiting for the next
     study session.
 
-    Comprehension is driven directly by the student's *real* assessment scores
-    (quizzes + assignments) via `_comprehension_from_scores`; the Two-Tower
-    model still produces the engagement label from behavioural features, and
-    its comprehension output is only used when there are no graded scores yet.
+    Feature aggregation + Two-Tower inference live in
+    `app.services.engagement_features.compute_classification` (shared with the
+    historical backfill script), so live classification and the data
+    reconciliation can never drift.
 
     Raises RuntimeError if the classification cannot be persisted — callers
     that should surface a 5xx convert it to an HTTPException; post-submit
     triggers catch it and log, never failing the student-facing response.
     """
-    # ── Graded assessments for this course as the interaction proxy ───────────
-    # NOTE: the Two-Tower model was trained on UCI grades (0-20 scale), while
-    # the platform stores quiz/assignment scores as percentages (0-100). Raw
-    # percentages would saturate the interaction tower, so they are rescaled by
-    # /5 below. `_course_graded_scores` returns every scored assessment in
-    # chronological order (newest last) across all three sources.
-    graded_rows = _course_graded_scores(admin, student_id, course_id)
-    course_scores = [score for _, score in graded_rows]
-    # Distinct quiz ids holding the latest per-quiz percentage, for the
-    # UCI-style "failures" proxy (keeps multiple attempts per quiz distinct).
-    latest_by_quiz = {}
-
-    interaction_defaults = {"failures": 0, "absences": 0, "G1": 10, "G2": 10, "G3": 10, "freetime": 3}
-
-    if course_scores:
-        interaction_defaults["G1"] = round(course_scores[-1] / 5.0, 2)
-        interaction_defaults["G2"] = round((course_scores[len(course_scores) // 2] if len(course_scores) >= 2 else course_scores[0]) / 5.0, 2)
-        interaction_defaults["G3"] = round(course_scores[0] / 5.0, 2)  # Newest score
-
-    # Recompute the per-quiz "failures" proxy from the same global pool.
-    try:
-        quiz_resp = with_retry(
-            lambda c: c.table("quiz_results")
-            .select("quiz_id, score, quizzes!inner(course_id)")
-            .eq("student_id", student_id)
-            .order("submitted_at", desc=True)
-            .limit(30)
-            .execute()
-        )
-        for qr in (getattr(quiz_resp, "data", []) or []):
-            cinfo = qr.get("quizzes")
-            if not (isinstance(cinfo, dict) and cinfo.get("course_id") == course_id):
-                continue
-            qid = qr.get("quiz_id")
-            if qid and qid not in latest_by_quiz and qr.get("score") is not None:
-                latest_by_quiz[qid] = float(qr["score"])
-    except Exception as e:
-        print(f"[auto-classify] Could not fetch quiz results: {e}")
-
-    try:
-        ai_resp = with_retry(
-            lambda c: c.table("quiz_submissions")
-            .select("quiz_id, score, generated_quizzes!inner(course_id)")
-            .eq("student_id", student_id)
-            .order("submitted_at", desc=True)
-            .limit(30)
-            .execute()
-        )
-        for qr in (getattr(ai_resp, "data", []) or []):
-            gq = qr.get("generated_quizzes")
-            if not (isinstance(gq, dict) and gq.get("course_id") == course_id):
-                continue
-            qid = qr.get("quiz_id")
-            if qid and qid not in latest_by_quiz and qr.get("score") is not None:
-                latest_by_quiz[qid] = float(qr["score"])
-    except Exception as e:
-        print(f"[auto-classify] Could not fetch AI quiz results: {e}")
-
-    if latest_by_quiz:
-        interaction_defaults["failures"] = min(
-            sum(1 for s in latest_by_quiz.values() if s < 40), 4)
-
-    graded_count = len(course_scores)
-
-    # ── Absences come from self-reported attendance logs ──────────────────────
-    # NOTE: "no rows" means no attendance was ever recorded for this student —
-    # that is MISSING data, not "perfect attendance". Defaulting it to 0 made
-    # the model read an empty record as a clean one (a strong "engaged" signal,
-    # e.g. a 16.7% quiz + no attendance produced "Highly Engaged"). When there
-    # is no attendance data at all, fall back to the UCI midpoint (~4 days)
-    # instead of 0 so the missing signal stays neutral.
-    att_rows = []
-    try:
-        att_resp = with_retry(
-            lambda c: c.table("attendance_logs")
-            .select("status")
-            .eq("student_id", student_id)
-            .eq("course_id", course_id)
-            .execute()
-        )
-        att_rows = getattr(att_resp, "data", []) or []
-        if att_rows:
-            absent_days = sum(1 for r in att_rows if r.get("status") == "absent")
-            interaction_defaults["absences"] = float(min(absent_days, 93))
-        else:
-            interaction_defaults["absences"] = 4.0
-    except Exception as e:
-        print(f"[auto-classify] Could not fetch attendance: {e}")
-
-    # "Based on limited data" flag: fewer than 2 graded assessments fed the
-    # G1/G2/G3 proxy, or no attendance rows at all -> classification is a weak
-    # signal and should not be presented as a firm verdict.
-    low_confidence = graded_count < 2 or not att_rows
-
-    # ── Student tower: use sensible defaults (UCI dataset midpoints) ──────────
-    # Documented limitation: the platform collects no demographic fields
-    # (age/sex/address/parent education etc.), so every student shares this
-    # tower profile; discrimination comes from the interaction tower.
-    student_defaults = {
-        "age": 17, "sex": 1, "address": 1, "famsize": 1,
-        "Pstatus": 1, "Medu": 2, "Fedu": 2, "traveltime": 1, "studytime": 2,
-    }
-
-    # ── Run Two-Tower inference ───────────────────────────────────────────────
-    result = get_analyzer().classify(student_defaults, interaction_defaults)
-
-    # ── Comprehension from real assessment scores (option 3b) ─────────────────
-    # When the student has any graded quiz/assignment, comprehension is judged
-    # directly from those scores — the ML output (trained on UCI period grades)
-    # is used only when there is no graded data. This decouples the "By course
-    # comprehension" card from the behavioural engagement card and stops a
-    # stale label (computed before a quiz improved) from lingering.
-    graded_comp = _comprehension_from_scores(course_scores)
-    if graded_comp is not None:
-        result["comprehension_class"] = graded_comp[0]
-        result["comprehension_label"] = graded_comp[1]
-
-    # ── Persist to Supabase ───────────────────────────────────────────────────
-    record = {
-        "student_id": student_id,
-        "course_id": course_id,
-        "failures": interaction_defaults["failures"],
-        "absences": interaction_defaults["absences"],
-        "G1": interaction_defaults["G1"],
-        "G2": interaction_defaults["G2"],
-        "G3": interaction_defaults["G3"],
-        "freetime": interaction_defaults["freetime"],
-        "engagement_class": result["engagement_class"],
-        "engagement_label": result["engagement_label"],
-        "comprehension_class": result["comprehension_class"],
-        "comprehension_label": result["comprehension_label"],
-        "low_confidence": low_confidence,
-    }
-    if material_id:
-        record["material_id"] = material_id
+    result, record = compute_classification(admin, student_id, course_id, material_id=material_id)
 
     try:
         admin.table("engagement_logs").insert(record).execute()
@@ -968,7 +709,7 @@ def _run_classification(admin, student_id, course_id, material_id=None):
             latest={
                 "engagement_class": result["engagement_class"],
                 "comprehension_class": result["comprehension_class"],
-                "low_confidence": low_confidence,
+                "low_confidence": record["low_confidence"],
             },
         )
     except Exception as e:
@@ -977,7 +718,7 @@ def _run_classification(admin, student_id, course_id, material_id=None):
     return EngagementResult(
         student_id=student_id,
         course_id=course_id,
-        low_confidence=low_confidence,
+        low_confidence=record["low_confidence"],
         **result,
     )
 
@@ -990,8 +731,9 @@ def auto_classify(payload: AutoClassifyRequest, user=Depends(get_current_user)):
     material-viewing session to trigger Two-Tower classification.
 
     Pulls the student's latest quiz and assignment scores for the course
-    (G1/G2/G3) and uses sensible defaults for demographic features not stored
-    in Supabase.
+    (OULAD assessment_count) and builds the OULAD interaction feature set from
+    their real telemetry, using documented defaults for demographics not
+    stored in Supabase.
     """
     # Students can only auto-classify themselves
     if user.get("role") == "student" and user["id"] != payload.student_id:

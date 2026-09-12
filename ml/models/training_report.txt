@@ -1,0 +1,11 @@
+Engagement    accuracy: 0.6370
+Engagement    macro-F1: 0.6287
+Comprehension accuracy: 0.4521
+Comprehension macro-F1: 0.3086
+Comprehension errors: 246 total | 220 adjacent | 26 skip
+comprehension label: latest quiz score (>=80 Good, >=50 Moderate, else Low) - matches production comprehension_from_scores
+comprehension loss: class-balanced focal (gamma=1.5) + ordinal (lam=0.1)
+class-balanced beta: 0.999
+curves: training_curves.png
+source: Kaggle student-learning-interaction-logs-dataset (simulated, 300 students)
+method: fine-tuned from deployed best_two_tower_model.keras

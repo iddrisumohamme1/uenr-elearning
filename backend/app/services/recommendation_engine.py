@@ -9,6 +9,7 @@
 # falls back to TF-IDF keyword matching when sentence-transformers is absent.
 
 import math
+import re
 import threading
 import time
 from collections import Counter
@@ -39,6 +40,17 @@ _WEB_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 # scores.
 RECOMMEND_MIN_SCORE_SEMANTIC = 0.25
 RECOMMEND_MIN_SCORE_TFIDF = 0.05
+
+# Connector/question words that pollute token-overlap checks (e.g. "the",
+# "and", "from", "which"). Excluded from web relevance gating so a match must
+# come from real content words, not incidental function words.
+_STOPWORDS = frozenset({
+    "the", "and", "for", "that", "with", "from", "what", "which", "this",
+    "these", "those", "they", "them", "there", "their", "when", "where",
+    "how", "why", "are", "was", "were", "has", "have", "had", "will",
+    "would", "can", "could", "should", "must", "not", "but", "all", "any",
+    "you", "your", "our", "its", "upon", "into", "them",
+})
 
 # ── Curated external study resources ──────────────────────────────────────────
 # Each entry maps a topic keyword to a list of verified external resources.
@@ -182,10 +194,75 @@ EXTERNAL_RESOURCES = {
             "type": "Article",
         },
     ],
+    "research": [
+        {
+            "title": "Research Ethics - Stanford Encyclopedia of Philosophy",
+            "description": "Peer-reviewed overview of the values and requirements that govern ethical research with human participants, including informed consent.",
+            "url": "https://plato.stanford.edu/entries/ethics-research/",
+            "source": "article",
+            "type": "Article",
+        },
+        {
+            "title": "Informed Consent - Wikipedia",
+            "description": "Explains the legal and ethical requirement that researchers obtain free and informed consent from participants before a study begins.",
+            "url": "https://en.wikipedia.org/wiki/Informed_consent",
+            "source": "article",
+            "type": "Reference",
+        },
+        {
+            "title": "Research Ethics - Wikipedia",
+            "description": "Introduction to the principles, professional codes and standards for conducting ethical research, including participant protection.",
+            "url": "https://en.wikipedia.org/wiki/Research_ethics",
+            "source": "article",
+            "type": "Reference",
+        },
+        {
+            "title": "Conducting Research - Purdue OWL",
+            "description": "University writing-lab guide covering research design, scholarly writing and responsible research conduct.",
+            "url": "https://owl.purdue.edu/owl/research_and_citation/conducting_research.html",
+            "source": "article",
+            "type": "Guide",
+        },
+    ],
+    "python": [
+        {
+            "title": "The Python Tutorial - docs.python.org",
+            "description": "Official step-by-step Python tutorial covering core language features from first script to advanced topics.",
+            "url": "https://docs.python.org/3/tutorial/",
+            "source": "article",
+            "type": "Reference",
+        },
+        {
+            "title": "Learn Python - Full Course for Beginners - freeCodeCamp",
+            "description": "Hands-on video course teaching Python fundamentals, functions, data structures and writing your first programs.",
+            "url": "https://www.youtube.com/watch?v=rfscVS0vtbw",
+            "source": "youtube",
+            "type": "Video",
+        },
+        {
+            "title": "Pygame Front Page - pygame.org",
+            "description": "Official Pygame documentation, examples and API reference for building 2D games in Python.",
+            "url": "https://www.pygame.org/docs/",
+            "source": "article",
+            "type": "Reference",
+        },
+        {
+            "title": "Pygame: A Primer - Real Python",
+            "description": "Hands-on tutorial that builds a working game with Pygame, covering sprites, input handling and the game loop.",
+            "url": "https://realpython.com/pygame-a-primer/",
+            "source": "article",
+            "type": "Tutorial",
+        },
+    ],
 }
 
 # Keyword rules used to detect which topic a piece of text refers to.
 TOPIC_KEYWORDS = [
+    ("research", ["research ethics", "informed consent", "research methods", "research methodology",
+                  "ethical", "ethics", "professional issues", "institutional review", "hipaa",
+                  "health information", "participant"],
+     ),
+    ("python", ["python", "pygame", "pip", "import statement", "syntax error", "variable scope"]),
     ("machine_learning", ["machine learning", "neural network", "deep learning", "gradient descent",
                           "backpropagation", "supervised", "unsupervised", "classification",
                           "regression", "artificial intelligence", "ai", "tensorflow", "pytorch", "ml"]),
@@ -204,10 +281,14 @@ TOPIC_KEYWORDS = [
 
 def detect_topic(text: str) -> str:
     """Best-effort mapping of arbitrary text to a topic key (or 'general')."""
-    lowered = text.lower()
+    lowered = " " + text.lower() + " "
     for key, keywords in TOPIC_KEYWORDS:
-        if any(kw in lowered for kw in keywords):
-            return key
+        for kw in keywords:
+            if " " in kw:
+                if kw in lowered:
+                    return key
+            elif re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", lowered):
+                return key
     return "general"
 
 
@@ -479,6 +560,43 @@ class RecommendationEngine:
                 article_results = []
             web_results = self._confirm_web_relevance(web_text, youtube_results + article_results)
             results = self._dedupe(pool_results + web_results)
+        # Auto-recommendation path safety net: recommendations are always
+        # EXTERNAL study resources, never the database course materials the
+        # student already owns. When the live-web relevance gate empties the
+        # results, the hand-verified curated externals ranked against the exact
+        # missed content are surfaced (topical without leaking DB materials);
+        # the detected-topic bucket is the final non-empty fallback.
+        if not results and exclude_materials:
+            fallback_query = (weak_concepts or "").strip() or (web_text if include_web else "")
+            topic = detect_topic(web_text if include_web else weak_concepts)
+            # External-only: rank the hand-verified curated externals against
+            # the missed content so the fallback is topical without ever
+            # leaking database course materials.
+            ext_indices = [i for i, r in enumerate(self.resources) if r.get("source") != "material"]
+            matched = []
+            if fallback_query and ext_indices:
+                if self.model is not None and self.resource_embeddings is not None:
+                    candidates = self._semantic_search(fallback_query, top_n=max(top_n, 3), allowed=ext_indices)
+                else:
+                    candidates = self._tfidf_search(fallback_query, top_n=max(top_n, 3), allowed=ext_indices)
+                floor = RECOMMEND_MIN_SCORE_SEMANTIC if self.model is not None else RECOMMEND_MIN_SCORE_TFIDF
+                for r in candidates[:top_n]:
+                    if r.get("similarity_score", 0.0) >= floor:
+                        matched.append(r)
+            results.extend(matched[:top_n])
+            if not results:
+                fallback_items = [
+                    dict(r) for r in self.resources
+                    if r.get("source") != "material" and r.get("topic") == topic
+                ]
+                if not fallback_items:
+                    fallback_items = [
+                        dict(r) for r in self.resources if r.get("source") != "material"
+                    ]
+                for r in fallback_items[:top_n]:
+                    r["similarity_score"] = round(float(RECOMMEND_MIN_SCORE_TFIDF), 4)
+                    results.append(r)
+
         results.sort(key=lambda r: r.get("similarity_score", 0), reverse=True)
         return results[:top_n]
 
@@ -531,13 +649,23 @@ class RecommendationEngine:
         query_tokens = self._tokenize(query)
         if not query_tokens:
             return items
+        meaningful_query = set(query_tokens) - _STOPWORDS
+        if not meaningful_query:
+            return items
         for it in items:
             tokens = self._tokenize(f"{it.get('title', '')} {it.get('description', '')}")
             if not tokens:
                 continue
-            overlap = sum(1 for t in set(query_tokens) if t in set(tokens))
-            score = overlap / max(len(set(query_tokens)), 1)
-            if overlap >= 2 and score >= RECOMMEND_MIN_SCORE_TFIDF:
+            meaningful_item = set(tokens) - _STOPWORDS
+            overlap = sum(1 for t in meaningful_query if t in meaningful_item)
+            score = overlap / max(len(meaningful_query), 1)
+            # YouTube items already carry Google's own relevance ranking, so a
+            # single content-word overlap (stopwords excluded) is enough for
+            # them. Free-web article results keep the stricter two-token gate
+            # that filters out verified storefront/dictionary spam.
+            src = (it.get("source") or "").lower()
+            min_overlap = 1 if src == "youtube" else 2
+            if overlap >= min_overlap and score >= RECOMMEND_MIN_SCORE_TFIDF:
                 it["similarity_score"] = round(max(0.0, min(1.0, score)), 4)
                 retained.append(it)
         return retained

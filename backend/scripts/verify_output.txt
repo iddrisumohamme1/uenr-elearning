@@ -1,0 +1,76 @@
+==============================================================================
+Engagement + comprehension verification vs fresh compute (read-only)
+Model      : C:\Users\myPC\Desktop\FYP\ml\models\best_two_tower_model.keras
+Model out  : ['keras_tensor_22', 'keras_tensor_24']
+Pairs      : 13
+==============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+[PASS] 089312b1-2b76-4d27-a945-510de5ebb27e / 1cf12f58-6b12-45d8-bc5e-9ae3b1775666  (8 row(s))
+      stored  eng=Moderate        comp=Good Comprehension     conf=False
+      fresh   eng=Moderate        comp=Good Comprehension     conf=False
+      comprehension source: rule
+[PASS] 089312b1-2b76-4d27-a945-510de5ebb27e / b44beada-ce71-4325-b42d-ea7a6619a7a0  (1 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 089312b1-2b76-4d27-a945-510de5ebb27e / b5bc016f-ec27-41ab-ba8b-dbd07b8e2b53  (1 row(s))
+      stored  eng=Moderate        comp=Moderate Comprehension conf=True
+      fresh   eng=Moderate        comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 089312b1-2b76-4d27-a945-510de5ebb27e / f0adb5ed-ad03-4008-9102-548dfd9bb953  (5 row(s))
+      stored  eng=Moderate        comp=Moderate Comprehension conf=True
+      fresh   eng=Moderate        comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 0a56f5b6-162b-42d8-8b7e-ca0fbd91bdd3 / b44beada-ce71-4325-b42d-ea7a6619a7a0  (10 row(s))
+      stored  eng=Highly Engaged  comp=Moderate Comprehension conf=False
+      fresh   eng=Highly Engaged  comp=Moderate Comprehension conf=False
+      comprehension source: rule
+[PASS] 0a56f5b6-162b-42d8-8b7e-ca0fbd91bdd3 / ecec0a43-4f2c-46db-aa5e-cd2da40a9a77  (8 row(s))
+      stored  eng=Moderate        comp=Low Comprehension      conf=False
+      fresh   eng=Moderate        comp=Low Comprehension      conf=False
+      comprehension source: rule
+[PASS] 0a56f5b6-162b-42d8-8b7e-ca0fbd91bdd3 / f0adb5ed-ad03-4008-9102-548dfd9bb953  (3 row(s))
+      stored  eng=At-Risk         comp=Low Comprehension      conf=False
+      fresh   eng=At-Risk         comp=Low Comprehension      conf=False
+      comprehension source: rule
+[PASS] 108d1144-cde2-4150-af6b-59f225c652c4 / 1cf12f58-6b12-45d8-bc5e-9ae3b1775666  (3 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 108d1144-cde2-4150-af6b-59f225c652c4 / b44beada-ce71-4325-b42d-ea7a6619a7a0  (9 row(s))
+      stored  eng=Moderate        comp=Low Comprehension      conf=False
+      fresh   eng=Moderate        comp=Low Comprehension      conf=False
+      comprehension source: rule
+[PASS] 108d1144-cde2-4150-af6b-59f225c652c4 / f0adb5ed-ad03-4008-9102-548dfd9bb953  (1 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 1719df86-f5b6-4ab0-a302-0dc5c9f9b80f / d7eafc1a-062c-4fe9-a7bc-4150ea481b2a  (2 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] 1e0f39b9-b648-4d23-8178-8b748d7ef3a7 / 9dcb6902-f2d3-47e7-a1da-4e58b67783c2  (2 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+[PASS] edfb8578-de3b-4439-aeb9-0da5a5c70d3a / b44beada-ce71-4325-b42d-ea7a6619a7a0  (1 row(s))
+      stored  eng=At-Risk         comp=Moderate Comprehension conf=True
+      fresh   eng=At-Risk         comp=Moderate Comprehension conf=True
+      comprehension source: rule
+
+==============================================================================
+SUMMARY: pairs=13  PASS=13  DIFF=0  classified_rows=54
+ALL MATCH - stored classifications consistent with the new model.
+==============================================================================

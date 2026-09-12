@@ -315,10 +315,11 @@ def record_auto_recommendation(
     study resources (YouTube/short-answer articles) found from their missed
     questions, not just the small curated pool. The query is scrubbed of MCQ
     boilerplate before searching so engines get a clean, keyword-rich text.
-    Database course materials are excluded so that the recommended content is
-    always external study resources (videos, articles, curated links) rather
-    than the course materials the student already has. Only students scoring
-    below RECOMMEND_THRESHOLD (50%) are redirected.
+    Database course materials are always excluded from the auto-recommendation
+    output: the surfaced content is external study content (live videos and
+    articles, or the hand-verified curated links ranked against the missed
+    questions when the live web is unreachable). Only students scoring below
+    RECOMMEND_THRESHOLD (50%) are redirected.
     """
     try:
         admin = get_admin_client()

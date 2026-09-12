@@ -496,7 +496,7 @@ def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin)
 
     questions_resp = with_retry(
         lambda c: c.table("questions")
-        .select("id, correct_option")
+        .select("id, question_text, correct_option")
         .eq("quiz_id", payload.quiz_id)
         .order("id")
         .execute()
@@ -505,7 +505,7 @@ def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin)
 
     correct = sum(
         1 for i, q in enumerate(questions)
-        if i < len(submitted_answers) and submitted_answers[i] == q.get("correct_option")
+        if i < len(submitted_answers) and submitted_answers[i] is not None and submitted_answers[i] == q.get("correct_option")
     )
     total = len(questions)
     percentage = round(correct / total * 100, 1) if total else 0.0
@@ -528,6 +528,58 @@ def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin)
     )
     insert_rows = getattr(insert_resp, "data", []) or []
 
+    # Refresh the stored comprehension/engagement classification now that a
+    # fresh quiz score exists, so the dashboard label reflects reality.
+    # Never blocks the student-facing response.
+    if course_id:
+        try:
+            _run_classification(admin, user["id"], course_id)
+        except Exception as e:
+            print(f"[quiz] manual post-submit re-classify skipped: {e}")
+
+    # Auto-recommend study resources when the student underperforms. The query
+    # is built from the questions the student could not answer (skipped, left
+    # blank, or wrong), so the semantic search targets exactly the missed
+    # content, with the course title as the fallback label.
+    recommended_count = 0
+    if percentage < RECOMMEND_THRESHOLD and course_id:
+        weak_concept = "course quiz material"
+        try:
+            cresp = with_retry(
+                lambda c: c.table("courses").select("title").eq("id", course_id).limit(1).execute()
+            )
+            cdata = getattr(cresp, "data", []) or []
+            if cdata and cdata[0].get("title"):
+                weak_concept = cdata[0]["title"]
+        except Exception:
+            pass
+        try:
+            missed_qs = collect_missed_questions(
+                [
+                    {
+                        "question": q.get("question_text", ""),
+                        "correct_answer_index": q.get("correct_option"),
+                    }
+                    for q in questions
+                ],
+                submitted_answers,
+                [],
+                [],
+                [],
+            )
+            created = record_auto_recommendation(
+                student_id=user["id"],
+                course_id=course_id,
+                submission_id=insert_rows[0]["id"] if insert_rows else None,
+                score=percentage,
+                weak_concept=weak_concept,
+                query="; ".join(missed_qs) if missed_qs else weak_concept,
+                missed_summary="; ".join(missed_qs) if missed_qs else "",
+            )
+            recommended_count = len(created)
+        except Exception as e:
+            print(f"[Quiz] Manual auto-recommendation skipped: {e}")
+
     # Notify the student in their inbox about this quiz result.
     try:
         push_insight_message(
@@ -543,6 +595,7 @@ def _submit_manual_quiz(payload: QuizSubmission, submitted_answers, user, admin)
         "correct": correct,
         "total": total,
         "comprehension_level": comp_level,
+        "recommended_count": recommended_count,
         "message": "Quiz submitted and scored successfully",
         "submission_id": insert_rows[0]["id"] if insert_rows else None,
     }
